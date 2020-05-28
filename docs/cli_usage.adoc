@@ -1,0 +1,174 @@
+xref:libcertifier.adoc[*Back to Manual*]
+
+============
+Command Line Examples
+=====
+
+*Create X509 CRT*
+
+The command below assumes there is a file called `factory_lrg`, which is the pre-existing PKCS12 with a password of `changeit` without the single quotes.
+
+----
+./certifierUtil -m 128 -X X509 -k ./factory_lrg -p changeit
+----
+
+This command could also be invoked from `./tests/functional/create_x509_crt.sh`.  Example -
+
+----
+cd ./tests/functional
+./test-create-x509-crt.sh ../../factory_lrg changeit
+----
+
+Sample output -
+
+----
+{
+    "return_code": 0,
+    "application_error_code": 0,
+    "library_error_code": 0,
+    "output": "<base64_data>"
+}
+----
+
+*Fetch a new certificate*
+
+The command below , passes in the contents of the `base64_data` from the command above (create x509 crt).   This command will make an HTTPS call to certifier and will create a brand new password-protected PKCS12 file that contains the certificate chain returned and public/private key pair. `libcertifier.cfg` must be present and have valid values.
+
+----
+cd ./tests/functional
+./test-device-reg.sh <base64_data>
+----
+
+*Fetch an X509 cert end-to-end*
+
+The command below combines both examples above into a single script.  Python3 is required to run this script.
+
+----
+cd ./tests/functional
+././test-fetch-cert-e2e.sh ../../factory_lrg changeit
+----
+
+== *Other Examples*
+
+*Get Certificate Status*
+
+----
+./certifierUtil -m 4096
+----
+
+*Renew Certificate*
+
+----
+./certifierUtil -m 8192
+----
+
+*Print Certificate (B64 of DER)*
+
+----
+./certifierUtil -m 16384
+----
+
+*Register an app*
+
+----
+./certifierUtil -c -f -S '<auth_token>'
+----
+
+*Create Node Address*
+
+----
+./certifierUtil -m 32 -O "<value>"
+----
+
+== *certifierUtil options*
+
+|===
+| *Long Option* | *Short Option* | *Examples*
+
+| help
+| h
+| -help*   h
+
+| version
+| V
+| -version -V
+
+| overwrite-p12-file
+| f
+| -overwrite-p12-file -f
+
+| client
+| c
+| -client -c
+
+| pkcs12-password
+| p
+| -pkcs12-password [value] +
+-p [value] +
+(Defaults to 'changeit' if not supplied)
+
+| config
+| L
+| -config [value] +
+-L [value] +
+(Defaults to 'libcertifier.cfg' if not supplied)
+
+| mode
+| m
+| -mode [integer value] +
+-m [integer value]
+
+| crt
+| T
+| -crt <crt>
+
+| crt-type
+| X
+| -crt-type <crt-type>
+
+| system-id
+| M
+| -system-id [id] +
+ +
+*   M [id]
+
+| auth-token
+| S
+| -auth-token [value] +
+ +
+-S [value]
+
+| output-node
+| O
+| -output-node [value] +
+ +
+-O [value]
+
+| target-node
+| t
+| -target-node [value] +
+ +
+-t [value]
+
+| action
+| a
+| -action [value] +
+ +
+-a [value]
+
+| input-node
+| i
+| -input-node [value] +
+-i [value]
+
+| pkcs12-path
+| k
+| -pkcs12-path [value] +
+-k [value]
+
+| custom-property
+| D
+| -custom-property [name=value,name=value] +
+ +
+-D [name=value,name=value]
+|===

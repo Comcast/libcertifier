@@ -1,0 +1,93 @@
+xref:libcertifier.adoc[*Back to Manual*]
+
+|===
+| *3rd Party Library* | *URL* | *Version* | *License* | *Integration* | *Notes* | *Source File(s)*
+
+| Open SSL
+| https://www.openssl.org/
+| 1.0.2 - 1.1.x
+| Apache License 2.0
+| Dynamic Link
+| Mutually exclusive with mbedTLS
+| N/A
+
+| mbedTLS
+| https://tls.mbed.org/
+| >= 2.16.6
+| Dual-licensed with the Apache License version 2.0 (with GPLv2 also available).
+| Dynamic Link
+| Mutually exclusive with OpenSSL
+| N/A
+
+| libCurl
+| https://curl.haxx.se/
+| >= 76.0
+| Custom.  Inspired by MIT/X
+| Dynamic Link
+|
+| N/A
+
+| zLib
+| https://www.zlib.net/
+|
+| Custom.  Is a permissive free software license which defines the terms under which the zlib software library can be distributed
+| Dynamic Link
+|
+| N/A
+
+| base58
+| https://github.com/luke-jr/libbase58
+|
+| MIT License
+| Embedded in source
+|
+| base58.c
+
+| base64
+| https://opensource.apple.com/source/QuickTimeStreamingServer/QuickTimeStreamingServer-452/CommonUtilitiesLib/base64.c
+|
+| Apple Public Source License 2.0
+| Embedded in source
+|
+| base64.c
+
+| rxi
+| https://github.com/rxi/log.c
+|
+| MIT License
+| Embedded in source
+|
+| log.c
+
+| parson
+| http://kgabis.github.com/parson/
+|
+| MIT License
+| Embedded in source
+|
+| parson.c
+
+| ripemd160
+| https://github.com/trezor/trezor-crypto
+|
+| Apache License 2.0
+| Embedded in source
+|
+| ripemd160.c
+
+| unity
+| http://www.throwtheswitch.org/unity
+|
+| MIT License
+| Embedded in source
+|
+| tests.c
+
+| cmocka
+| https://cmocka.org/
+| 1.1
+| Apache License 2.0
+| Embedded in source
+|
+| tests.c
+|===

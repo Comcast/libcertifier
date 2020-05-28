@@ -1,0 +1,688 @@
+xref:libcertifier.adoc[*Back to Manual*]
+
+== Error Codes
+
+libcertifier error codes can be found in link:../internal_headers/certifier/error.h[/certifier/error.h]
+
+== certifierUtil
+
+All errors in the xref:cli_usage.adoc[command-line interface (CLI)] are in JSON format and printed out to stderr.  Example -
+
+----
+{
+    "return_code": 112422,
+    "application_error_code": 22,
+    "application_error_message": {
+        "method": "certifierclient_request_x509_certificate",
+        "error_message": "HTTP response code said error",
+        "file": "\/Volumes\/comcast-development\/xh\/libcertifier\/src\/certifierclient.c",
+        "line": 121,
+        "http_code": 401,
+        "curl_code": 22
+    },
+    "library_error_code": 0
+}
+----
+
+== Library Error Codes
+
+The `library_error_code` returns the error code from an underlying library, such as mbedTLS, OpenSSL, etc.  The `library_error_message`, when available, is the libraries error message for that error code.  For example, in mbedTLS, `library_error_message` is the equivalent of calling the mbedTLS `strerror` tool.
+
+== Application Error Codes
+
+=== mbedtls.c
+
+|===
+| *Error Code* | *Function(s)* | *Notes*
+
+| -2000
+| security_init
+| `mbedtls_ctr_drbg_seed()` failed in security_init()
+
+| -3000
+| ber_to_der
+| ASN parsing error, invalid input
+
+| -3001
+| ber_to_der
+| out of memory error
+
+| -3002
+| ber_to_der
+| output buffer too small or input too large
+
+| -3003
+| ber_to_der
+| Bad function argument provided
+
+| -3004
+| ber_to_der
+| Returning output length only
+
+| -4000
+| persist_pkcs12
+| `mbedtls_md_setup()` failed
+
+| -4001
+| persist_pkcs12
+| could not allocate enough memory for u16_pwd
+
+| -4002
+| persist_pkcs12
+| could not allocate enough memory for buf
+
+| -4003
+| persist_pkcs12
+| could not allocate enough memory for cert_bag
+
+| -4004
+| persist_pkcs12
+| could not allocate enough memory for key bag
+
+| -4005
+| persist_pkcs12
+| could not allocate enough memory for encrypted cert bag
+
+| -4006
+| persist_pkcs12
+| could not allocate enough memory for encrypted key bag
+
+| -4007
+| persist_pkcs12
+| `security_get_random_bytes()` call failed.
+
+| -4008
+| persist_pkcs12
+| `security_get_random_bytes()` call failed.
+
+| -4009
+| persist_pkcs12
+| `security_get_random_bytes()` call failed.
+
+| -4010
+| persist_pkcs12
+| `security_get_random_bytes()` call failed.
+
+| -4011
+| persist_pkcs12
+| `security_get_random_bytes()` call failed.
+
+| -4012
+| persist_pkcs12
+| `serialize_cert_bag()` len \<= 0
+
+| -4013
+| persist_pkcs12
+| `encrypted_cert_bag_len` == 0
+
+| -4014
+| persist_pkcs12
+| `pkcs8_key_len` \<= 0
+
+| -4015
+| persist_pkcs12
+| `mbedtls_mpi_add_int()` failed
+
+| -4016
+| persist_pkcs12
+| `mbedtls_md_hmac_starts()` failed
+
+| -4017
+| persist_pkcs12
+| `mbedtls_md_hmac_update()` failed
+
+| -4018
+| persist_pkcs12
+| `mbedtls_md_hmac_finish()` failed
+
+| -5000
+| parse_certificate_list
+| `mbedtls_asn1_get_tag()` in 1 failure
+
+| -5001
+| parse_certificate_list
+| `asn1_confirm_oid()` in 1 failure
+
+| -5002
+| parse_certificate_list
+| `mbedtls_asn1_get_tag()` in 2 failure
+
+| -5003
+| parse_certificate_list
+| `mbedtls_asn1_get_tag()` in 3 failure
+
+| -5004
+| parse_certificate_list
+| `asn1_confirm_oid()` in 2 failure
+
+| -5005
+| parse_certificate_list
+| `mbedtls_asn1_get_tag()` in 4 failure
+
+| -5006
+| parse_certificate_list
+| `mbedtls_asn1_get_tag()` in 5 failure
+
+| -6000
+| parse_pkcs12
+| null pkcs12 file
+
+| -6001
+| parse_pkcs12
+| file length of pkcs 12 file < 0
+
+| -6002
+| parse_pkcs12
+| could not allocate enough memory for pkcs12_data
+
+| -6003
+| parse_pkcs12
+| got != file_len during fread of pkcs12
+
+| -6004
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6005
+| parse_pkcs12
+| `mbedtls_asn1_get_int()` failure on pkcs7 version
+
+| -6006
+| parse_pkcs12
+| pkcs7 version was not 3
+
+| -6007
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6008
+| parse_pkcs12
+| `asn1_confirm_oid()` failure
+
+| -6009
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6010
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6011
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6012
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6013
+| parse_pkcs12
+| `asn1_confirm_oid()` failure
+
+| -6014
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6015
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6016
+| parse_pkcs12
+| `mbedtls_asn1_get_int()` failure on pkcs7 version
+
+| -6017
+| parse_pkcs12
+| pkcs7 version was not zero
+
+| -6018
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6019
+| parse_pkcs12
+| `asn1_confirm_oid()` failure
+
+| -6020
+| parse_pkcs12
+| `mbedtls_asn1_get_alg()` failure
+
+| -6021
+| parse_pkcs12
+| `MBEDTLS_OID_CMP` failure
+
+| -6022
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6023
+| parse_pkcs12
+| `test_pkcs5_pbes2()` failure
+
+| -6024
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6025
+| parse_pkcs12
+| `asn1_confirm_oid()` failure
+
+| -6026
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6027
+| parse_pkcs12
+| `mbedtls_asn1_get_tag()` failure
+
+| -6028
+| parse_pkcs12
+| `parse_shrouded_pkcs12_key()` failure
+
+| -7000
+| load_certs_from_pkcs7
+| X509 list passed in was null
+
+| -7001
+| load_certs_from_pkcs7
+| `mbedtls_pem_read_buffer()` returned non zero
+
+| -7002
+| load_certs_from_pkcs7
+| Could not allocate enough memory for der
+
+| -7003
+| load_certs_from_pkcs7
+| `mbedtls_asn1_get_tag()` failed
+
+| -7004
+| load_certs_from_pkcs7
+| `mbedtls_asn1_get_tag()` failed
+
+| -7005
+| load_certs_from_pkcs7
+| `mbedtls_asn1_get_tag()` failed
+
+| -7006
+| load_certs_from_pkcs7
+| `mbedtls_asn1_get_tag()` failed
+
+| -7007
+| load_certs_from_pkcs7
+| `mbedtls_asn1_get_int()` failed
+
+| -7008
+| load_certs_from_pkcs7
+| `pkcs7_version` != 1
+
+| -7009
+| load_certs_from_pkcs7
+| `mbedtls_asn1_get_tag()` failed
+
+| -7010
+| load_certs_from_pkcs7
+| `mbedtls_asn1_get_tag()` failed
+
+| -7011
+| load_certs_from_pkcs7
+| `asn1_confirm_oid()` failed
+
+| -7012
+| load_certs_from_pkcs7
+| Could not allocate enough memory for certs
+
+| -7013
+| load_certs_from_pkcs7
+| `mbedtls_asn1_get_tag()` failed
+
+| -7014
+| load_certs_from_pkcs7
+| `mbedtls_x509_crt_parse_der()` failed
+
+| -8000
+| load_certs_from_certificate
+| x509 list passed in was null
+
+| -8001
+| load_certs_from_certificate
+| `mbedtls_pem_read_buffer()` returned non zero
+
+| -8002
+| load_certs_from_certificate
+| could not allocate enough memory for certs
+
+| -8003
+| load_certs_from_certificate
+| `mbedtls_x509_crt_parse_der()` returned non zero
+
+| -9000
+| check_x509_valid_range
+| `+sim_time_len <= 0 \|\| sim_time_len > 17+`
+
+| -9001
+| check_x509_valid_range
+| `read_sim_time()` failure
+
+| -9002
+| check_x509_valid_range
+| `x509_time_cmp_timet()` failure
+
+| -9003
+| check_x509_valid_range
+| `x509_time_cmp_timet()` failure
+
+| -9004
+| check_x509_valid_range
+| `read_sim_time()` failure
+
+| -9005
+| check_x509_valid_range
+| `x509_time_cmp_timet()` failure
+
+| -9006
+| check_x509_valid_range
+| `x509_time_cmp_timet()` failure
+
+| -9007
+| check_x509_valid_range
+| `diff_day * SECS_IN_DAY + diff_sec) < min_secs_left`
+
+| -9008
+| check_x509_valid_range
+| `+(sim_time_len <= 0 \|\| sim_time_len > 17)+`
+
+| -10000
+| read_sim_time
+| `mbedtls_x509_get_time()` failure
+
+| -10001
+| read_sim_time
+| `mbedtls_x509_get_time()` failure
+|===
+
+=== certifier.c
+
+=== Function - certifier_init
+
+|===
+| *Error Code* | *Function(s)* | *Notes*
+
+| 0
+| certifier_init
+| No Error. The operation completed successfully.
+
+| 1000X
+| certifier_init
+| These series of errors have to do with problems initializing the certifier client, most likely with libcurl.
+
+| 3000X
+| certifier_init
+| These series of errors have to do with problems initializing the security impl (Open SSL).
+
+| 4000X
+| certifier_init
+| These series of errors have to do with problems initializing the camera client.
+
+| 4500X
+| certifier_init
+| These series of errors have to do with problems initializing the default properties.
+|===
+
+=== Function - certifier_destroy
+
+|===
+| *Error Code* | *Function(s)* | *Notes*
+
+| 0
+| certifier_destroy
+| No Error. The operation completed successfully.
+
+| 5000X
+| certifier_destroy
+| These series of errors have to do with problems uninitializing the certifier client, most likely with libcurl.
+
+| 7000X
+| certifier_destroy
+| These series of errors have to do with problems uninitializing the security impl (Open SSL).
+
+| 7500X
+| certifier_destroy
+| These series of errors have to do with problems uninitializing the camera client.
+
+| 7800X
+| certifier_destroy
+| These series of errors have to do with problems uninitializing the log impl.
+|===
+
+=== Functions - certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+
+|===
+| *Error Code* | *Function(s)* | *Notes*
+
+| 0
+| certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+| No Error. The operation completed successfully.
+
+| 27001
+| certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+| Property value is empty.
+
+| 27002
+| certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+| Property Name is \<= 0.
+
+| 27003
+| certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+| String length of property value >= property buffer size.
+
+| 27004
+| certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+| Property integer value < 0.
+
+| 27005
+| certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+| Unrecognized Property name in property_set_int (1).
+
+| 27006
+| certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+| Unrecognized Property name in property_set_int (1).
+
+| 27007
+| certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+| https:// is only supported for LEDGER_OPT_CERTIFIER_URL.
+
+| 27009
+| certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+| Log File could not be opened for append mode.
+
+| 27010
+| certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+| Unrecognized Property name in property_set (1).
+
+| 27011
+| certifier_set_property, certifier_set_property_int, certifier_set_default_properties_from_cfg_file
+| Error setting file pointer to log.
+|===
+
+### +
+Function - certifier_register
+
+|===
+| *Error Code* | *Function* | *Notes*
+
+| 0
+| certifier_register
+| No Error. The operation completed successfully.
+
+| 3
+| certifier_register
+| Occurs when it could not extract the certifier_id from the x509.
+
+| 9000
+| certifier_register
+| Occurs when there was trouble generating a CSR.
+
+| 9001
+| certifier_register
+| Occurs when trying to parse a PKCS 7 to get a list of certificates, but cannot for some reason.
+
+| 9003
+| certifier_register
+| Occurs when there is trouble persisting the .p12 file to disk.
+
+| 9004
+| certifier_register
+| Occurs when there is already a .p12 file, and trying to delete this file in the case of a rename operation (like force registration).
+
+| 9005
+| certifier_register
+| Occurs when there is already a .p12 file, and trying to rename this file in the case of a rename operation (like force registration).
+
+| 9006
+| certifier_register
+| Occurs when there is already a .p12 file, and trying to delete this file in the case of a rename operation (like force registration).
+
+| 9007
+| certifier_register
+| Occurs when there is already a .p12 file, and trying to rename this file in the case of a rename operation (like force registration).
+
+| 11001
+| certifier_register
+| Occurs when calling certifier_private_setup_keys function and trouble opening up the .p12 (perhaps different password).
+
+| 11003
+| certifier_register
+| Occurs when calling certifier_private_setup_keys function and trouble generating a node address.
+
+| 11004
+| certifier_register
+| Occurs when calling certifier_private_setup_keys function and when p12 filename is empty.
+
+| 11005
+| certifier_register
+| Occurs when calling certifier_private_setup_keys function and when p12 password is empty.
+
+| 11006
+| certifier_register
+| Occurs when calling certifier_private_setup_keys function and when ecc curve name is empty.
+
+| 12003
+| certifier_register
+| Trouble with HTTPS call to Certifier - the URL was not properly formatted for certifier.url?
+
+| 12004
+| certifier_register
+| Trouble with HTTPS call to Certifier - A requested feature, protocol or option was not found built-in in this libcurl due to a build-time decision. This means that a feature or option was not enabled or explicitly disabled when libcurl was built and in order to get it to function you have to get a rebuilt libcurl.
+
+| 12006
+| certifier_register
+| Trouble with HTTPS call to Certifier - Couldn't resolve host. The given remote host was not resolved.
+
+| 12007
+| certifier_register
+| Trouble with HTTPS call to Certifier - Failed to connect to host
+
+| 12010
+| certifier_register
+| Could not generate milliseconds
+
+| 12022
+| certifier_register
+| Trouble with HTTPS call to Certifier - this occurs when an HTTP response code >=400 occurs.
+
+| 12023
+| certifier_register
+| Trouble with HTTPS call to Certifier - An error occurred when writing received data to a local file, or an error was returned to libcurl from a write callback.
+
+| 12026
+| certifier_register
+| Trouble with HTTPS call to Certifier - There was a problem reading a local file or an error returned by the read callback.
+
+| 12027
+| certifier_register
+| Trouble with HTTPS call to Certifier - A memory allocation request failed. This is serious badness and things are severely screwed up if this ever occurs.
+
+| 12028
+| certifier_register
+| Trouble with HTTPS call to Certifier - Operation timeout. The specified time-out period was reached according to the conditions.
+
+| 12033
+| certifier_register
+| Trouble with HTTPS call to Certifier - The server does not support or accept range requests.
+
+| 12034
+| certifier_register
+| Trouble with HTTPS call to Certifier - This is an odd error that mainly occurs due to internal confusion.
+
+| 12035
+| certifier_register
+| Trouble with HTTPS call to Certifier - A problem occurred somewhere in the SSL/TLS handshake. You really want the error buffer and read the message there as it pinpoints the problem slightly more. Could be certificates (file formats, paths, permissions), passwords, and others.
+
+| 12051
+| certifier_register
+| Trouble with HTTPS call to Certifier - The remote server's SSL certificate or SSH md5 fingerprint was deemed not OK.
+
+| 12053
+| certifier_register
+| Trouble with HTTPS call to Certifier - The specified crypto engine wasn't found.
+
+| 12054
+| certifier_register
+| Trouble with HTTPS call to Certifier - Failed setting the selected SSL crypto engine as default!
+
+| 12055
+| certifier_register
+| Trouble with HTTPS call to Certifier - Failed sending network data.
+
+| 12056
+| certifier_register
+| Trouble with HTTPS call to Certifier - Failed receiving network data.
+
+| 12058
+| certifier_register
+| Trouble with HTTPS call to Certifier - problem with the local client certificate.
+
+| 12059
+| certifier_register
+| Trouble with HTTPS call to Certifier - Couldn't use specified cipher.
+
+| 12060
+| certifier_register
+| Trouble with HTTPS call to Certifier - Peer certificate cannot be authenticated with known CA certificates.
+
+| 12061
+| certifier_register
+| Trouble with HTTPS call to Certifier - Unrecognized transfer encoding.
+
+| 12063
+| certifier_register
+| Trouble with HTTPS call to Certifier - Maximum file size exceeded.
+
+| 12065
+| certifier_register
+| Trouble with HTTPS call to Certifier - When doing a send operation curl had to rewind the data to retransmit, but the rewinding operation failed.
+
+| 12066
+| certifier_register
+| Trouble with HTTPS call to Certifier - Initiating the SSL Engine failed.
+
+| 12077
+| certifier_register
+| Trouble with HTTPS call to Certifier - Problem with reading the SSL CA cert (path? access rights?).
+
+| 12080
+| certifier_register
+| Trouble with HTTPS call to Certifier - Failed to shut down the SSL connection.
+
+| 12082
+| certifier_register
+| Trouble with HTTPS call to Certifier - Failed to load CRL file.
+
+| 12083
+| certifier_register
+| Trouble with HTTPS call to Certifier - Issuer check failed.
+
+| 14001
+| certifier_register
+| Trouble when calling security_generate_x509_crt and generating CRT nonce
+|===

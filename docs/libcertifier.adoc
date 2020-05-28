@@ -1,0 +1,93 @@
+== *libCertifier()*
+
+* Written in C for embedded devices.
+* Small binary size (less than 100 KB) that is ideal for embedded systems.
+* Tested on Arm (Raspberry Pi, Android, xCam, http://i.MX[i.MX], Ambarella, iOS), x86_64 (Ubuntu, MacOS, x86_32 (Ubuntu).
+* Shared library and command-line executable.
+* Generates public/private key pairs, fetches x509 certificate from xPKI and renews certificate.
+* See xref:open_source_dependencies.adoc[*Open Source Dependencies*]
+
+*Integration Methods*
+
+* xref:cli_usage.adoc[Command line executable (CLI)]
+* xref:api_usage.adoc[Shared Library (API]) 
+
+== *Overview*
+
+libCertifier() communicates with the following back-end service.  TLS is used.
+
+'''
+
+|===
+| *Service* | *Description* | *Mandatory*
+
+| Certifier
+| Communicates with the xPKI Certificate Authority and used to generate the x509 certificate.  +
+Also handles authentication.  The xref:anatomy_of_https_certifier_call.adoc[Anatomy of an HTTPS call to Certifier page]) could be used as reference to better understand the interaction between client and server.  
+| Yes
+|===
+
+*Project structure*
+
+The table below describes th files in this project -
+
+|===
+| *Folder/File Name* | *Description*
+
+| CMakeLists.txt
+| CMake file
+
+| xref:../README.adoc[README.adoc]
+| Readme file
+
+| include
+| *public* source header files
+
+| internal_headers
+| *private* source header files
+
+| libcertifier-cert.crt
+| Certificates used by libcurl for HTTPS calls
+
+| xref:configuration.adoc[libcertifier.cfg.sample]
+| Sample libcertifier configuration file
+
+| resources
+| Device Attestation Certificate
+
+| src
+| Source files
+
+| tests
+| Unit tests, as well as functional tests (shell scripts)
+|===
+
+== *Build*
+
+libcertifier was written with xref:portability.adoc[portability]  and has been tested to build on OSX and Linux systems. If you have difficulty building libcertifier, please don't hesitate to seek support through our support forums or contact us directly.
+
+This xref:build.adoc[*section*] explains how to build libcertifier on Linux and OSX.
+
+*Binary Size*
+
+libcertifier is less than 100KB in size (stripped).
+
+libcertifier.so is around 95KB.
+
+certifierUtil is around 3KB.
+
+== *Memory Consumption (Heap) ignoring deallocations*
+
+See xref:memory_consumption_by_function.adoc[*Memory Consumption*]
+
+== *Error Codes*
+
+See xref:error_codes.adoc[*Error Codes*]
+
+== *Configuration*
+
+See xref:configuration.adoc[*libledger.cfg*]
+
+== *Logging*
+
+See xref:logging.adoc[*Logging*]

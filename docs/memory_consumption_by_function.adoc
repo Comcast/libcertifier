@@ -1,0 +1,14 @@
+The table below was the total heap memory allocated by function.  This did not include the local stack storage and did not include the code size.  The code size was static and that could be figured out from the object files, or from the compiled binary. 
+
+We measured incremental heap memory usage by intercepting calls to malloc() using LD_PRELOAD.
+
+This was tested on Linux on an x86 architecture with version `0.1-052220 (opensource)` of libcertifier.
+[width="100%"]
+|=======
+|*Source File* |*Function* |*Function Description*|*Bytes* | *Kb* | *Arch* | *Notes*
+|openssl.c |`load_certs_from_pkcs7` |This function takes in a PKCS7 PEM (from Certifier) and returns an X509_LIST structure (3 elements).  The code parses the certificate. | 45996 | 46 | x86 | 
+|openssl.c | `security_find_or_create_keys` | Generates an ECC keypair | 8340 | 8 | x86 |
+|openssl.c | `security_persist_pkcs_12_file` | Persists PKCS12 file |28554 |28.554 | x86 | 
+|security.c | `security_generate_certificate_signing_request` | Generates the certificate signing request (CSR).  The output is a base64 encoded string.  | 4780 | 5 | x86 | OpenSSL
+|certifierclient.c | `certifierclient_request_x509_certificate` | Makes an HTTPS call to Certifier for requesting an X509 certificate.  Parameters are a b64 encoded CSR, node address, certifier id and other parameters.  This returns the X509 PEM certificate.| 3328618 | 3328.618 | x86 | OpenSSL
+|=======

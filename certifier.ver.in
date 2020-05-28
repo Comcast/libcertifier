@@ -1,0 +1,7 @@
+LEDGER_@MAJOR@_@MINOR@ {
+ global:
+  ledger_*;
+
+   local:
+    *;
+};
