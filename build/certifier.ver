@@ -1,0 +1,7 @@
+LEDGER_2_0 {
+ global:
+  ledger_*;
+
+   local:
+    *;
+};
