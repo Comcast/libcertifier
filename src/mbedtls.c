@@ -1439,6 +1439,7 @@ security_get_X509_PKCS12_file(const char *filename, const char *password, X509_L
     ECC_KEY *eckey = mbedtls_parse_pkcs12(filename, password, cert, certs, &result);
     if (eckey == NULL) {
         result.application_error_code = 200;
+        security_free_cert(cert);
         return result;
     }
     security_free_eckey(eckey);
@@ -2424,8 +2425,8 @@ CertifierError security_check_x509_valid_range(time_t current_time,
         }
 
         if (ret = read_sim_time(&sim_time, sim_cert_before_time) != 0) {
-            util_format_error(__func__, "read_sim_time failure [1].",
-                              __FILE__, __LINE__);
+            XFREE(util_format_error(__func__, "read_sim_time failure [1].",
+                              __FILE__, __LINE__));
             log_error("read_sim_time failure [1].");
             result.application_error_code = MBEDTLS_CHECK_X509_VALID_RANGE_2_E;
             goto cleanup;
@@ -2440,8 +2441,8 @@ CertifierError security_check_x509_valid_range(time_t current_time,
         }
     } else {
         if (ret = x509_time_cmp_timet(&cert->valid_from, current_time) != -1) {
-            util_format_error(__func__, "x509_time_cmp_timet failure [1].",
-                              __FILE__, __LINE__);
+            XFREE(util_format_error(__func__, "x509_time_cmp_timet failure [1].",
+                              __FILE__, __LINE__));
             log_error("x509_time_cmp_timet failure [1].");
             result.application_error_code = MBEDTLS_CHECK_X509_VALID_RANGE_4_E;
             goto cleanup;
@@ -2459,8 +2460,8 @@ CertifierError security_check_x509_valid_range(time_t current_time,
         }
 
         if (ret = read_sim_time(&sim_time, sim_cert_after_time) != 0) {
-            util_format_error(__func__, "read_sim_time failure [2].",
-                              __FILE__, __LINE__);
+            XFREE(util_format_error(__func__, "read_sim_time failure [2].",
+                              __FILE__, __LINE__));
             log_error("read_sim_time failure [2].");
             result.application_error_code = MBEDTLS_CHECK_X509_VALID_RANGE_5_E;
             goto cleanup;
@@ -2479,8 +2480,8 @@ CertifierError security_check_x509_valid_range(time_t current_time,
     } else {
 
         if (ret = x509_time_cmp_timet(&cert->valid_to, current_time) != 1) {
-            util_format_error(__func__, "x509_time_cmp_timet failure [4].",
-                              __FILE__, __LINE__);
+            XFREE(util_format_error(__func__, "x509_time_cmp_timet failure [4].",
+                              __FILE__, __LINE__));
             log_error("x509_time_cmp_timet failure [4].");
             result.application_error_code = MBEDTLS_CHECK_X509_VALID_RANGE_7_E;
             goto cleanup;
@@ -2689,8 +2690,8 @@ CertifierError security_verify_signature(ECC_KEY *key,
 
     if (rc != 0) {
         rc = MBEDTLS_ERR_4;
-        util_format_error(__func__, "mbedtls_ecdsa_read_signature failure.",
-                          __FILE__, __LINE__);
+        XFREE(util_format_error(__func__, "mbedtls_ecdsa_read_signature failure.",
+                          __FILE__, __LINE__));
     }
     mbedtls_ecdsa_free(&ctx);
 

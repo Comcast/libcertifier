@@ -11,6 +11,7 @@ set(CMAKE_C_COMPILER_ID "Clang")
 # Preprocessor definitions for this target.
 set(CMAKE_TARGET_DEFINITIONS_C
   "CERTIFIER_VERSION=\"2.0.0\""
+  "USE_MBEDTLS"
   "_GNU_SOURCE"
   )
 

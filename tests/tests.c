@@ -1313,6 +1313,7 @@ static void test_pkcs12(void **state) {
     assert_true(result.application_error_code >= 1);
     error_clear(&result);
     assert_null(cert);
+    security_free_cert(cert);
 
     result = security_get_X509_PKCS12_file(pkcs12_file_name, pkcs12_passwd, NULL, &cert);
     assert_int_equal(0, result.application_error_code);

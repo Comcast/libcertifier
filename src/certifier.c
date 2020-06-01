@@ -32,7 +32,7 @@
 #include "curl/curl.h"
 
 #ifndef CERTIFIER_VERSION
-#define CERTIFIER_VERSION "0.1-052920 (opensource)"
+#define CERTIFIER_VERSION "0.1-053020 (opensource)"
 #endif
 
 static CERTIFIER_LOG_callback logger;

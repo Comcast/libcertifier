@@ -354,8 +354,9 @@ certifierTests: CMakeFiles/certifierTests.dir/tests/Unity/src/unity.c.o
 certifierTests: CMakeFiles/certifierTests.dir/build.make
 certifierTests: /usr/lib/libz.dylib
 certifierTests: /usr/lib/libcurl.dylib
-certifierTests: /usr/local/lib/libssl.dylib
-certifierTests: /usr/local/lib/libcrypto.dylib
+certifierTests: /usr/local/lib/libmbedtls.dylib
+certifierTests: /usr/local/lib/libmbedx509.dylib
+certifierTests: /usr/local/lib/libmbedcrypto.dylib
 certifierTests: CMakeFiles/certifierTests.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir="/Users/ahaque201/Github/Comast Opensource Github/libcertifier/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_20) "Linking C executable certifierTests"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/certifierTests.dir/link.txt --verbose=$(VERBOSE)

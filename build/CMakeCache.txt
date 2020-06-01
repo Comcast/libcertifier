@@ -211,7 +211,7 @@ ENABLE_CMOCKA:BOOL=OFF
 ENABLE_COVERAGE:BOOL=OFF
 
 //Build with mBedTLS support instead of OpenSSL
-ENABLE_MBEDTLS:BOOL=OFF
+ENABLE_MBEDTLS:BOOL=ON
 
 //Build with stack smashing protection
 ENABLE_SSP:BOOL=ON
@@ -219,6 +219,18 @@ ENABLE_SSP:BOOL=ON
 //Build unit tests (requires cmocka to be enabled or defaults to
 // unity )
 ENABLE_TESTS:BOOL=ON
+
+//Path to a library.
+MBEDCRYPTO_LIBRARY:FILEPATH=/usr/local/lib/libmbedcrypto.dylib
+
+//Path to a file.
+MBEDTLS_INCLUDE_DIRS:PATH=/usr/local/include
+
+//Path to a library.
+MBEDTLS_LIBRARY:FILEPATH=/usr/local/lib/libmbedtls.dylib
+
+//Path to a library.
+MBEDX509_LIBRARY:FILEPATH=/usr/local/lib/libmbedx509.dylib
 
 //Path to a library.
 OPENSSL_CRYPTO_LIBRARY:FILEPATH=/usr/local/lib/libcrypto.dylib
@@ -242,7 +254,7 @@ ZLIB_LIBRARY_DEBUG:FILEPATH=ZLIB_LIBRARY_DEBUG-NOTFOUND
 ZLIB_LIBRARY_RELEASE:FILEPATH=/usr/lib/libz.dylib
 
 //Dependencies for the target
-certifier_LIB_DEPENDS:STATIC=general;/usr/lib/libz.dylib;general;/usr/lib/libcurl.dylib;general;/usr/local/lib/libssl.dylib;general;/usr/local/lib/libcrypto.dylib;general;/usr/lib/libz.dylib;general;/usr/lib/libcurl.dylib;general;/usr/local/lib/libssl.dylib;general;/usr/local/lib/libcrypto.dylib;
+certifier_LIB_DEPENDS:STATIC=general;/usr/lib/libz.dylib;general;/usr/lib/libcurl.dylib;general;/usr/local/lib/libmbedtls.dylib;general;/usr/local/lib/libmbedx509.dylib;general;/usr/local/lib/libmbedcrypto.dylib;general;/usr/lib/libz.dylib;general;/usr/lib/libcurl.dylib;general;/usr/local/lib/libmbedtls.dylib;general;/usr/local/lib/libmbedx509.dylib;general;/usr/local/lib/libmbedcrypto.dylib;
 
 //Value Computed by CMake
 libcertifier_BINARY_DIR:STATIC=/Users/ahaque201/Github/Comast Opensource Github/libcertifier/build

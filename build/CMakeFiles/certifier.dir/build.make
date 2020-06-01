@@ -324,12 +324,14 @@ libcertifier.2.0.dylib: CMakeFiles/certifier.dir/src/util.c.o
 libcertifier.2.0.dylib: CMakeFiles/certifier.dir/build.make
 libcertifier.2.0.dylib: /usr/lib/libz.dylib
 libcertifier.2.0.dylib: /usr/lib/libcurl.dylib
-libcertifier.2.0.dylib: /usr/local/lib/libssl.dylib
-libcertifier.2.0.dylib: /usr/local/lib/libcrypto.dylib
+libcertifier.2.0.dylib: /usr/local/lib/libmbedtls.dylib
+libcertifier.2.0.dylib: /usr/local/lib/libmbedx509.dylib
+libcertifier.2.0.dylib: /usr/local/lib/libmbedcrypto.dylib
 libcertifier.2.0.dylib: /usr/lib/libz.dylib
 libcertifier.2.0.dylib: /usr/lib/libcurl.dylib
-libcertifier.2.0.dylib: /usr/local/lib/libssl.dylib
-libcertifier.2.0.dylib: /usr/local/lib/libcrypto.dylib
+libcertifier.2.0.dylib: /usr/local/lib/libmbedtls.dylib
+libcertifier.2.0.dylib: /usr/local/lib/libmbedx509.dylib
+libcertifier.2.0.dylib: /usr/local/lib/libmbedcrypto.dylib
 libcertifier.2.0.dylib: CMakeFiles/certifier.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir="/Users/ahaque201/Github/Comast Opensource Github/libcertifier/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_18) "Linking C shared library libcertifier.dylib"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/certifier.dir/link.txt --verbose=$(VERBOSE)

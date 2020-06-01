@@ -85,12 +85,14 @@ certifierUtil: CMakeFiles/certifierUtil.dir/build.make
 certifierUtil: libcertifier.2.0.dylib
 certifierUtil: /usr/lib/libz.dylib
 certifierUtil: /usr/lib/libcurl.dylib
-certifierUtil: /usr/local/lib/libssl.dylib
-certifierUtil: /usr/local/lib/libcrypto.dylib
+certifierUtil: /usr/local/lib/libmbedtls.dylib
+certifierUtil: /usr/local/lib/libmbedx509.dylib
+certifierUtil: /usr/local/lib/libmbedcrypto.dylib
 certifierUtil: /usr/lib/libz.dylib
 certifierUtil: /usr/lib/libcurl.dylib
-certifierUtil: /usr/local/lib/libssl.dylib
-certifierUtil: /usr/local/lib/libcrypto.dylib
+certifierUtil: /usr/local/lib/libmbedtls.dylib
+certifierUtil: /usr/local/lib/libmbedx509.dylib
+certifierUtil: /usr/local/lib/libmbedcrypto.dylib
 certifierUtil: CMakeFiles/certifierUtil.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir="/Users/ahaque201/Github/Comast Opensource Github/libcertifier/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_2) "Linking C executable certifierUtil"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/certifierUtil.dir/link.txt --verbose=$(VERBOSE)
