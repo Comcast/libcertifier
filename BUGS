@@ -1,4 +1,4 @@
- * libledger is not yet MT-safe.
+ * libcertifier is not yet MT-safe.
  * Multiple instances are not completely supported (log)
  * Return codes other than 0 are poorly defined and difficult to use in a meaningful way
  * Integration tests and unit tests need review. There is low coverage in important areas.
