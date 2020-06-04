@@ -86,7 +86,7 @@ See xref:error_codes.adoc[*Error Codes*]
 
 == *Configuration*
 
-See xref:configuration.adoc[*libledger.cfg*]
+See xref:configuration.adoc[*libcertifier.cfg*]
 
 == *Logging*
 

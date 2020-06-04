@@ -25,7 +25,7 @@ xref:libcertifier.adoc[*Back to Manual*]
 | libcertifier.tls.insecure.host   | 0 |  |
 | libcertifier.tls.insecure.peer   | 0 |  |
 
-The following command is quite useful to put a root/intermediate cert into a single line for libledger.cfg in the root.ca and/or int.ca entries:
+The following command is quite useful to put a root/intermediate cert into a single line for libcertifier.cfg in the root.ca and/or int.ca entries:
 
 ----
 awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' {custom-cert.pem}

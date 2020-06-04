@@ -19,5 +19,5 @@ NOTE: In the above example, 5 MB is the total max log size before /tmp/libcertif
 It you wanted to see HTTPS trace, do the following -
 
 ----
-   "libledger.http.trace":1
+   "libcertifier.http.trace":1
 ----
