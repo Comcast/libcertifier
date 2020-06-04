@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # File created using '.gitignore Generator' for Visual Studio Code: https://bit.ly/vscode-gig
 
 # Created by https://www.gitignore.io/api/visualstudiocode,macos
@@ -49,3 +50,7 @@ Temporary Items
 
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
 
+=======
+.vscode/
+build/
+>>>>>>> 52c7855ae26dfbffd6404febfdb69b6a1a301d77
