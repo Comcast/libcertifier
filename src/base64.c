@@ -15,9 +15,6 @@
 *
 * SPDX-License-Identifier: Apache-2.0
 */
-// base64.c
-// Base64 encoder/decoder
-// Author: David_Jones4@comcast.com
 
 #include "certifier/base64.h"
 
