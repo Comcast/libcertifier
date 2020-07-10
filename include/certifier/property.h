@@ -31,152 +31,153 @@ extern "C" {
  * @{
  */
 
-typedef enum CERTIFIER_OPT {
-    /**
+typedef enum CERTIFIER_OPT
+{
+        /**
      * Set a configuration filename containing settings.
      * @note Dynamic property
      * @note Setting this property via certifier_set_property will reset all settings prior to loading.
      * @post The file at the given path is loaded and any options are set (when the file exists and is valid).
      */
-            CERTIFIER_OPT_CFG_FILENAME = 1,
-    CERTIFIER_OPT_CRT_TYPE = 2,
-    CERTIFIER_OPT_CERTIFIER_URL = 3,
-    CERTIFIER_OPT_HTTP_TIMEOUT = 4,
-    CERTIFIER_OPT_HTTP_CONNECT_TIMEOUT = 5,
-    CERTIFIER_OPT_KEYSTORE = 6,
-    CERTIFIER_OPT_PASSWORD = 7,
-    CERTIFIER_OPT_CA_INFO = 8,
-    CERTIFIER_OPT_CA_PATH = 9,
-    CERTIFIER_OPT_CRT = 10,
-    // 11 is unused
+        CERTIFIER_OPT_CFG_FILENAME = 1,
+        CERTIFIER_OPT_CRT_TYPE = 2,
+        CERTIFIER_OPT_CERTIFIER_URL = 3,
+        CERTIFIER_OPT_HTTP_TIMEOUT = 4,
+        CERTIFIER_OPT_HTTP_CONNECT_TIMEOUT = 5,
+        CERTIFIER_OPT_KEYSTORE = 6,
+        CERTIFIER_OPT_PASSWORD = 7,
+        CERTIFIER_OPT_CA_INFO = 8,
+        CERTIFIER_OPT_CA_PATH = 9,
+        CERTIFIER_OPT_CRT = 10,
+        // 11 is unused
 
-    /**
+        /**
      * Bitmap containing boolean options (read-only).
      * @see ledger_property_set
      * @see CERTIFIER_OPT_OPTION for bits and CERTIFIER_OPT for available options
      * @note value type: int
      */
-            CERTIFIER_OPT_OPTIONS = 12,
-    CERTIFIER_OPT_ECC_CURVE_ID = 13,
+        CERTIFIER_OPT_OPTIONS = 12,
+        CERTIFIER_OPT_ECC_CURVE_ID = 13,
 
-    /**
+        /**
      * Set this to request certificates with an X.509 subjectAltName (otherName type).
      * @note value type: string
      */
-            CERTIFIER_OPT_SYSTEM_ID = 14,
-    // 15 is unused
+        CERTIFIER_OPT_SYSTEM_ID = 14,
+        // 15 is unused
 
-    /**
+        /**
      * Simulate the "not-valid-before" date.
      * @note value type: ASN.1 time string in the format 'YYYYMMDDHHMMSSZ'
      */
-            CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE = 16,
+        CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE = 16,
 
-    /**
+        /**
      * Simulate the "not-valid-after" date.
      * @note value type: ASN.1 time string in the format 'YYYYMMDDHHMMSSZ'
      */
-            CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_AFTER = 17,
+        CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_AFTER = 17,
 
-    CERTIFIER_OPT_ROOT_CA = 18,
-    CERTIFIER_OPT_INT_CA = 19,
-    CERTIFIER_OPT_LOG_FILENAME = 20,
-    CERTIFIER_OPT_LOG_LEVEL = 21,
-    // 22 is unused
-            CERTIFIER_OPT_AUTH_TOKEN = 23,
-    CERTIFIER_OPT_OUTPUT_NODE = 24,
-    CERTIFIER_OPT_TARGET_NODE = 25,
-    CERTIFIER_OPT_ACTION = 26,
-    CERTIFIER_OPT_INPUT_NODE = 27,
-    // 28 - 36 are unused
-            CERTIFIER_OPT_LOG_MAX_SIZE = 37,
-    // 38,39 are unused
-    // 40 - 43 are unused
-            CERTIFIER_OPT_TRACKING_ID = 44,
+        CERTIFIER_OPT_ROOT_CA = 18,
+        CERTIFIER_OPT_INT_CA = 19,
+        CERTIFIER_OPT_LOG_FILENAME = 20,
+        CERTIFIER_OPT_LOG_LEVEL = 21,
+        // 22 is unused
+        CERTIFIER_OPT_AUTH_TOKEN = 23,
+        CERTIFIER_OPT_OUTPUT_NODE = 24,
+        CERTIFIER_OPT_TARGET_NODE = 25,
+        CERTIFIER_OPT_ACTION = 26,
+        CERTIFIER_OPT_INPUT_NODE = 27,
+        // 28 - 36 are unused
+        CERTIFIER_OPT_LOG_MAX_SIZE = 37,
+        // 38,39 are unused
+        // 40 - 43 are unused
+        CERTIFIER_OPT_TRACKING_ID = 44,
 
-    /**
+        /**
      * Set the request source. Set this to an identifier, such as the firmware version.
      * @warning This must be set before making any registration requests and cannot be empty.
      * @example HomeHub-10.01.00.000000
      */
-    CERTIFIER_OPT_SOURCE = 45,
-    CERTIFIER_OPT_CN_PREFIX= 46,
-    CERTIFIER_OPT_NUM_DAYS= 47,
-    // 48 is unused
+        CERTIFIER_OPT_SOURCE = 45,
+        CERTIFIER_OPT_CN_PREFIX = 46,
+        CERTIFIER_OPT_NUM_DAYS = 47,
+        CERTIFIER_OPT_EXT_KEY_USAGE = 48,
 
-    /**
+            /**
      * Set a log callback function
      * @note value type: CERTIFIER_LOG_callback
      * @see CERTIFIER_LOG_callback
      */
             CERTIFIER_OPT_LOG_FUNCTION,
 
-    /**
+        /**
      * Set the minimum time that the certificate must remain valid before
      * certifier_register() will consider the certificate is nearly expired.
      * @note value type: int
      */
-            CERTIFIER_OPT_CERT_MIN_TIME_LEFT_S,
+        CERTIFIER_OPT_CERT_MIN_TIME_LEFT_S,
 
-    /* The following must be maintained in the same order as CERTIFIER_OPT_OPTIONs below */
+        /* The following must be maintained in the same order as CERTIFIER_OPT_OPTIONs below */
 
-    /**
+        /**
      * Do not use directly.
      */
-            CERTIFIER_OPT_BOOL_FIRST,
+        CERTIFIER_OPT_BOOL_FIRST,
 
-    /**
+        /**
      * Enable HTTP debug
      * @note value type: bool
      */
-            CERTIFIER_OPT_DEBUG_HTTP = CERTIFIER_OPT_BOOL_FIRST,
+        CERTIFIER_OPT_DEBUG_HTTP = CERTIFIER_OPT_BOOL_FIRST,
 
-    /**
+        /**
      * Enable increased verbosity HTTP debug/s
      * @note value type: bool
      */
-            CERTIFIER_OPT_TRACE_HTTP,
+        CERTIFIER_OPT_TRACE_HTTP,
 
-    /**
+        /**
      * Disable TLS host (subject/subject alternative name(s)) authentication
      * @note value type: bool
      */
-            CERTIFIER_OPT_TLS_INSECURE_HOST,
+        CERTIFIER_OPT_TLS_INSECURE_HOST,
 
-    /**
+        /**
      * Disable TLS peer (certificate issuer) authentication
      * @note value type: bool
      */
-            CERTIFIER_OPT_TLS_INSECURE_PEER,
+        CERTIFIER_OPT_TLS_INSECURE_PEER,
 
-    /**
+        /**
      * Disable any existing keystore when registering.
      * This can be set, for example, when attempting to recover from a corrupted keystore, or to force a re-key.
      * @note The node address and common name will be regenerated upon successful registration.
      * @note value type: bool
      */
-            CERTIFIER_OPT_FORCE_REGISTRATION,
+        CERTIFIER_OPT_FORCE_REGISTRATION,
 
-    /**
+        /**
      * Enable automatic certificate renewal (default: enabled)
      * @note value type: bool
      */
-            CERTIFIER_OPT_AUTO_RENEW_CERT,
-    /**
+        CERTIFIER_OPT_AUTO_RENEW_CERT,
+        /**
      * @note value type: bool
      */
-            CERTIFIER_OPT_MEASURE_PERFORMANCE,
+        CERTIFIER_OPT_MEASURE_PERFORMANCE,
 
-    /**
+        /**
      * @note value type: bool
      */
-            CERTIFIER_OPT_CERTIFICATE_LITE,
+        CERTIFIER_OPT_CERTIFICATE_LITE,
 
-    /**
+        /**
      * @note value type: string 
      */
 
-            CERTIFIER_OPT_MAC_ADDRESS
+        CERTIFIER_OPT_MAC_ADDRESS
 
 } CERTIFIER_OPT;
 

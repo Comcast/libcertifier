@@ -32,13 +32,12 @@
 #include "curl/curl.h"
 
 #ifndef CERTIFIER_VERSION
-#define CERTIFIER_VERSION "0.1-053020 (opensource)"
+#define CERTIFIER_VERSION "0.1-071020 (opensource)"
 #endif
 
 static CERTIFIER_LOG_callback logger;
 
 typedef struct Map {
-    char certifier_id[SMALL_STRING_SIZE];
     char node_address[SMALL_STRING_SIZE];
     char *base64_public_key;
     unsigned char *der_public_key;
@@ -69,7 +68,7 @@ static void set_last_error(Certifier *certifier, const int error_code, char *err
  * @pre This device is registered
  * @pre CERTIFIER_OPT_KEYSTORE is set to a valid pkcs#12 file
  * @pre CERTIFIER_OPT_PASSWORD is set
- * @post tmp_map.certifier_id and tmp_map.x509_cert are set
+ * @post tmp_map.x509_cert is set
  * @post last error info is set on failure
  * @return 0 on success or an error code
  */
@@ -205,7 +204,6 @@ certifier_setup_keys(Certifier *certifier) {
 
 static int load_cert(Certifier *certifier) {
     X509_CERT *cert = NULL;
-    char *certifier_id = NULL;
     const char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_KEYSTORE);
     const char *password = certifier_get_property(certifier, CERTIFIER_OPT_PASSWORD);
     int return_code = 0;
@@ -223,22 +221,6 @@ static int load_cert(Certifier *certifier) {
             goto cleanup;
         }
 
-        certifier_id = security_get_field_from_cert(cert, "organizationalUnitName");
-
-        if (util_is_empty(certifier_id)) {
-            return_code = CERTIFIER_ERR_REGISTRATION_STATUS_CERTIFIER_ID_NONEXISTENT;
-            char *err_json = util_format_error("certifier_get_device_registration_status",
-                                               "Internal error.  Certifier ID does not exist in first certificate of .p12 file.",
-                                               __FILE__,
-                                               __LINE__);
-            set_last_error(certifier, return_code, err_json);
-            goto cleanup;
-        }
-        XMEMSET(certifier->tmp_map.certifier_id, 0, XSTRLEN(certifier->tmp_map.certifier_id)); // zero it out first
-        XSTRNCPY(certifier->tmp_map.certifier_id, certifier_id, sizeof(certifier->tmp_map.certifier_id) - 1);
-        certifier->tmp_map.certifier_id[sizeof(certifier->tmp_map.certifier_id) - 1] = '\0';
-        log_debug("\nCertifier ID: %s\n", certifier->tmp_map.certifier_id);
-
         security_free_cert(certifier->tmp_map.x509_cert);
         certifier->tmp_map.x509_cert = cert;
         cert = NULL;
@@ -251,7 +233,6 @@ static int load_cert(Certifier *certifier) {
     }
 
     cleanup:
-    XFREE(certifier_id);
     security_free_cert(cert);
     return return_code;
 }
@@ -332,17 +313,6 @@ const char *certifier_get_node_address(Certifier *certifier) {
     }
 
     return certifier->tmp_map.node_address;
-}
-
-const char *certifier_get_certifier_id(Certifier *certifier) {
-    if (util_is_empty(certifier->tmp_map.certifier_id)) {
-        /* Loading the certificate will also load the certifier_id (OU) */
-        if (load_cert(certifier) != 0) {
-            return NULL;
-        }
-    }
-
-    return certifier->tmp_map.certifier_id;
 }
 
 int certifier_create_crt(Certifier *certifier, char **out_crt, const char *token_type) {
@@ -867,7 +837,6 @@ int certifier_register(Certifier *certifier, int mode) {
     CertifierError certifier_err_info = CERTIFIER_ERROR_INITIALIZER;
     char *renamed_p12_filename = NULL;
 
-    char *certifier_id = NULL;
     char *san = NULL;
     char *x509_certs = NULL;
     X509_LIST *certs = NULL;
@@ -1097,8 +1066,6 @@ int certifier_register(Certifier *certifier, int mode) {
         }
     }
 
-    certifier_id = security_get_field_from_cert(certifier->tmp_map.x509_cert, "organizationalUnitName");
-
     san = security_get_field_from_cert(certifier->tmp_map.x509_cert, "X509v3 Subject Alternative Name");
     // FIXME: Suspicious overwrite. This value is not exposed via the certifier.h interface and is the certifier_id (OU)
     // in certifier example certificates.
@@ -1107,26 +1074,10 @@ int certifier_register(Certifier *certifier, int mode) {
         certifier->tmp_map.node_address[sizeof(certifier->tmp_map.node_address) - 1] = '\0';
     }
 
-    if (util_is_empty(certifier_id)) {
-        return_code = CERTIFIER_ERR_REGISTRATION_STATUS_CERTIFIER_ID_NONEXISTENT;
-        char *err_json = util_format_error("certifier_register",
-                                           "Internal error.  Certifier ID does not exist in first certificate of .p12 file.",
-                                           __FILE__,
-                                           __LINE__);
-        set_last_error(certifier, return_code, err_json);
-        goto cleanup;
-    }
-
-    XMEMSET(certifier->tmp_map.certifier_id, 0, XSTRLEN(certifier->tmp_map.certifier_id)); // zero it out first
-    XSTRNCPY(certifier->tmp_map.certifier_id, certifier_id, sizeof(certifier->tmp_map.certifier_id) - 1);
-    certifier->tmp_map.certifier_id[sizeof(certifier->tmp_map.certifier_id) - 1] = '\0';
-    log_debug("\nCertifier ID: %s\n", certifier->tmp_map.certifier_id);
-
     // Clean up
     cleanup:
 
     security_free_cert_list(certs);
-    XFREE(certifier_id);
     XFREE(san);
 
     XFREE(x509_certs);

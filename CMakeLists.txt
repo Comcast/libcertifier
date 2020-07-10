@@ -8,7 +8,7 @@ cmake_policy(SET CMP0048 NEW)
 # Increment MINOR when API/ABI is backward compatible but different (e.g., new features added)
 # Increment PATCH when API is unchanged (bug/internal fixes)
 set(MAJOR 2)
-set(MINOR 0)
+set(MINOR 1)
 set(PATCH 0)
 set(VERSION ${MAJOR}.${MINOR}.${PATCH})
 

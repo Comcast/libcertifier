@@ -64,7 +64,8 @@ struct _PropMap {
     char *mac_address;
     char *crt;
     char *source;
-    char * cn_prefix;
+    char *cn_prefix;
+    char *ext_key_usage_value;
     char *tracking_id;
     char *ecc_curve_id;
     char *simulated_cert_expiration_date_after;
@@ -99,6 +100,18 @@ CertifierPropMap *property_new(void) {
     }
 
     property_set_defaults(prop_map);
+    return prop_map;
+}
+
+CertifierPropMap *property_ext(void) {
+    CertifierPropMap *prop_map = XCALLOC(1, sizeof(CertifierPropMap));
+    if (prop_map == NULL)
+    {
+        log_error("Could not initialize CertifierPropMap.");
+        return NULL;
+    }
+
+    property_set_ext(prop_map);
     return prop_map;
 }
 
@@ -305,6 +318,10 @@ property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value) 
         SV(prop_map->tracking_id, value);
             break;
 
+        case CERTIFIER_OPT_EXT_KEY_USAGE:
+        SV(prop_map->ext_key_usage_value, value);
+            break;
+
         case CERTIFIER_OPT_LOG_FUNCTION:
             /* This is handled by certifier_set_property */
             break;
@@ -472,6 +489,10 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name) {
             retval = (void *) (size_t) prop_map->cert_min_time_left_s; // TODO - need to revisit these casts
             break;
 
+        case CERTIFIER_OPT_EXT_KEY_USAGE:
+            retval = prop_map->ext_key_usage_value;
+            break;
+
         case CERTIFIER_OPT_LOG_FUNCTION:
             /* Write-only value */
             retval = NULL;
@@ -622,6 +643,50 @@ property_set_defaults(CertifierPropMap *prop_map) {
     return return_code;
 }
 
+int property_set_ext(CertifierPropMap *prop_map) {
+    JSON_Value *json;
+    const char *ext_key_usage_value = NULL;
+    int ret = 0;
+
+    char *file_contents = NULL;
+    size_t file_contents_len = 0;
+
+    ret = util_slurp(DEFAULT_CFG_FILENAME, &file_contents, &file_contents_len);
+    if (ret != 0)
+    {
+        log_error("Received code: %i from util_slurp", ret);
+        if (file_contents != NULL)
+        {
+            XFREE(file_contents);
+        }
+        return 1;
+    }
+    else
+    {
+        json = json_parse_string_with_comments(file_contents);
+        XFREE(file_contents);
+        if (json == NULL)
+        {
+            log_error("json_parse_string_with_comments returned a NULL value.  Perhaps JSON malformed?", ret);
+            return 1;
+        }
+    }
+
+    ext_key_usage_value = json_object_get_string(json_object(json), "libcertifier.ext.key.usage");
+    if (ext_key_usage_value)
+    {
+        //log_info("Loaded Extended Key Usage Values: %s", ext_key_usage_value);
+        property_set(prop_map, CERTIFIER_OPT_EXT_KEY_USAGE, ext_key_usage_value);
+    }
+
+    if (json)
+    {
+        json_value_free(json);
+    }
+
+    return 0;
+}
+
 int
 property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
 
@@ -648,8 +713,11 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
     int log_max_size_value;
     int measure_performance_value;
     double cert_min_time_left_s;
+    int num_days;
     const char *source = NULL;
     int certificate_lite_value;
+    const char *cn_prefix = NULL;
+    const char *ext_key_usage_value = NULL;
 
     int ret = 0;
 
@@ -748,7 +816,12 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
         log_info("Loaded cert.min_time_left_s: %.0f", cert_min_time_left_s);
         property_set(propMap, CERTIFIER_OPT_CERT_MIN_TIME_LEFT_S, (void *) (size_t) cert_min_time_left_s);
     }
-
+    num_days = json_object_get_number(json_object(json), "libcertifier.num.days");
+    if (num_days)
+    {
+        log_info("Loaded num_days: %.0f", num_days);
+        property_set(propMap, CERTIFIER_OPT_NUM_DAYS, (void *)(size_t)num_days);
+    }
     disable_auto_renewal_value = json_object_get_number(json_object(json), "libcertifier.disable.auto.renewal");
     if (disable_auto_renewal_value == 1) {
         log_info("Loaded disable_auto_renewal_value: %i from cfg file.", disable_auto_renewal_value);
@@ -816,11 +889,23 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
 
     certificate_lite_value = json_object_get_number(json_object(json), "libcertifier.certificate.lite");
     if (certificate_lite_value == 1) {
-        log_info("Loaded certificate.lite: %i from cfg file.", http_trace_value);
+        log_info("Loaded certificate.lite: %i from cfg file.", certificate_lite_value);
         print_warning("certificate.lite");
         propMap->options |= (CERTIFIER_OPTION_CERTIFICATE_LITE);
     }
-    
+    cn_prefix = json_object_get_string(json_object(json), "libcertifier.cn.name");
+    if (cn_prefix != NULL)
+    {
+        log_info("Loaded Common Name value: %s from cfg file.", cn_prefix);
+        property_set(propMap, CERTIFIER_OPT_CN_PREFIX, cn_prefix);
+    }
+    ext_key_usage_value = json_object_get_string(json_object(json), "libcertifier.ext.key.usage");
+    if (ext_key_usage_value)
+    {
+        log_info("Loaded Extended Key Usage Values: %s from cfg file.", ext_key_usage_value);
+        property_set(propMap, CERTIFIER_OPT_EXT_KEY_USAGE, ext_key_usage_value);
+    }
+
     if (json) {
         json_value_free(json);
     }
@@ -857,4 +942,5 @@ static void free_prop_map_values(CertifierPropMap *prop_map) {
     FV(prop_map->tracking_id);
     FV(prop_map->source);
     FV(prop_map->cn_prefix);
+    FV(prop_map->ext_key_usage_value);
 }

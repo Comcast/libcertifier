@@ -1,0 +1,6 @@
+0.1-071020
+1. Added optional certificate validity field in libcertifier.cfg (default 365 days). 
+2. Added optional common name field in libcertifier.cfg. If no CN value is specified, node address is used.
+3. Added extended key usage values field in libcertifier.cfg. If no values are specified, default usage (client auth, server auth) is used.
+4. PKCS12 Encryption iterations for openSSL and mbedTLS were increased to 50000 (were previously 4096 and 8192 respectively).
+5. Libcertifier no longer requires a valid Organization Unit (OU) in new certificates, due to lite certificates not containing an OU field.
