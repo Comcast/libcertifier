@@ -175,6 +175,10 @@ security_generate_csr(ECC_KEY *eckey, size_t *retlen)
     X509_REQ_add_extensions(x, exts);
     sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
 
+    // Cleanup temp propmap
+    XFREE(properties);
+    XFREE(usage_values);
+
     // Set the signature algorithm
     if (!X509_REQ_sign(x, pk, EVP_sha256())) {
         log_error("X509_REQ_sign failed.");

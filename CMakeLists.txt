@@ -1,4 +1,4 @@
-#Allow VERSION in project()
+]#Allow VERSION in project()
 cmake_policy(SET CMP0048 NEW)
 
 # This project is semantically versioned.
@@ -9,7 +9,7 @@ cmake_policy(SET CMP0048 NEW)
 # Increment PATCH when API is unchanged (bug/internal fixes)
 set(MAJOR 2)
 set(MINOR 1)
-set(PATCH 0)
+set(PATCH 1)
 set(VERSION ${MAJOR}.${MINOR}.${PATCH})
 
 project("libcertifier" VERSION ${VERSION})
