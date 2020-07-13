@@ -1,4 +1,4 @@
-]#Allow VERSION in project()
+#Allow VERSION in project()
 cmake_policy(SET CMP0048 NEW)
 
 # This project is semantically versioned.
