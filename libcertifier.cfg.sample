@@ -1,6 +1,7 @@
 {
   "libcertifier.cert.min_time_left_s": 604800,
   "libcertifier.certifier.url": "https://certifier.xpki.io/v1/certifier/certificate",
+  "libcertifier.num.days": 365,
   "libcertifier.crt.type": "X509",
   "libcertifier.disable.auto.renewal": 0,
   "libcertifier.ecc.curve.id": "prime256v1",
@@ -18,5 +19,7 @@
   "libcertifier.source.name": "libcertifier-opensource",
   "libcertifier.tls.insecure.host": 0,
   "libcertifier.tls.insecure.peer": 0,
-  "libcertifier.certificate.lite": 1
+  "libcertifier.certificate.lite": 1,
+  "libcertifier.cn.name":"",
+  "libcertifier.ext.key.usage":"clientAuth,serverAuth"
 }

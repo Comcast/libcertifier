@@ -367,15 +367,15 @@ static int do_registration(CERTIFIER *easy) {
                   return_code);
 
     } else {
-        certifier_id = certifier_get_certifier_id(easy->certifier);
+        certifier_id = certifier_get_node_address(easy->certifier);
         if (!util_is_empty(certifier_id)) {
-            log_info("The device has been registered!  CERTIFIER ID was: %s", certifier_id);
+            log_info("The device has been registered!  Node ID is: %s", certifier_id);
         } else {
-            log_error("The device FAILED to register.  No CERTIFIER ID was returned!");
+            log_error("The device FAILED to register.  No Node ID was returned!");
             return_code = CERTIFIER_ERR_REGISTER_UNKNOWN;
         }
+        log_info("The device has been registered!  Node ID is: %s", certifier_id);
     }
-
     finish_operation(easy, return_code, certifier_id);
     return return_code;
 }
@@ -386,7 +386,7 @@ static int do_get_cert_status(CERTIFIER *easy) {
 
     return_code = certifier_get_device_registration_status(easy->certifier);
     if (return_code == 0) {
-        certifier_id = certifier_get_certifier_id(easy->certifier);
+        certifier_id = certifier_get_node_address(easy->certifier);
     } else {
         return_code = CERTIFIER_ERR_GET_CERT_STATUS_1 + return_code;
     }
@@ -404,7 +404,7 @@ static int do_renew_cert(CERTIFIER *easy) {
     return_code = auto_renew_cert(easy);
 
     if (return_code == 0) {
-        certifier_id = certifier_get_certifier_id(easy->certifier);
+        certifier_id = certifier_get_node_address(easy->certifier);
     } else {
         return_code = CERTIFIER_ERR_RENEW_CERT_1 + return_code;
     }
@@ -486,6 +486,7 @@ static CERTIFIER_OPT parse_CERTIFIER_OPT(char *str) {
     else if (XSTRCMP("CERTIFIER_OPT_SOURCE", str) == 0) return CERTIFIER_OPT_SOURCE;
     else if (XSTRCMP("CERTIFIER_OPT_CN_PREFIX", str) == 0) return CERTIFIER_OPT_CN_PREFIX;
     else if (XSTRCMP("CERTIFIER_OPT_NUM_DAYS", str) == 0) return CERTIFIER_OPT_NUM_DAYS;
+    else if (XSTRCMP("CERTIFIER_OPT_EXT_KEY_USAGE", str) == 0) return CERTIFIER_OPT_EXT_KEY_USAGE;
     else return -1;
 }
 

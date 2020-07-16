@@ -449,8 +449,8 @@ security_persist_pkcs_12_file(const char *filename, const char *pwd, ECC_KEY *pr
     uint8_t *auth_pdu = NULL;
     size_t auth_pdu_len = 0;
 
-    const int iterations = 8192;
-    const int mac_iterations = 8192;
+    const int iterations = 50000;
+    const int mac_iterations = 50000;
     uint8_t *encrypted_certs = NULL;
     size_t sub2_len = 0;
     size_t sub3_len = 0;

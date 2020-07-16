@@ -64,6 +64,8 @@
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x10100000L
       #define SECURITY_NEED_CRYPTO_INIT
 #endif
+//Declaring custom function not included in x509.h, but makes use of x509 features
+int add_ext(STACK_OF(X509_EXTENSION) * sk, int nid, char *value);
 
 ECC_KEY *security_get_key_from_cert(X509_CERT *cert) {
     EVP_PKEY *public_key;
@@ -79,7 +81,6 @@ ECC_KEY *security_get_key_from_cert(X509_CERT *cert) {
 
     return ecc_key;
 }
-
 
 // Functions
 
@@ -138,12 +139,14 @@ CertifierError security_post_init(const char *cfg_file) {
 }
 
 unsigned char *
-security_generate_csr(ECC_KEY *eckey, size_t *retlen) {
+security_generate_csr(ECC_KEY *eckey, size_t *retlen)
+{
 
     unsigned char *result = NULL;
     X509_REQ *x = NULL;
     EVP_PKEY *pk = NULL;
     int der_len = 0;
+    STACK_OF(X509_EXTENSION) *exts = NULL;
 
     if ((pk = EVP_PKEY_new()) == NULL) {
         log_error("EVP_PKEY_new failed.");
@@ -162,6 +165,19 @@ security_generate_csr(ECC_KEY *eckey, size_t *retlen) {
     }
 
     X509_REQ_set_pubkey(x, pk);
+
+    // Set extended key usage values from cfg
+    exts = sk_X509_EXTENSION_new_null();
+    CertifierPropMap *properties = property_ext();
+    char *usage_values = property_get(properties, CERTIFIER_OPT_EXT_KEY_USAGE);
+    log_debug("Ext Key Usage is: %s", usage_values);
+    add_ext(exts, NID_ext_key_usage, usage_values);
+    X509_REQ_add_extensions(x, exts);
+    sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
+
+    // Cleanup temp propmap
+    XFREE(properties);
+    XFREE(usage_values);
 
     // Set the signature algorithm
     if (!X509_REQ_sign(x, pk, EVP_sha256())) {
@@ -185,6 +201,16 @@ security_generate_csr(ECC_KEY *eckey, size_t *retlen) {
     EVP_PKEY_free(pk);
 
     return result;
+    }
+
+int add_ext(STACK_OF(X509_EXTENSION) * sk, int nid, char *value)
+{
+    X509_EXTENSION *ex;
+    ex = X509V3_EXT_conf_nid(NULL, NULL, nid, value);
+    if (!ex)
+        log_error("Failed to load X509 Extensions!");
+    sk_X509_EXTENSION_push(sk, ex);
+    return 0;
 }
 
 int
@@ -251,8 +277,8 @@ security_persist_pkcs_12_file(const char *filename, const char *pwd, ECC_KEY *pr
                                  certs,        // stack of CA cert chain
                                  ppbe,         // int nid_key (default 3DES)
                                  ppbe,         // int nid_cert (40bitRC2)
-                                 0,            // int iter (default 2048)
-                                 0,            // int mac_iter (default 1)
+                                 50000,            // int iter (default 2048)
+                                 50000,            // int mac_iter (default 1)
                                  0);           // int keytype (default no flag)
     if (pkcs12bundle == NULL) {
         log_error("\n<<< Error generating a valid PKCS12 certificate. >>>\n");

@@ -45,6 +45,8 @@ typedef struct _PropMap CertifierPropMap;
  */
 CertifierPropMap *property_new(void);
 
+CertifierPropMap *property_ext(void);
+
 int property_destroy(CertifierPropMap *prop_map);
 
 /**
@@ -66,6 +68,9 @@ bool property_is_option_set(CertifierPropMap *map, CERTIFIER_OPT_OPTION option);
 
 int
 property_set_defaults(CertifierPropMap *prop_map);
+
+int
+property_set_ext(CertifierPropMap *prop_map);
 
 int
 property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value);

@@ -6,6 +6,7 @@ xref:libcertifier.adoc[*Back to Manual*]
 | -- | -- | -- |
 | libcertifier.cert.min_time_left_s   | 604800|  |
 | libcertifier.certifier.url   | https://certifier.xpki.io/v1/certifier/certificate |  |
+| libcertifier.num.days   | 365 |
 | libcertifier.disable.auto.renewal   | 0|  |
 | libcertifier.ecc.curve.id   | prime256v1 |  |
 | libcertifier.http.connect.timeout   | 10 |  |
@@ -24,6 +25,23 @@ xref:libcertifier.adoc[*Back to Manual*]
 | libcertifier.system.id   | default_system_id |  |
 | libcertifier.tls.insecure.host   | 0 |  |
 | libcertifier.tls.insecure.peer   | 0 |  |
+| libcertifier.ext.key.usage   | clientAuth,serverAuth | (See notes below) |
+
+
+== Extended Key Usage values:
+This field can be populated with a list of values, indicating purposes for which the certificate public key can be used for. 
+
+The following text names, and their intended meaning, are shown below:
+
+ | *Value* | *Meaning* |
+ | -- | -- | 
+ | serverAuth   | SSL/TLS Web Server Authentication |
+ | clientAuth   | SSL/TLS Web Client Authentication |
+ | codeSigning   | Code signing |
+ | emailProtection   | E-mail Protection (S/MIME) |
+ | timeStamping   | Trusted Timestamping |
+ | OCSPSigning   | OCSP Signing |
+ | ipsecIKE   | ipsec Internet Key Exchange |
 
 The following command is quite useful to put a root/intermediate cert into a single line for libcertifier.cfg in the root.ca and/or int.ca entries:
 
