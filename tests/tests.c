@@ -123,6 +123,7 @@ static void test_certifier_client_requests(void **state) {
     const char *bearer_token = "polar";
     const char *tracking_id = "12345678";
     const char *source = "test_libcertifier";
+    size_t validity_days = 365;
     char *ret = NULL;
 
     JSON_Value *root_value = json_value_init_object();
@@ -136,6 +137,7 @@ static void test_certifier_client_requests(void **state) {
         json_object_set_string(root_object, "systemId", system_id);
     }
     json_object_set_string(root_object, "ledgerId", certifier_id);
+    json_object_set_number(root_object, "validityDays", validity_days);
     json_object_set_string(root_object, "certificateLite", "true");
 
     g_mock_http_expected_body = json_serialize_to_string_pretty(root_value);
