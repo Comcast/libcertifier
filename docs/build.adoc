@@ -13,49 +13,51 @@ xref:libcertifier.adoc[*Back to Manual*]
 | zLib | 1.2.11 (or higher) | Ubuntu 19.x - Consider using `sudo apt install zlib1g-dev`
 | cMocka | 1.1 | https://cmocka.org/ Ubuntu 19.x - Consider using `sudo apt-get install libcmocka-dev`
 | mbedTLS | Optional | Ubuntu 19.x - Consider using `sudo apt-get install -y libmbedtls-dev` +
-cURL has to be compiled with mbedTLS.  Please see -  `+https://tls.mbed.org/kb/how-to/compile-curl-with-mbedtls+`|
+cURL has to be compiled with mbedTLS.  Please see -  `+https://tls.mbed.org/kb/how-to/compile-curl-with-mbedtls+`
+| Valgrind | Optional | Ubuntu 18.x - Consider using `sudo apt-get install -y valgrind` |
 |=======
+=== Build types
+
+The project supports following build configurations (to be used as an argument for option `-DCMAKE_BUILD_TYPE=`):
+
+- Release - build project with compiler optimization and without debug information
+- Debug - build project with debug information
+- asan - build with Address Sanitizer features for real-time address checking
+- lsan - build with Address Sanitizer features for real-time memory leaks checking
+- ubsan - build with Address Sanitizer features for real-time checking for undefined behavior
+
+The default build type is `Debug`.
 
 === Examples
 
-With `OpenSSL` & Tests & ASAN
+Cmake can be run from any directory, it requires only path (relative or absolute) to the source directory and makes a build directory with all executables where it runs.
+
+With `OpenSSL` & Tests & Valgrind ready & Debug configuration
 
 ----
-mkdir -p build
-cd build
-cmake .. -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=OFF -DENABLE_ASAN=ON -DENABLE_TESTS=ON
+mkdir -p Debug
+cd Debug
+cmake .. -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=OFF -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
 ----
 
-With `mbedTLS` & Tests & ASAN
+With `mbedTLS` & Tests & ASAN configuration
 
 ----
-mkdir -p build
-cd build
-cmake .. -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=ON -DENABLE_ASAN=ON -DENABLE_TESTS=ON
+mkdir -p asan
+cd asan
+cmake .. -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=ON -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=asan
 ----
 
-From the build directory...
+From the build directory (if -DENABLE_TESTS=ON)
 
-One time only - 
-
-`cp ../libcertifier.cfg.sample ./libcertifier.cfg`
-
-One time only - 
-
-`cp ../libcertifier-cert.crt .`
-
-. Type in `make clean`
-. Type in `make`
+. Type in `cmake --build . --target clean` or `make clean`
+. Type in `cmake --build .` or `make`
 . Type in `./certifierTests` to run the unit tests
 
 Now, run the functional test.  This attempts to read in the device attestation certificate, creates an X509 token from it (for authentication) and makes an HTTPS call to certifier and creates a PKCS12 file with a public/private keypair and an X509 certificate.
 
-. Go back to the root.  `cd ..`
-. Go into the tests/functional directory.  `cd ./tests/functional`
-. Run the e2e test.  
-`./test-fetch-cert-e2e.sh ../../resources/device-attestation-certificate.p12 changeit`
-. Go back to the build directory.  `cd ../../build`
-. There should be a `lrg` file there.  That was the PKCS12 file created.
+`./test-fetch-cert-e2e.sh ./device-attestation-certificate.p12 changeit`
+. There should be an `lrg` file in the build directory.  This is the created PKCS12 file.
 
 
 === Build Options
@@ -65,16 +67,24 @@ Now, run the functional test.  This attempts to read in the device attestation c
 | ENABLE_MBEDTLS | OFF | Enables mbedTLS as the crypto provider.  Otherwise, OpenSSL is the default.
 | ENABLE_TESTS | OFF | Build unit tests (requires CMocka or Unit to be used)
 | ENABLE_CMOCKA | OFF | Unit testing framework to use.  If OFF, Unit (self-contained is used)
-| ENABLE_ASAN | ON | Build debug executables with AddressSanitizer support
 | ENABLE_CMAKE_VERBOSE_MAKEFILE | OFF | Enable verbose nakefiles for debugging
 |=======
-=== ASAN
+=== Sanitizers
 
-Assuming `-DENABLE_ASAN=ON", this sets the following environment variable to ensure ASAN contains full backtraces -
+Address Sanitizer works in runtime always if `CMAKE_BUILD_TYPE=asan` is chosen. 
+Similar for Leakage Sanitizer (`lsan`) and Undefined Behavior sanitizer (`ubsan`).
+Normally Sanitizer produces list of errors after the program finishes, 
+but all these  errors have been fixed and there are no messages after that.
+Remember that project built with `CMAKE_BUILD_TYPE=asan` fails Valgrind
+tests invoked with the command `ctest -T memcheck`.
 
-----
-export ASAN_OPTIONS=fast_unwind_on_malloc\=false
-----
+=== Valgrind
+
+Valgrind checks can be run on any tests added to `CMakeLists.txt` and runnable with `ctest` by the command
+
+```
+ctest -T memcheck
+```
 
 === OSX
 
@@ -82,7 +92,7 @@ Building/running on OSX is a bit tricky.
 
 ==== Open SSL 1.1.1f
 
-If you already have `openssl` version 1.1 or higher, you can skip this section.
+If you already have `openssl` version 1.1.1 or higher, you can skip this section.
 
 In the Linux Ubuntu world, `openssl` is not the same as `libssl-dev`.  The first one is for direct use, the second is for linking.  On OSX, they are bundled in one package, if you use `brew install openssl` and there are some things you have to do to get it to work.  Also, OSX comes with their own version of OpenSSL, which makes things even more complicated, i.e., DLL hell (Windows joke!).
 
@@ -213,20 +223,17 @@ https://github.com/Kitware/CMake/blob/300979e7889b34d61803675c560fe450c7404447/M
 https://github.com/Kitware/CMake/blob/300979e7889b34d61803675c560fe450c7404447/Modules/FindCURL.cmake
 ----
 
-Then you can run it via -
+Then you can run it via `./build.sh` and then
 
-[source,./build.sh```]
-----
-
-and then
-
-
-```make clean```
-
+```
+make clean
+```
 
 followed by -
 
-```make```
+```
+make
+```
 
 If you get symbols that cannot be referenced, it's most likely because something else is defined as in implicit include directory (like an older version of OpenSSL), such as ```/opt/local/include/openssl/``` so please be sure that older Open SSL include files do not exist.
 
@@ -242,4 +249,3 @@ brew install curl-openssl
 mbedTLS is more straightforward.
 
 You could use ```brew install mbedtls``` to install.
-----

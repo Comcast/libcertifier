@@ -124,11 +124,13 @@ cov-format-errors --dir $COV_DIR --html-output $COV_DIR/errors
 
 = Address Sanitizer (ASAN)
 
-The following build flag could be utilized to turn on ASAN
+The following build flag can be used to turn on Sanitizers
 
-----
--DENABLE_ASAN=ON
-----
+|===
+| -DCMAKE_BUILD_TYPE=asan | Address Sanitizer
+| -DCMAKE_BUILD_TYPE=lsan | LeakSanitizer
+| -DCMAKE_BUILD_TYPE=ubsan | Undefined Behavior Sanitizer
+|===
 
 = Valgrind (Memory Leak Detection)
 
@@ -137,3 +139,9 @@ On our developer's desktop, we utilize Valgrind for memory leak detection.  We r
 ----
 valgrind --tool=memcheck --track-origins=yes --leak-check=full --show-leak-kinds=all $1
 ----
+
+Alternatively, Valgrind can be invoked for tests by the follwing command (when not used together with Sanitizer build types) -
+
+```
+ctest -T memcheck
+```
