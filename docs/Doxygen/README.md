@@ -1,0 +1,33 @@
+\mainpage libCertifier
+
+libCertifier() -
+
+-   Utility for Linux class IoT devices to request and receive
+    operational certificate.
+
+    -   Creates a key pair (ECC 256v1)
+
+    -   Creates CSR (signed)
+
+    -   Creates Certificate Request Token (signed with Attestation
+        private key)
+
+    -   Request and receives certificate chain
+
+    -   stores it is pkcs12 bundle
+
+-   Written in C.
+
+-   Small binary size (less than 100 KB) that is ideal for embedded
+    systems.
+
+-   Tested on Arm (Raspberry Pi, Android, xCam, [i.MX](http://i.MX),
+    Ambarella, iOS), x86\_64 (Ubuntu, MacOS, x86\_32 (Ubuntu).
+
+-   Shared library and command-line executable.
+
+Documentation
+
+-   [Manual](docs/Doxygen/libcertifier.md)
+
+

@@ -39,6 +39,7 @@ X509_CRT="`${TEST_CREATE_X509_CRT_SCRIPT} $1 $2 | python3 -c "import sys, json; 
 if [ $? -eq 0 ]
 then
   echo "./test-create-x509-crt.sh invocation was successful."
+  echo ${X509_CRT} > x509_crt.tmp
   ${TEST_DEVICE_REG_SCRIPT} ${X509_CRT}
 else
   echo "./test-create-x509-crt.sh invocation failed." >&2
