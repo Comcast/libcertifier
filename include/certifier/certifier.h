@@ -247,6 +247,7 @@ int certifier_create_crt(Certifier *certifier, char **out_crt, const char *type)
 
 int certifier_create_x509_crt(Certifier *certifier, char **out_crt);
 
+int certifier_create_json_csr(Certifier *certifier, char *csr, char **out_cert);
 int certifier_setup_keys(Certifier *certifier);
 
 int
@@ -278,5 +279,6 @@ void certifier_set_log_callback(Certifier *certifier,
  * @return A base64 encoded certificate or NULL (caller must free)
  */
 char *certifier_get_x509_pem(Certifier *certifier);
+
 
 #endif

@@ -23,9 +23,11 @@
 #include "certifier/property.h"
 #include "certifier/types.h"
 
-
 typedef struct CERTIFIER CERTIFIER;
 
+typedef struct http_response http_response;
+
+typedef struct ECC_KEY _ECC_KEY;
 /**
  * Modes for certifier_api_easy_perform.
  * @note Postconditions are true only after calling certifier_api_easy_perform and receiving a 0 (OK) result code.
@@ -101,6 +103,14 @@ typedef enum {
 CERTIFIER *certifier_api_easy_new(void);
 
 /**
+ * Create a new easy API context, same as certifier_api_easy_new,
+ * but with configuration loaded from a custom file.
+ * @return the API context or NULL on failure
+ */
+
+CERTIFIER *certifier_api_easy_new_cfg(char *libcertifier_cfg);
+
+/**
  * Free an easy API context
  * @param easy
  */
@@ -115,6 +125,17 @@ void certifier_api_easy_destroy(CERTIFIER *easy);
  * @see CERTIFIER_APP_REGISTRATION
  */
 void certifier_api_easy_set_is_client(CERTIFIER *easy, bool is_app);
+
+/**
+ * Get a certifier configuration option.
+ * @see CERTIFIER_MODE documentation for primary options and CERTIFIER_OPT for a complete list of options.
+ * @note Take care to use the correct return type for each option. Results are undefined for
+ *       mismatched option types (e.g., a string where a number is required).
+ * @param easy
+ * @param option
+ * @return value See option description for valid values (the value is copied by certifier).
+ */
+void *certifier_api_easy_get_opt(CERTIFIER *easy, CERTIFIER_OPT option);
 
 /**
  * Set a certifier configuration option.
@@ -178,6 +199,35 @@ const char *certifier_api_easy_get_result_json(CERTIFIER *easy);
  */
 const char *certifier_api_easy_get_result(CERTIFIER *easy);
 
+/**
+ * Get Certifier instance
+ * @param easy
+ * @return sertifier instance
+ */
+//Certifier * certifier_get_sertifier_instance(CERTIFIER *easy);
+
+/**
+ * Send a CSR to HTTP server
+ * @param easy
+ * @param url
+ * @param http_headers
+ * @param csr
+ * @return HTTP response
+ */
+http_response *certifier_api_easy_http_post( const CERTIFIER *easy,
+                                             const char *url,
+                                             const char *http_headers[],
+                                             const char *csr);
+
+int certifier_api_easy_set_keys_and_node_address(CERTIFIER *easy, ECC_KEY *new_key);
+
+void certifier_api_easy_set_ecc_key(CERTIFIER *easy, const ECC_KEY *key);
+
+const ECC_KEY *certifier_api_easy_get_priv_key(CERTIFIER *easy);
+
+int certifier_api_easy_create_json_csr(CERTIFIER *easy, unsigned char *csr, char *node_address, char **json_csr);
+
+const char *certifier_api_easy_get_node_address(CERTIFIER *easy);
 /**
  * @}
  */

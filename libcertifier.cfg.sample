@@ -11,7 +11,7 @@
   "libcertifier.int.ca": "-----BEGIN CERTIFICATE-----\nMIIBvDCCAWKgAwIBAgIILYozPqRVXXwwCgYIKoZIzj0EAwIwMDEuMCwGA1UEAwwl\nWGZpbml0eSBTdWJzY3JpYmVyIEVDQyBDbGFzcyBJSUkgUm9vdDAeFw0xOTA0MDQx\nNzA5NDlaFw00NDAzMjgxNzA5NDlaMDAxLjAsBgNVBAMMJVhmaW5pdHkgU3Vic2Ny\naWJlciBFQ0MgQ2xhc3MgSUlJIFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC\nAAT+6HxsHxMJleLuNhlbC8QImb0rN3/1imQQrNAvRz6L5Cr9ELkXmmC+4fopTk+K\nKgmEsmZ19Eb7I1ZtUDQGEHomo2YwZDASBgNVHRMBAf8ECDAGAQH/AgEBMB8GA1Ud\nIwQYMBaAFEKPSE8KFTbOPJRbagklXxMZoVRoMB0GA1UdDgQWBBRCj0hPChU2zjyU\nW2oJJV8TGaFUaDAOBgNVHQ8BAf8EBAMCAYYwCgYIKoZIzj0EAwIDSAAwRQIhAKMr\nI0kLwf8cZab2aCXk25NQdOKhczQa8bbiplWsbdODAiBkJv+nhWCxiC3WWS6bHz/1\nqhgaI6GMwrYxrvkX1OL0BA==\n-----END CERTIFICATE-----\n",
   "libcertifier.keystore": "lrg",
   "libcertifier.log.file": "/tmp/libcertifier.log",
-  "libcertifier.log.level": 0,
+  "libcertifier.log.level": 4,
   "libcertifier.log.max.size": 5000000,
   "libcertifier.measure.performance": 0,
   "libcertifier.password": "changeit",

@@ -18,10 +18,13 @@
 
 #include "certifier/base64.h"
 #include "certifier/certifier.h"
+#include "certifier/certifier_internal.h"
 #include "certifier/log.h"
 #include "certifier/util.h"
 #include "certifier/certifier_api_easy.h"
 #include "certifier/types.h"
+#include "certifier/security.h"
+#include "certifier/http.h"
 
 // Defines
 #define DEFAULT_PASSWORD             "changeit"
@@ -79,6 +82,35 @@ CERTIFIER *certifier_api_easy_new(void) {
     return easy;
 }
 
+Certifier * certifier_get_sertifier_instance(const CERTIFIER *easy)
+{
+    return easy->certifier;
+}
+
+CERTIFIER *certifier_api_easy_new_cfg(char *libcertifier_cfg) {
+    CERTIFIER *easy = NULL;
+    easy = certifier_api_easy_new();
+    if (util_file_exists(libcertifier_cfg))
+    {
+        certifier_api_easy_set_opt(easy, CERTIFIER_OPT_CFG_FILENAME, libcertifier_cfg);
+        int error_code = certifier_load_cfg_file(certifier_get_sertifier_instance(easy));
+        if (error_code)
+        {
+            printf("[FATAL] Failed to load config file %s.\n", libcertifier_cfg);
+            goto cleanup;
+        }
+    }
+    else if (libcertifier_cfg)
+        {
+            printf("[FATAL] File %s does not exist.\n", libcertifier_cfg);
+            goto cleanup;
+        }
+    return easy;
+cleanup:
+    certifier_api_easy_destroy(easy);
+    return NULL;
+}
+
 void certifier_api_easy_destroy(CERTIFIER *easy) {
     if (easy != NULL) {
         certifier_destroy(easy->certifier);
@@ -90,6 +122,13 @@ void certifier_api_easy_destroy(CERTIFIER *easy) {
 
 void certifier_api_easy_set_is_client(CERTIFIER *easy, bool is_app) {
     easy->is_client_app = is_app;
+}
+
+void *certifier_api_easy_get_opt(CERTIFIER *easy, CERTIFIER_OPT option) {
+    if(!easy)
+        return NULL;
+
+    return certifier_get_property(easy->certifier, option);
 }
 
 int certifier_api_easy_set_opt(CERTIFIER *easy, CERTIFIER_OPT option, void *value) {
@@ -455,6 +494,15 @@ char *certifier_api_easy_get_version(CERTIFIER *easy) {
     return certifier_get_version(easy->certifier);
 }
 
+const char *certifier_api_easy_get_node_address(CERTIFIER *easy) {
+    if (easy == NULL) {
+        return NULL;
+    }
+
+    return certifier_get_node_address(easy->certifier);
+}
+
+
 static CERTIFIER_OPT parse_CERTIFIER_OPT(char *str) {
     if (XSTRCMP("CERTIFIER_OPT_CFG_FILENAME", str) == 0) return CERTIFIER_OPT_CFG_FILENAME;
     else if (XSTRCMP("CERTIFIER_OPT_CERTIFIER_URL", str) == 0) return CERTIFIER_OPT_CERTIFIER_URL;
@@ -814,4 +862,59 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
 
     cleanup:
     return easy->last_info.error_code;
+}
+
+http_response *certifier_api_easy_http_post(const CERTIFIER *easy,
+                         const char *url,
+                         const char *http_headers[],
+                         const char *csr)
+{
+    return http_post(certifier_easy_api_get_props(certifier_get_sertifier_instance(easy)), url, http_headers, csr);
+}
+
+
+int certifier_api_easy_set_keys_and_node_address(CERTIFIER *easy, ECC_KEY *new_key)
+{
+    CertifierError rc = {0};
+    return certifier_set_keys_and_node_address_with_cn_prefix(certifier_get_sertifier_instance(easy), new_key, NULL, rc);
+}
+
+int certifier_api_easy_create_json_csr(CERTIFIER *easy, unsigned char *csr, char *node_address, char **json_csr)
+{
+    int return_value = 0;
+    int free_node_address = 0;
+    char *serialized_string = NULL;
+
+    if (json_csr == NULL) {
+        return return_value;
+    }
+    if (!node_address)
+    {
+        node_address = XMALLOC(SMALL_STRING_SIZE);
+        certifier_easy_api_get_node_address(certifier_get_sertifier_instance(easy), node_address);
+        free_node_address = 1;
+    }
+
+    serialized_string = certifier_create_csr_post_data(
+            certifier_easy_api_get_props(certifier_get_sertifier_instance(easy)),
+            csr,
+            node_address,
+            NULL);
+    *json_csr = XSTRDUP(serialized_string);
+
+    if (free_node_address)
+        XFREE(node_address);
+    XFREE(serialized_string);
+    return 1;
+}
+
+void certifier_api_easy_set_ecc_key(CERTIFIER *easy, const ECC_KEY *key)
+{
+    _certifier_set_ecc_key(certifier_get_sertifier_instance(easy), key);
+}
+
+
+const ECC_KEY *certifier_api_easy_get_priv_key(CERTIFIER *easy)
+{
+    return (_certifier_get_privkey(certifier_get_sertifier_instance(easy)));
 }
