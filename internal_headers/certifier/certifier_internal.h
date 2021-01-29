@@ -65,6 +65,37 @@ void _certifier_set_x509_cert(Certifier *certifier, const X509_CERT *cert);
 void _certifier_set_ecc_key(Certifier *certifier, const ECC_KEY *key);
 
 /**
+ * Get the private ECC key
+ * @param certifier
+ * @return key
+ */
+const ECC_KEY *_certifier_get_privkey(Certifier *certifier);
+
+/**
+ * Set the private ECC key and create and set node address from it
+ * @param certifier
+ * @param new_key
+ * @return successful (0) or not
+ */
+int certifier_set_keys_and_node_address(Certifier *certifier, ECC_KEY *new_key);
+
+/**
+ * Get certifier property map
+ * @param certifier
+ * @return CertifierPropMap pointer or null
+ */
+CertifierPropMap *certifier_easy_api_get_props(Certifier *certifier);
+
+int certifier_set_keys_and_node_address_with_cn_prefix(Certifier *certifier, ECC_KEY *new_key, char *cn_prefix, CertifierError rc);
+
+void certifier_easy_api_get_node_address(Certifier *certifier, char *node_address);
+
+char* certifier_create_csr_post_data(CertifierPropMap *props,
+                                                    const unsigned char *csr,
+                                                    const char *node_address,
+                                                    const char *certifier_id);
+
+/**
  * @}
  */
 

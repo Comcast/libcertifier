@@ -197,6 +197,7 @@ static http_response *do_http(const CertifierPropMap *props,
         if (res != CURLE_OK) { // could the two functions above ever get an error, and if so, should this be checked
             error_message = curl_easy_strerror(res);
             if (error_message != NULL) {
+                free(cf->payload);
                 return http_error_response(error_message, res, http_code);
             }
         }

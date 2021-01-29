@@ -24,19 +24,6 @@
 #include "certifier/types.h"
 
 
-#ifdef USE_MBEDTLS
-
-#include <mbedtls/pk.h>
-
-typedef mbedtls_pk_context ECC_KEY;
-typedef struct mbedtls_x509_crt X509_CERT;
-typedef struct mbedtls_x509_crt X509_LIST;
-#else
-typedef struct ec_key_st ECC_KEY;
-typedef struct x509_st X509_CERT;
-typedef struct stack_st_X509 X509_LIST;
-#endif
-
 #define VALIDATE_CERT 0x1
 #define VALIDATE_SIGNATURE 0x2
 

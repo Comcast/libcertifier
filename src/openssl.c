@@ -28,6 +28,7 @@
 #include "certifier/timer.h"
 #include "certifier/util.h"
 #include "certifier/error.h"
+#include "certifier/types.h"
 
 #include <openssl/bio.h>
 #include <openssl/crypto.h>

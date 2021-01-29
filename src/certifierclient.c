@@ -52,23 +52,13 @@ certifierclient_request_x509_certificate(CertifierPropMap *props,
     char source_header[SMALL_STRING_SIZE] = "";
     JSON_Object *parsed_json_object_value = NULL;
     JSON_Value *parsed_json_root_value = NULL;
-
-    JSON_Value *root_value = json_value_init_object();
-    JSON_Object *root_object = json_value_get_object(root_value);
     char *serialized_string = NULL;
-
     const char *certificate_chain = NULL;
     http_response *resp = NULL;
     const char *tracking_id = property_get(props, CERTIFIER_OPT_TRACKING_ID);
     const char *bearer_token = property_get(props, CERTIFIER_OPT_CRT);
     const char *source = property_get(props, CERTIFIER_OPT_SOURCE);
     const char *certifier_url = property_get(props, CERTIFIER_OPT_CERTIFIER_URL);
-    const char *system_id = property_get(props, CERTIFIER_OPT_SYSTEM_ID);
-    const char *mac_address = property_get(props, CERTIFIER_OPT_MAC_ADDRESS);
-    size_t  num_days   = (size_t) property_get(props, CERTIFIER_OPT_NUM_DAYS);
-    bool is_certificate_lite = property_is_option_set(props, CERTIFIER_OPTION_CERTIFICATE_LITE);
-
-
     log_debug("Tracking ID is: %s", tracking_id);
 
     if (util_is_empty(source)) {
@@ -92,38 +82,7 @@ certifierclient_request_x509_certificate(CertifierPropMap *props,
             NULL
     };
 
-    json_object_set_string(root_object, "csr", (const char *) csr);
-    json_object_set_string(root_object, "nodeAddress", node_address);
-
-    if (util_is_not_empty(system_id)) {
-        log_debug("\nsystem Id :\n%s\n", system_id);
-        json_object_set_string(root_object, "systemId", system_id);
-    }
-
-    if (util_is_not_empty(certifier_id)) {
-        log_debug("\nCertifier Id :\n%s\n", certifier_id);
-        json_object_set_string(root_object, "ledgerId", certifier_id);
-    }
-
-    if (util_is_not_empty(mac_address)) {
-        log_debug("\nmacAddress Id :\n%s\n", mac_address);
-        json_object_set_string(root_object, "macAddress", mac_address);
-    }
-
-    if (num_days > 0) {
-        log_debug("\nvalidityDays  :\n%d\n", num_days);
-        json_object_set_number(root_object, "validityDays", num_days);
-    }
-
-    if (is_certificate_lite)
-    {
-        log_debug("CertificateLite=1");
-        json_object_set_string(root_object, "certificateLite", "true");
-    }
-
-    serialized_string = json_serialize_to_string_pretty(root_value);
-
-    log_debug("\nCertificate Request POST Data:\n%s\n", serialized_string);
+    serialized_string = certifier_create_csr_post_data(props, csr, node_address, certifier_id);
 
     resp = http_post(props, certifier_url, headers, serialized_string);
     if (resp == NULL) {
@@ -185,10 +144,6 @@ certifierclient_request_x509_certificate(CertifierPropMap *props,
     cleanup:
 
     http_free_response(resp);
-
-    if (root_value) {
-        json_value_free(root_value);
-    }
 
     if (parsed_json_root_value) {
         json_value_free(parsed_json_root_value);

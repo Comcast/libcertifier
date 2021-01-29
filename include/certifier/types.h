@@ -178,5 +178,18 @@ typedef struct rusage XRUSAGE;
 #endif
 
 
+#ifdef USE_MBEDTLS
+
+#include <mbedtls/pk.h>
+
+typedef mbedtls_pk_context ECC_KEY;
+typedef struct mbedtls_x509_crt X509_CERT;
+typedef struct mbedtls_x509_crt X509_LIST;
+#else
+typedef struct ec_key_st ECC_KEY;
+typedef struct x509_st X509_CERT;
+typedef struct stack_st_X509 X509_LIST;
+#endif
+
 
 #endif //LIBCERTIFIER_TYPES_H
