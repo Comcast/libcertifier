@@ -6,7 +6,7 @@ Command Line Examples
 
 *Create X509 CRT*
 
-The command below assumes there is a file called `factory_lrg`, which is the pre-existing PKCS12 with a password of `changeit` without the single quotes.
+The command below assumes there is an already generated PKCS12 file named `factory_lrg`, with a password of `changeit` without the single quotes.
 
 ----
 ./certifierUtil -m 128 -X X509 -k ./factory_lrg -p changeit
@@ -32,7 +32,13 @@ Sample output -
 
 *Fetch a new certificate*
 
-The command below , passes in the contents of the `base64_data` from the command above (create x509 crt).   This command will make an HTTPS call to certifier and will create a brand new password-protected PKCS12 file that contains the certificate chain returned and public/private key pair. `libcertifier.cfg` must be present and have valid values.
+The following command uses the contents of `<base64_data>` from the output of the command above (create x509 crt). This command will make a HTTPS call to certifier and will create a brand new password-protected PKCS12 file that contains the certificate chain returned and public/private key pair. `libcertifier.cfg` must be present and have valid values.
+
+----
+./ledgerUtil -f -p <pkcs12_password> -T <base64_data>
+----
+
+This command could also be invoked from `./tests/functional/test-device-reg.sh`.  Example -
 
 ----
 cd ./tests/functional
