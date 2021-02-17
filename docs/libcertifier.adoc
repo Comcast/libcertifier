@@ -23,19 +23,19 @@ libCertifier() communicates with the following back-end service.  TLS is used.
 
 | Certifier
 | Communicates with the xPKI Certificate Authority and is used to generate the x509 certificate.  +
-Certifier also handles all necessary authentication.  Please refer to xref:anatomy_of_https_certifier_call.adoc[Anatomy of an HTTPS call to Certifier page]) to better understand the interaction between client (libCertifier) and server (Certifier).  
+Certifier also handles all necessary authentication.  Please refer to xref:anatomy_of_https_certifier_call.adoc[Anatomy of an HTTPS call to Certifier page] to better understand the interaction between client (libCertifier) and server (Certifier).  
 | Yes
 |===
 
 *Project structure*
 
-The table below describes th files in this project -
+The table below describes the files in this project -
 
 |===
 | *Folder/File Name* | *Description*
 
 | CMakeLists.txt
-| CMake file
+| CMake file for creating builds
 
 | xref:../README.adoc[README.adoc]
 | Readme file
@@ -47,10 +47,10 @@ The table below describes th files in this project -
 | *private* source header files
 
 | libcertifier-cert.crt
-| Certificates used by libcurl for HTTPS calls
+| Certificate trust store used by libcurl for HTTPS calls
 
 | xref:configuration.adoc[libcertifier.cfg.sample]
-| Sample libcertifier configuration file
+| Sample libCertifier configuration file
 
 | resources
 | Device Attestation Certificate
@@ -64,7 +64,7 @@ The table below describes th files in this project -
 
 == *Build*
 
-libCertifier was written with xref:portability.adoc[portability] in mind, and has been tested on both MacOS and Linux systems. If you have difficulty building libcertifier, please don't hesitate to seek support through our support forums or contact us directly!
+libCertifier was written with xref:portability.adoc[portability] in mind, and has been tested on both MacOS and Linux systems. If you have difficulty building libCertifier, please don't hesitate to seek support through our support forums or contact us directly!
 
 Please read the xref:build.adoc[*build section*] for more information on how to build libCertifier.
 
