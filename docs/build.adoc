@@ -40,14 +40,6 @@ cd Debug
 cmake .. -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=OFF -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
 ----
 
-With `mbedTLS` & Tests & ASAN configuration
-
-----
-mkdir -p asan
-cd asan
-cmake .. -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=ON -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=asan
-----
-
 From the build directory (if -DENABLE_TESTS=ON)
 
 . Type in `make clean`
