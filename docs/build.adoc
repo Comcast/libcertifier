@@ -2,7 +2,7 @@ xref:libcertifier.adoc[*Back to Manual*]
 
 == Build
 
-=== Prerequisites
+=== Dependencies
 [width="100%"]
 |=======
 | *Component* | *Version* | *Notes*
@@ -28,7 +28,7 @@ The project supports following build configurations (to be used as an argument f
 
 The default build type is `Debug`.
 
-=== Examples
+=== Build instructions
 
 Cmake can be run from any directory, it requires only path (relative or absolute) to the source directory and makes a build directory with all executables where it runs.
 
@@ -50,8 +50,8 @@ cmake .. -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS
 
 From the build directory (if -DENABLE_TESTS=ON)
 
-. Type in `cmake --build . --target clean` or `make clean`
-. Type in `cmake --build .` or `make`
+. Type in `make clean`
+. Type in `make`
 . Type in `./certifierTests` to run the unit tests
 
 Now, run the functional test.  This attempts to read in the device attestation certificate, creates an X509 token from it (for authentication) and makes an HTTPS call to certifier and creates a PKCS12 file with a public/private keypair and an X509 certificate.
