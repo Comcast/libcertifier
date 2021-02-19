@@ -44,7 +44,7 @@ Now, with the cmake files generated in your build directory ('Debug' if followin
 ----
 make clean
 make
-./certifierTests`
+./certifierTests
 ----
 
 Now, run the functional test.  This attempts to read in the device attestation certificate, creates an X509 token from it (for authentication) and makes an HTTPS call to certifier and creates a PKCS12 file with a public/private keypair and an X509 certificate.
