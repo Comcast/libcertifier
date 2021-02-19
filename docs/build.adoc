@@ -40,7 +40,7 @@ cd Debug
 cmake .. -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=OFF -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
 ----
 
-From the build directory (if -DENABLE_TESTS=ON)
+Now, with the cmake files generated in your build directory ('Debug' if following the above example):
 
 . Type in `make clean`
 . Type in `make`
