@@ -132,7 +132,7 @@ cd ./tests/functional
 | X
 | -crt-type <crt-type>
 
-| system-id
+| system-id/fabric-id (if lite certificate)
 | M
 | -system-id [id] +
  +
