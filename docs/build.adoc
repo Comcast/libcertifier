@@ -2,7 +2,7 @@ xref:libcertifier.adoc[*Back to Manual*]
 
 == Build
 
-=== Prerequisites
+=== Dependencies
 [width="100%"]
 |=======
 | *Component* | *Version* | *Notes*
@@ -28,7 +28,7 @@ The project supports following build configurations (to be used as an argument f
 
 The default build type is `Debug`.
 
-=== Examples
+=== Build instructions
 
 Cmake can be run from any directory, it requires only path (relative or absolute) to the source directory and makes a build directory with all executables where it runs.
 
@@ -40,24 +40,18 @@ cd Debug
 cmake .. -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=OFF -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
 ----
 
-With `mbedTLS` & Tests & ASAN configuration
-
+Now, with the cmake files generated in your build directory ('Debug' if following the above example), we can build the project and run the unit tests:
 ----
-mkdir -p asan
-cd asan
-cmake .. -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=ON -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=asan
+make clean
+make
+./certifierTests
 ----
-
-From the build directory (if -DENABLE_TESTS=ON)
-
-. Type in `cmake --build . --target clean` or `make clean`
-. Type in `cmake --build .` or `make`
-. Type in `./certifierTests` to run the unit tests
 
 Now, run the functional test.  This attempts to read in the device attestation certificate, creates an X509 token from it (for authentication) and makes an HTTPS call to certifier and creates a PKCS12 file with a public/private keypair and an X509 certificate.
-
-`./test-fetch-cert-e2e.sh ./device-attestation-certificate.p12 changeit`
-. There should be an `lrg` file in the build directory.  This is the created PKCS12 file.
+----
+./test-fetch-cert-e2e.sh ./device-attestation-certificate.p12 changeit
+----
+There should be an `lrg` file in the build directory after running the functional test.  This is the created PKCS12 file.
 
 
 === Build Options

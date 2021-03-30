@@ -2,9 +2,9 @@
 
 * Written in C for embedded devices.
 * Small binary size (less than 100 KB) that is ideal for embedded systems.
-* Tested on Arm (Raspberry Pi, Android, xCam, http://i.MX[i.MX], Ambarella, iOS), x86_64 (Ubuntu, MacOS, x86_32 (Ubuntu).
-* Shared library and command-line executable.
-* Generates public/private key pairs, fetches x509 certificate from xPKI and renews certificate.
+* Tested on Arm (Raspberry Pi, Android, xCam, i.MX, Ambarella, iOS), as well as x86_64 (Ubuntu, MacOS, x86_32 (Ubuntu).
+* C library and command-line executable.
+* Generates ECC key pairs, fetches x509 certificate from xPKI and renews certificates.
 * See xref:open_source_dependencies.adoc[*Open Source Dependencies*]
 
 *Integration Methods*
@@ -22,20 +22,20 @@ libCertifier() communicates with the following back-end service.  TLS is used.
 | *Service* | *Description* | *Mandatory*
 
 | Certifier
-| Communicates with the xPKI Certificate Authority and used to generate the x509 certificate.  +
-Also handles authentication.  The xref:anatomy_of_https_certifier_call.adoc[Anatomy of an HTTPS call to Certifier page]) could be used as reference to better understand the interaction between client and server.  
+| Communicates with the xPKI Certificate Authority and is used to generate the x509 certificate.  +
+Certifier also handles all necessary authentication.  Please refer to xref:anatomy_of_https_certifier_call.adoc[Anatomy of an HTTPS call to Certifier page] to better understand the interaction between client (libCertifier) and server (Certifier).  
 | Yes
 |===
 
 *Project structure*
 
-The table below describes th files in this project -
+The table below describes the files in this project -
 
 |===
 | *Folder/File Name* | *Description*
 
 | CMakeLists.txt
-| CMake file
+| CMake file for creating builds
 
 | xref:../README.adoc[README.adoc]
 | Readme file
@@ -47,10 +47,10 @@ The table below describes th files in this project -
 | *private* source header files
 
 | libcertifier-cert.crt
-| Certificates used by libcurl for HTTPS calls
+| Certificate trust store used by libcurl for HTTPS calls
 
 | xref:configuration.adoc[libcertifier.cfg.sample]
-| Sample libcertifier configuration file
+| Sample libCertifier configuration file
 
 | resources
 | Device Attestation Certificate
@@ -64,13 +64,13 @@ The table below describes th files in this project -
 
 == *Build*
 
-libcertifier was written with xref:portability.adoc[portability]  and has been tested to build on OSX and Linux systems. If you have difficulty building libcertifier, please don't hesitate to seek support through our support forums or contact us directly.
+libCertifier was written with xref:portability.adoc[portability] in mind, and has been tested on both MacOS and Linux systems. If you have difficulty building libCertifier, please don't hesitate to seek support through our support forums or contact us directly!
 
-This xref:build.adoc[*section*] explains how to build libcertifier on Linux and OSX.
+Please read the xref:build.adoc[*build section*] for more information on how to build libCertifier.
 
 *Binary Size*
 
-libcertifier is less than 100KB in size (stripped).
+libCertifier is less than 100KB in size (stripped).
 
 libcertifier.so is around 95KB.
 
