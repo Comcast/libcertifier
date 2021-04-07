@@ -1,16 +1,16 @@
 libCertifier() -
 
 
-* A utility for Linux class IoT devices to request and receive operational certificates.
+* Utility for Linux class IoT devices to request and receive operational certificate.
 ** Creates a key pair (ECC 256v1)
 ** Creates CSR (signed)
 ** Creates Certificate Request Token (signed with Attestation private key)
-** Requests and receives certificate chain
-** Stores it as a pkcs12 bundle
+** Request and receives certificate chain
+** stores it is pkcs12 bundle
 * Written in C.
-* Small binary size (less than 100 KB) which is ideal for embedded systems.
-* Tested on Arm (Raspberry Pi, Android, xCam, i.MX, Ambarella, iOS), as well as x86_64 (Ubuntu, MacOS, x86_32 (Ubuntu).
-* Bundled both as a C library and command-line executable.
+* Small binary size (less than 100 KB) that is ideal for embedded systems.
+* Tested on Arm (Raspberry Pi, Android, xCam, http://i.MX[i.MX], Ambarella, iOS), x86_64 (Ubuntu, MacOS, x86_32 (Ubuntu).
+* Shared library and command-line executable.
 
 Documentation
 

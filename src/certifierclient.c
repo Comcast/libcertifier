@@ -95,7 +95,8 @@ certifierclient_request_x509_certificate(CertifierPropMap *props,
     json_object_set_string(root_object, "csr", (const char *) csr);
     json_object_set_string(root_object, "nodeAddress", node_address);
 
-    if (util_is_not_empty(system_id)) {
+    if (util_is_not_empty(system_id))
+    {
         if (is_certificate_lite)
         {
             log_debug("\nfabric Id :\n%s\n", system_id);
