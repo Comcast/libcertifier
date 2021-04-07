@@ -49,9 +49,19 @@ else ()
     find_package(OpenSSL "1.1.1" REQUIRED)
 endif ()
 
+if ("${ENABLE_PRINTING}" STREQUAL "0")
+    message(STATUS "DEFAULT_LOG_LEVEL set to 6")
+    add_definitions(-DDEFAULT_LOG_LEVEL=6)
+else()
+    message(STATUS "DEFAULT_LOG_LEVEL not set, ENABLE_PRINTING==${ENABLE_PRINTING}==")
+endif()
+
 # See cmake-modules(7) for information about the Find<package> modules used here
 find_package(ZLIB "1.2.11" REQUIRED)
 find_package(CURL "7.60" REQUIRED)
+if (NOT CURL_LIBRARIES)
+    find_library(CURL_LIBRARIES curl)
+endif()
 
 if (${ENABLE_MBEDTLS})
     set(CERTIFIER_LIBS ${ZLIB_LIBRARIES} ${CURL_LIBRARIES} ${MBEDTLS_LIBRARIES})
@@ -73,14 +83,16 @@ list(FILTER SOURCES EXCLUDE REGEX "src/main.c|src/test.c")
 
 configure_file(certifier.ver.in certifier.ver @ONLY)
 add_library(certifier SHARED ${SOURCES})
+message(STATUS "SOURCES = ${SOURCES}")
 
 set_property(TARGET certifier PROPERTY VERSION ${MAJOR}.${MINOR})
 
 target_include_directories(certifier PUBLIC include PRIVATE internal_headers ${CERTIFIER_INCLUDE_DIRS} ${MBED_TLS_INCLUDE_DIR})
 target_link_libraries(certifier ${CERTIFIER_LIBS})
 
-add_executable(certifierUtil "src/main.c")
+add_executable(certifierUtil "src/error.c" "src/main.c" )
 target_link_libraries(certifierUtil ${CERTIFIER_UTIL_LIBS})
+target_include_directories(certifierUtil PUBLIC include PRIVATE internal_headers ${CERTIFIER_INCLUDE_DIRS} ${MBED_TLS_INCLUDE_DIR})
 
 target_include_directories(certifier PUBLIC include PRIVATE internal_headers ${CERTIFIER_INCLUDES})
 target_link_libraries(certifier ${CERTIFIER_LIBS})
@@ -132,7 +144,7 @@ if (NOT GENERATOR_IS_MULTI_CONFIG)
     message(STATUS "buildType: ${CMAKE_BUILD_TYPE}")
 endif ()
 
-        message(STATUS "C compiler version "${CMAKE_C_COMPILER_VERSION})
+        message(STATUS "C compiler version " ${CMAKE_C_COMPILER_VERSION})
 
 SET(C_COMPILER_ASAN_OPTION "-fsanitize=address")
 SET(C_COMPILER_LSAN_OPTION "-fsanitize=leak")
@@ -304,7 +316,6 @@ install(TARGETS certifierUtil RUNTIME DESTINATION bin)
 if (ENABLE_TESTS)
     install(TARGETS certifierTests RUNTIME DESTINATION bin)
 endif ()
-
 
 add_doxygen_doc(
   BUILD_DIR

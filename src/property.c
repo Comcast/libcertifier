@@ -25,7 +25,9 @@
 #include "certifier/types.h"
 #include "certifier/util.h"
 
-#define DEFAULT_LOG_LEVEL            0
+#ifndef DEFAULT_LOG_LEVEL
+#define DEFAULT_LOG_LEVEL            4
+#endif
 #define DEFAULT_LOG_MAX_SIZE         5000000
 #define DEFAULT_HTTP_TIMEOUT         15
 #define DEFAULT_HTTP_CONNECT_TIMEOUT 15
@@ -616,7 +618,7 @@ property_set_defaults(CertifierPropMap *prop_map) {
         }
     }
 
-    return_code = property_set(prop_map, CERTIFIER_OPT_LOG_LEVEL, DEFAULT_LOG_LEVEL);
+    return_code = property_set(prop_map, CERTIFIER_OPT_LOG_LEVEL, (void *)DEFAULT_LOG_LEVEL);
     if (return_code != 0) {
         log_error("Failed to set default property name: CERTIFIER_OPT_LOG_LEVEL with error code: %i", return_code);
         return return_code;
@@ -819,7 +821,7 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
     num_days = json_object_get_number(json_object(json), "libcertifier.num.days");
     if (num_days)
     {
-        log_info("Loaded num_days: %.0f", num_days);
+        log_info("Loaded num_days: %d", num_days);
         property_set(propMap, CERTIFIER_OPT_NUM_DAYS, (void *)(size_t)num_days);
     }
     disable_auto_renewal_value = json_object_get_number(json_object(json), "libcertifier.disable.auto.renewal");

@@ -30,11 +30,7 @@ typedef struct {
     char *library_error_msg;
 } CertifierError;
 
-inline void error_clear(CertifierError *error) {
-    XFREE(error->application_error_msg);
-    XFREE(error->library_error_msg);
-    XMEMSET(error, 0, sizeof(*error));
-}
+void error_clear(CertifierError *error);
 
 enum {
     MBEDTLS_SECURITY_INIT_1_E = -2000, /* mbedtls_ctr_drbg_seed() failed in security_init() */

@@ -16,6 +16,10 @@
 * SPDX-License-Identifier: Apache-2.0
 */
 
-#include "certifier/error.h"
+#include <certifier/error.h>
 
-extern inline void error_clear(CertifierError *error);
+void error_clear(CertifierError *error) {
+    XFREE(error->application_error_msg);
+    XFREE(error->library_error_msg);
+    XMEMSET(error, 0, sizeof(*error));
+}
