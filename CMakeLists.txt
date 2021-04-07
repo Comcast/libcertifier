@@ -83,12 +83,19 @@ list(FILTER SOURCES EXCLUDE REGEX "src/main.c|src/test.c")
 
 configure_file(certifier.ver.in certifier.ver @ONLY)
 add_library(certifier SHARED ${SOURCES})
+add_library(certifier_ STATIC ${SOURCES})
 message(STATUS "SOURCES = ${SOURCES}")
 
 set_property(TARGET certifier PROPERTY VERSION ${MAJOR}.${MINOR})
+set_property(TARGET certifier_ PROPERTY VERSION ${MAJOR}.${MINOR})
 
 target_include_directories(certifier PUBLIC include PRIVATE internal_headers ${CERTIFIER_INCLUDE_DIRS} ${MBED_TLS_INCLUDE_DIR})
 target_link_libraries(certifier ${CERTIFIER_LIBS})
+
+target_include_directories(certifier_ PUBLIC include PRIVATE internal_headers ${CERTIFIER_INCLUDE_DIRS} ${MBED_TLS_INCLUDE_DIR} ${CERTIFIER_INCLUDES})
+target_link_libraries(certifier_ ${CERTIFIER_LIBS})
+SET_TARGET_PROPERTIES(certifier_ PROPERTIES
+   OUTPUT_NAME certifier CLEAN_DIRECT_OUTPUT 1)
 
 add_executable(certifierUtil "src/error.c" "src/main.c" )
 target_link_libraries(certifierUtil ${CERTIFIER_UTIL_LIBS})

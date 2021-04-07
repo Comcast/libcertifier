@@ -1183,9 +1183,18 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
     json_object_set_string(root_object, "csr", (const char *) csr);
     json_object_set_string(root_object, "nodeAddress", node_address);
 
-    if (util_is_not_empty(system_id)) {
-        log_debug("\nsystem Id :\n%s\n", system_id);
-        json_object_set_string(root_object, "systemId", system_id);
+    if (util_is_not_empty(system_id))
+    {
+        if (is_certificate_lite)
+        {
+            log_debug("\nfabric Id :\n%s\n", system_id);
+            json_object_set_string(root_object, "fabricId", system_id);
+        }
+        else
+        {
+            log_debug("\nsystem Id :\n%s\n", system_id);
+            json_object_set_string(root_object, "systemId", system_id);
+        }
     }
 
     if (util_is_not_empty(certifier_id)) {
@@ -1200,7 +1209,7 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
 
     if (num_days > 0) {
         log_debug("\nvalidityDays  :\n%d\n", num_days);
-        json_object_set_number(root_object, "validityDays", (double)num_days);
+        json_object_set_number(root_object, "validityDays", num_days);
     }
 
     if (is_certificate_lite)
