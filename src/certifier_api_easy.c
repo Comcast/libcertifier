@@ -663,7 +663,7 @@ static int process_command_line(CERTIFIER *easy) {
                     break;
                 }
 
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_NODE, optarg);
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_CN_PREFIX, optarg);
 
                 break;
             case 'D':
