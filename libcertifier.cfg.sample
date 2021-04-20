@@ -20,7 +20,8 @@
   "libcertifier.tls.insecure.host": 0,
   "libcertifier.tls.insecure.peer": 0,
   "libcertifier.certificate.lite": 1,
-  "libcertifier.system.id":"",
-  "libcertifier.cn.name":"",
+  "libcertifier.system.id":"BBBBBBBBBBBBBBBB",
+  "libcertifier.cn.name":"AAAAAAAAAAAAAAAA",
   "libcertifier.ext.key.usage":"critical,clientAuth,serverAuth"
 }
+

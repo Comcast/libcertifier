@@ -22,6 +22,7 @@
 #include "certifier/property_internal.h"
 #include "certifier/types.h"
 #include "certifier/log.h"
+#include "certifier/certifier_api_easy.h"
 
 #define http_set_curlopt(curl, option, value)                                  \
 {                                                                              \
@@ -34,12 +35,12 @@
     }                                                                          \
 }                                                                              \
 
-typedef struct http_response {
+struct http_response {
     const char *error_msg;
     const char *payload;
     int http_code;
     int error;
-} http_response;
+};
 
 int http_init(void);
 

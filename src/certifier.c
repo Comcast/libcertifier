@@ -84,7 +84,7 @@ static const X509_CERT *get_cert(Certifier *certifier) {
     return certifier->tmp_map.x509_cert;
 }
 
-static const ECC_KEY *get_privkey(Certifier *certifier) {
+const ECC_KEY *_certifier_get_privkey(Certifier *certifier) {
     if (certifier->tmp_map.private_ec_key == NULL) {
         if (certifier_setup_keys(certifier) != 0) {
             return NULL;
@@ -94,43 +94,11 @@ static const ECC_KEY *get_privkey(Certifier *certifier) {
     return certifier->tmp_map.private_ec_key;
 }
 
-/* createKeys */
 
-int
-certifier_setup_keys(Certifier *certifier) {
-    NULL_CHECK(certifier);
-
+int certifier_set_keys_and_node_address_with_cn_prefix(Certifier *certifier, ECC_KEY *new_key, char *cn_prefix, CertifierError rc)
+{
     int return_code = 0;
     char *tmp_node_address = NULL;
-
-    const char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_KEYSTORE);
-    const char *password = certifier_get_property(certifier, CERTIFIER_OPT_PASSWORD);
-    const char *ecc_curve_id = certifier_get_property(certifier, CERTIFIER_OPT_ECC_CURVE_ID);
-    char *cn_prefix = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
-
-    if (util_is_empty(p12_filename)) {
-        return_code = CERTIFIER_ERR_SETUP_EMPTY_FILENAME;
-        goto cleanup;
-    }
-
-    if (util_is_empty(password)) {
-        return_code = CERTIFIER_ERR_SETUP_EMPTY_PASSWORD;
-        goto cleanup;
-    }
-
-    if (util_is_empty(ecc_curve_id)) {
-        return_code = CERTIFIER_ERR_SETUP_EMPTY_ECC_CURVE;
-        goto cleanup;
-    }
-
-    // Get or Create the Elliptical Curve Keys
-    ECC_KEY *new_key = NULL;
-    CertifierError rc = security_find_or_create_keys(certifier->prop_map,
-                                                     p12_filename,
-                                                     password,
-                                                     NULL,
-                                                     ecc_curve_id,
-                                                     &new_key);
 
     security_free_eckey(certifier->tmp_map.private_ec_key);
     certifier->tmp_map.private_ec_key = new_key;
@@ -194,6 +162,53 @@ certifier_setup_keys(Certifier *certifier) {
         certifier->tmp_map.node_address[sizeof(certifier->tmp_map.node_address) - 1] = '\0';
     }
     log_debug("\nNode Address: %s\n", certifier->tmp_map.node_address);
+
+    // Clean up
+cleanup:
+    XFREE(tmp_node_address);
+
+    return return_code;
+}
+
+/* createKeys */
+
+int
+certifier_setup_keys(Certifier *certifier) {
+    NULL_CHECK(certifier);
+
+    int return_code = 0;
+    char *tmp_node_address = NULL;
+
+    const char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_KEYSTORE);
+    const char *password = certifier_get_property(certifier, CERTIFIER_OPT_PASSWORD);
+    const char *ecc_curve_id = certifier_get_property(certifier, CERTIFIER_OPT_ECC_CURVE_ID);
+    char *cn_prefix = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
+
+    if (util_is_empty(p12_filename)) {
+        return_code = CERTIFIER_ERR_SETUP_EMPTY_FILENAME;
+        goto cleanup;
+    }
+
+    if (util_is_empty(password)) {
+        return_code = CERTIFIER_ERR_SETUP_EMPTY_PASSWORD;
+        goto cleanup;
+    }
+
+    if (util_is_empty(ecc_curve_id)) {
+        return_code = CERTIFIER_ERR_SETUP_EMPTY_ECC_CURVE;
+        goto cleanup;
+    }
+
+    // Get or Create the Elliptical Curve Keys
+    ECC_KEY *new_key = NULL;
+    CertifierError rc = security_find_or_create_keys(certifier->prop_map,
+                                                     p12_filename,
+                                                     password,
+                                                     NULL,
+                                                     ecc_curve_id,
+                                                     &new_key);
+
+    return_code = certifier_set_keys_and_node_address_with_cn_prefix(certifier, new_key, cn_prefix, rc);
 
     // Clean up
     cleanup:
@@ -418,7 +433,7 @@ int certifier_create_x509_crt(Certifier *certifier, char **out_crt) {
     }
 
 
-    const ECC_KEY *private_key = get_privkey(certifier);
+    const ECC_KEY *private_key = _certifier_get_privkey(certifier);
     if (private_key == NULL) {
         return_code = CERTIFIER_ERR_CREATE_X509_CERT_7;
         log_error("Could not lazily obtain the private key as it was NULL.",
@@ -919,7 +934,7 @@ int certifier_register(Certifier *certifier, int mode) {
                 if (util_is_empty(certifier_get_property(certifier, CERTIFIER_OPT_CRT))) {
                     char *renew_crt = NULL;
                     const X509_CERT *cert = get_cert(certifier);
-                    const ECC_KEY *private_key = get_privkey(certifier);
+                    const ECC_KEY *private_key = _certifier_get_privkey(certifier);
                     return_code = security_generate_x509_crt(&renew_crt,
                                                              (X509_CERT *) cert,
                                                              (ECC_KEY *) private_key);
@@ -966,7 +981,7 @@ int certifier_register(Certifier *certifier, int mode) {
     return_code = 0;
     set_last_error(certifier, return_code, NULL);
 
-    if (get_privkey(certifier) == NULL ||
+    if (_certifier_get_privkey(certifier) == NULL ||
         certifier->tmp_map.der_public_key == NULL ||
         certifier->tmp_map.base64_public_key == NULL) {
 
@@ -1136,5 +1151,84 @@ int certifier_register(Certifier *certifier, int mode) {
 } /* certifier_register */
     
 
+CertifierPropMap *certifier_easy_api_get_props(Certifier *certifier)
+{
+    return (certifier->prop_map);
+}
 
+
+
+void certifier_easy_api_get_node_address(Certifier *certifier, char *node_address)
+{
+    memcpy(node_address, certifier->tmp_map.node_address,SMALL_STRING_SIZE);
+}
+
+
+char* certifier_create_csr_post_data(CertifierPropMap *props,
+                                                    const unsigned char *csr,
+                                                    const char *node_address,
+                                                    const char *certifier_id)
+{
+    char *json_csr = NULL;
+
+    JSON_Value *root_value = json_value_init_object();
+    JSON_Object *root_object = json_value_get_object(root_value);
+    char *serialized_string = NULL;
+
+    const char *system_id = property_get(props, CERTIFIER_OPT_SYSTEM_ID);
+    const char *mac_address = property_get(props, CERTIFIER_OPT_MAC_ADDRESS);
+    size_t  num_days   = (size_t) property_get(props, CERTIFIER_OPT_NUM_DAYS);
+    bool is_certificate_lite = property_is_option_set(props, CERTIFIER_OPTION_CERTIFICATE_LITE);
+
+    json_object_set_string(root_object, "csr", (const char *) csr);
+    json_object_set_string(root_object, "nodeAddress", node_address);
+
+    if (util_is_not_empty(system_id))
+    {
+        if (is_certificate_lite)
+        {
+            log_debug("\nfabric Id :\n%s\n", system_id);
+            json_object_set_string(root_object, "fabricId", system_id);
+        }
+        else
+        {
+            log_debug("\nsystem Id :\n%s\n", system_id);
+            json_object_set_string(root_object, "systemId", system_id);
+        }
+    }
+
+    if (util_is_not_empty(certifier_id)) {
+        log_debug("\nCertifier Id :\n%s\n", certifier_id);
+        json_object_set_string(root_object, "ledgerId", certifier_id);
+    }
+
+    if (util_is_not_empty(mac_address)) {
+        log_debug("\nmacAddress Id :\n%s\n", mac_address);
+        json_object_set_string(root_object, "macAddress", mac_address);
+    }
+
+    if (num_days > 0) {
+        log_debug("\nvalidityDays  :\n%d\n", num_days);
+        json_object_set_number(root_object, "validityDays", num_days);
+    }
+
+    if (is_certificate_lite)
+    {
+        log_debug("CertificateLite=1");
+        json_object_set_string(root_object, "certificateLite", "true");
+    }
+
+    serialized_string = json_serialize_to_string_pretty(root_value);
+
+    log_debug("\nCertificate Request POST Data:\n%s\n", serialized_string);
+
+    json_csr = XSTRDUP(serialized_string);
+
+    if (root_value) {
+        json_value_free(root_value);
+    }
+    XFREE(serialized_string);
+
+    return json_csr;
+}
 
