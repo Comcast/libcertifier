@@ -145,6 +145,13 @@ The command below fetches a Matter-compliant Operational Certificate with a desi
 (Defaults to 'libcertifier.cfg' if not supplied)
 | Pass in custom set of configurations for commandline utility
 
+| verbose
+| v
+| --verbose +
+-v
+| Enable verbose log output mode. +
+Disabled by default - Only error messages are shown.
+
 | crt-type
 | X
 | --crt-type <crt-type> +
@@ -255,6 +262,13 @@ It is an optional parameter, but will take precedence (against auth token) if us
 (Defaults to 'libcertifier.cfg' if not supplied)
 | Pass in custom set of configurations for commandline utility
 
+| verbose
+| v
+| --verbose +
+-v
+| Enable verbose log output mode. +
+Disabled by default - Only error messages are shown.
+
 | crt-type
 | X
 | --crt-type <crt-type> +
@@ -301,6 +315,13 @@ It is an optional parameter, but will take precedence (against auth token) if us
 (Defaults to 'libcertifier.cfg' if not supplied)
 | Pass in custom set of configurations for commandline utility
 
+| verbose
+| v
+| --verbose +
+-v
+| Enable verbose log output mode. +
+Disabled by default - Only error messages are shown.
+
 |===
 
 == *certifierUtil renew-cert options*
@@ -334,10 +355,17 @@ It is an optional parameter, but will take precedence (against auth token) if us
 (Defaults to 'libcertifier.cfg' if not supplied)
 | Pass in custom set of configurations for commandline utility
 
-| validity-days
+| verbose
 | v
+| --verbose +
+-v
+| Enable verbose log output mode. +
+Disabled by default - Only error messages are shown.
+
+| validity-days
+| t
 | --validity-days <days> +
--v <days>
+-t <days>
 | Choose number of validity days that a certificate is issued with
 
 |===
@@ -374,6 +402,13 @@ It is an optional parameter, but will take precedence (against auth token) if us
 (Defaults to 'libcertifier.cfg' if not supplied)
 | Pass in custom set of configurations for commandline utility
 
+| verbose
+| v
+| --verbose +
+-v
+| Enable verbose log output mode. +
+Disabled by default - Only error messages are shown.
+
 |===
 
 == *certifierUtil revoke options*
@@ -406,6 +441,13 @@ It is an optional parameter, but will take precedence (against auth token) if us
 -L <value> +
 (Defaults to 'libcertifier.cfg' if not supplied)
 | Pass in custom set of configurations for commandline utility
+
+| verbose
+| v
+| --verbose +
+-v
+| Enable verbose log output mode. +
+Disabled by default - Only error messages are shown.
 
 |===
 

@@ -1,0 +1,52 @@
+# Copyright (c) 2021 Project CHIP Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+copy("libcertifier_cfg_copy") {
+  sources = [ "matter_plugin/libcertifier.cfg" ]
+  outputs = [ "$root_out_dir/libcertifier.cfg" ]
+}
+
+copy("libcertifier_cert_copy") {
+  sources = [ "libcertifier-cert.crt" ]
+  outputs = [ "$root_out_dir/libcertifier-cert.crt" ]
+}
+
+action("generate_dac_chain") {
+  script = "matter_plugin/generate_dac_chain.py"
+  sources = [ "resources/dac.p12" ]
+  outputs = [
+    "${root_out_dir}/CertifierDacChain.h",
+    "${root_out_dir}/pai.pem",
+    "${root_out_dir}/dac.pem",
+    "${root_out_dir}/keypair.pem",
+  ]
+
+  args = rebase_path(sources, "") + rebase_path(outputs, root_out_dir)
+}
+
+declare_args() {
+  # Use a different target, such as a prebuilt libCertifier.
+  certifier_target = ""
+}
+
+if (certifier_target != "") {
+    group("certifier") {
+        public_deps = [ certifier_target ]
+    }
+} else {
+    import("certifier.gni")
+
+    certifier_target("certifier") {
+    }
+}

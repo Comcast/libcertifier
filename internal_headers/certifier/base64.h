@@ -21,6 +21,10 @@
 
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int
 base64_encode_len(int len);
 
@@ -32,5 +36,9 @@ base64_decode_len(const char *coded_src);
 
 int
 base64_decode(unsigned char *plain_dst, const char *coded_src);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

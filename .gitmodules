@@ -1,0 +1,3 @@
+[submodule "matter_plugin/matter-sdk"]
+	path = matter_plugin/matter-sdk
+	url = https://github.com/project-chip/connectedhomeip.git

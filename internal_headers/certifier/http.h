@@ -24,6 +24,10 @@
 #include "certifier/log.h"
 #include "certifier/certifier_api_easy.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define http_set_curlopt(curl, option, value)                                  \
 {                                                                              \
     CURLcode rc = curl_easy_setopt(curl, option, value);                       \
@@ -52,5 +56,9 @@ http_response *http_get(const CertifierPropMap *props, const char *url,
 http_response *http_post(const CertifierPropMap *props, const char *url, const char *http_headers[], const char *body);
 
 void http_free_response(http_response *resp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

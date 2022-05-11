@@ -1,0 +1,51 @@
+# Copyright 2021 Comcast Cable Communications Management, LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+import("//build_overrides/chip.gni")
+import("${chip_root}/build/chip/tools.gni")
+
+import("//build_overrides/certifier.gni")
+
+copy("trafficlight_copy") {
+  sources = [ "trafficlight" ]
+  outputs = [ "$root_out_dir/trafficlight" ]
+}
+
+executable("certifier-all-clusters-app") {
+  sources = [
+    "../matter_plugin/CertifierDACProvider.h",
+    "../matter_plugin/CertifierDACProvider.cpp",
+    "LightingManager.h",
+    "LightingManager.cpp",
+    "main.cpp",
+  ]
+
+  include_dirs = [
+    "../matter_plugin",
+    "${chip_root}/examples/all-clusters-app/all-clusters-common/include",
+    "${root_out_dir}",
+  ]
+
+  deps = [
+    ":trafficlight_copy",
+    "${chip_root}/examples/all-clusters-app/linux:chip-all-clusters-common",
+    "${chip_root}/examples/platform/linux:app-main",
+    "${chip_root}/src/credentials",
+    "${certifier_root}:generate_dac_chain",
+  ]
+
+  output_dir = root_out_dir
+}

@@ -21,7 +21,15 @@
 
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int
 http_debug_trace(CURL *handle, curl_infotype type, char *data, size_t size, void *userp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# Common path for all GPIO access
+BASE_GPIO_PATH=/sys/class/gpio
+
+# Assign names to GPIO pin numbers for each light
+RED=9
+YELLOW=10
+GREEN=11
+
+# Assign names to states
+ON="1"
+OFF="0"
+
+# Export a pin if not already exported
+exportPin()
+{
+  if [ ! -e $BASE_GPIO_PATH/gpio$1 ]; then
+    echo "$1" > $BASE_GPIO_PATH/export
+  fi
+}
+
+# Set a pin as an output & change state of a light
+setLightState()
+{
+  sudo echo "out" > /sys/class/gpio/gpio$1/direction
+  sudo echo $2 > /sys/class/gpio/gpio$1/value
+}
+
+# Read current state of a light
+readLightState()
+{
+  sudo cat /sys/class/gpio/gpio$1/value
+}
+
+toggleLightState()
+{
+  var=$(cat /sys/class/gpio/gpio$1/value)
+  if [ $(cat /sys/class/gpio/gpio9/value) -eq $ON ]
+  then
+    setLightState $1 $OFF
+  else
+    setLightState $1 $ON
+  fi
+}
+
+exportPin $RED
+
+case "${1}" in
+  "off")
+    setLightState $RED $OFF
+    exit 0
+    ;;
+  "on")
+    setLightState $RED $ON
+    exit 0
+    ;;
+  "read")
+    state=$(readLightState $RED)
+    exit $((state))
+    ;;
+  "toggle")
+    toggleLightState $RED
+    exit 0
+    ;;
+  *)
+    exit 1
+    ;;
+esac

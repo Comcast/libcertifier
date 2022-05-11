@@ -1258,7 +1258,7 @@ CertifierPropMap *certifier_easy_api_get_props(Certifier *certifier)
 
 void certifier_easy_api_get_node_address(Certifier *certifier, char *node_address)
 {
-    memcpy(node_address, certifier->tmp_map.node_address,SMALL_STRING_SIZE);
+    memcpy(node_address, certifier->tmp_map.node_address,XTRA_SMALL_STRING_SIZE);
 }
 
 
@@ -1349,4 +1349,3 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
 
     return json_csr;
 }
-

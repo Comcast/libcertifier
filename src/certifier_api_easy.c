@@ -50,16 +50,17 @@ if (p == NULL)                                                          \
 
 #define safe_exit(le, rc) finish_operation(le, rc, NULL)
 
-#define BASE_SHORT_OPTIONS "hp:L:k:"
+#define BASE_SHORT_OPTIONS "hp:L:k:v"
 #define GET_CRT_TOKEN_SHORT_OPTIONS "X:S:"
 #define GET_CERT_SHORT_OPTIONS "fT:P:o:i:n:F:a:w:"
-#define VALIDITY_DAYS_SHORT_OPTION "v:"
+#define VALIDITY_DAYS_SHORT_OPTION "t:"
 
 #define BASE_LONG_OPTIONS                             \
     {"help",           no_argument,       NULL, 'h'}, \
     {"pkcs12-path",    required_argument, NULL, 'k'}, \
     {"pkcs12-password",required_argument, NULL, 'p'}, \
-    {"config",         required_argument, NULL, 'L'}
+    {"config",         required_argument, NULL, 'L'}, \
+    {"verbose",        no_argument,       NULL, 'v'}
 
 #define GET_CRT_TOKEN_LONG_OPTIONS                    \
     {"crt-type",       required_argument, NULL, 'X'}, \
@@ -77,7 +78,7 @@ if (p == NULL)                                                          \
     {"case-auth-tag",  required_argument, NULL, 'a'}
 
 #define VALIDITY_DAYS_LONG_OPTION                     \
-    {"validity-days",  required_argument, NULL, 'v'}
+    {"validity-days",  required_argument, NULL, 't'}
 
 static void finish_operation(CERTIFIER *easy, int return_code, const char *operation_output);
 
@@ -118,7 +119,8 @@ static const char * get_command_opt_helper(CERTIFIER_MODE mode) {
     "--help (-h)\n"                            \
     "--pkcs12-path [PKCS12 Path] (-k)\n"       \
     "--pkcs12-password (-p)\n"                 \
-    "--config [value] (-L)\n"
+    "--config [value] (-L)\n"                  \
+    "--verbose (-v)\n"
 
 #define GET_CRT_TOKEN_HELPER      \
     "--crt-type [value] (-X)\n"   \
@@ -136,7 +138,7 @@ static const char * get_command_opt_helper(CERTIFIER_MODE mode) {
     "--case-auth-tag (-a)\n"
 
 #define VALIDITY_DAYS_HELPER \
-    "--validity-days (-v)\n"
+    "--validity-days (-t)\n"
 
     switch (mode) {
         case CERTIFIER_MODE_REGISTER:
@@ -575,6 +577,7 @@ static int do_get_cert_status(CERTIFIER *easy) {
     switch (return_code) {
         case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
             XFPRINTF(stdout, "Warning! This certificate is about to expire. Please renew it using the 'renew-cert' command.\n");
+            // fall through
         case 0:
             XFPRINTF(stdout, "Status: Valid\n");
             break;
@@ -586,11 +589,13 @@ static int do_get_cert_status(CERTIFIER *easy) {
             break;
         case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_REVOKED | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
             XFPRINTF(stdout, "Warning! This certificate is about to expire. Please renew it using the 'renew-cert' command.\n");
+            // fall through
         case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_REVOKED:
             XFPRINTF(stdout, "Status: Revoked\n");
             break;
         case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
             XFPRINTF(stdout, "Warning! This certificate is about to expire. Please renew it using the 'renew-cert' command.\n");
+            // fall through
         case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN:
         default:
             XFPRINTF(stdout, "Status: Unknown\n");
@@ -983,7 +988,7 @@ static int process_command_line(CERTIFIER *easy) {
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_AUTH_TAG_1, end_id_array - CASE_AUTH_TAG_LENGTH);
 
                 break;
-            case 'v':
+            case 't':
                 if (optarg == NULL) {
                     break;
                 }
@@ -995,6 +1000,9 @@ static int process_command_line(CERTIFIER *easy) {
                     return_code = 1;
                 }
 
+                break;
+            case 'v':
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_LOG_LEVEL, (void *) (size_t) 0);
                 break;
             case '?':
                 /* Case when user enters the command as
@@ -1208,7 +1216,7 @@ int certifier_api_easy_create_json_csr(CERTIFIER *easy, unsigned char *csr, char
     }
     if (!node_address)
     {
-        node_address = XMALLOC(SMALL_STRING_SIZE);
+        node_address = XMALLOC(XTRA_SMALL_STRING_SIZE);
         certifier_easy_api_get_node_address(certifier_get_certifier_instance(easy), node_address);
         free_node_address = 1;
     }

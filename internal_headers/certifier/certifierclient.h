@@ -24,6 +24,10 @@
 #include "certifier/property_internal.h"
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int
 certifierclient_init();
 
@@ -46,5 +50,9 @@ CertifierError
 certifierclient_check_certificate_status(CertifierPropMap *props,
                                          const unsigned char *digest,
                                          const size_t digest_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

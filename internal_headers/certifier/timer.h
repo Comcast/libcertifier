@@ -21,6 +21,10 @@
 
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void timer_start_CPU_time(void);
 
 void timer_end_CPU_time(void);
@@ -46,5 +50,9 @@ double timer_get_cpu_secs(void);
 double timer_get_cpu_utilization(void);
 
 double timer_get_answer(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //C_CLIENT_TIMER_H
