@@ -35,10 +35,16 @@
 #define CERTIFIER_VERSION "0.1-071320 (opensource)"
 #endif
 
+#define PEM_BEGIN_CERTIFICATE "-----BEGIN CERTIFICATE-----"
+#define PEM_BEGIN_CERTIFICATE_LENGTH 27
+
+#define PEM_END_CERTIFICATE "-----END CERTIFICATE-----"
+#define PEM_END_CERTIFICATE_LENGTH 25
+
 static CERTIFIER_LOG_callback logger;
 
 typedef struct Map {
-    char node_address[SMALL_STRING_SIZE];
+    char node_address[VERY_SMALL_STRING_SIZE];
     char *base64_public_key;
     unsigned char *der_public_key;
     int der_public_key_len;
@@ -303,6 +309,70 @@ certifier_get_device_registration_status(Certifier *certifier) {
     return (return_code);
 }
 
+int
+certifier_get_device_certificate_status(Certifier *certifier) {
+    NULL_CHECK(certifier);
+
+    int return_code = 0;
+    CertifierError certificate_status = CERTIFIER_ERROR_INITIALIZER;
+    unsigned char der_cert_hash[CERTIFIER_SHA1_DIGEST_LENGTH];
+    unsigned char *p_der_cert = NULL;
+    size_t der_cert_len = 0;
+
+    free_tmp(certifier);
+
+    return_code = load_cert(certifier);
+    if (return_code != 0) {
+        /* load_cert() will set_last_error on failure */
+        goto cleanup;
+    }
+
+    p_der_cert = security_X509_to_DER(certifier->tmp_map.x509_cert, &der_cert_len);
+    security_sha1(der_cert_hash, p_der_cert, der_cert_len);
+
+    // Check certificate's status (good, unknown or revoked)
+    certificate_status = certifierclient_check_certificate_status(certifier->prop_map, der_cert_hash, sizeof(der_cert_hash));
+    assign_last_error(certifier, &certificate_status);
+    return_code = certificate_status.application_error_code;
+
+    cleanup:
+
+    XFREE(p_der_cert);
+
+    return (return_code);
+}
+
+int certifier_revoke_certificate(Certifier *certifier) {
+    NULL_CHECK(certifier);
+
+    int return_code = 0;
+    CertifierError certificate_status = CERTIFIER_ERROR_INITIALIZER;
+    unsigned char der_cert_hash[CERTIFIER_SHA1_DIGEST_LENGTH];
+    unsigned char *p_der_cert = NULL;
+    size_t der_cert_len = 0;
+
+    free_tmp(certifier);
+
+    return_code = load_cert(certifier);
+    if (return_code != 0) {
+        return return_code;
+    }
+
+    p_der_cert = security_X509_to_DER(certifier->tmp_map.x509_cert, &der_cert_len);
+    security_sha1(der_cert_hash, p_der_cert, der_cert_len);
+
+    // Check certificate's status (good, unknown or revoked)
+    certificate_status = certifierclient_revoke_x509_certificate(certifier->prop_map, der_cert_hash, sizeof(der_cert_hash));
+    assign_last_error(certifier, &certificate_status);
+    return_code = certificate_status.application_error_code;
+
+    cleanup:
+
+    XFREE(p_der_cert);
+
+    return (return_code);
+}
+
 int certifier_create_node_address(const unsigned char *input, int input_len, char **node_address) {
     int return_code = 0;
 
@@ -542,6 +612,38 @@ char *certifier_get_x509_pem(Certifier *certifier) {
     return pem;
 }
 
+void certifier_print_certificate(Certifier *certifier, const char *pem, int pem_len) {
+    if (certifier == NULL) {
+        return;
+    }
+
+    const X509_CERT *cert = get_cert(certifier);
+    if (cert == NULL) {
+        return;
+    }
+
+    security_print_subject_issuer(cert);
+
+    char tmp[65];
+
+    printf(PEM_BEGIN_CERTIFICATE "\n");
+
+    for (int i = 0; i < pem_len; i += 64) {
+        snprintf(tmp, sizeof(tmp), "%s", &pem[i]);
+        puts(tmp);
+    }
+
+    printf(PEM_END_CERTIFICATE "\n\n");
+}
+
+void certifier_print_certificate_validity(Certifier *certifier) {
+    char time[64];
+    security_get_before_time_validity(certifier->tmp_map.x509_cert, time, sizeof(time));
+    XFPRINTF(stdout, "Valid from: \t%s\n", time);
+    security_get_not_after_time_validity(certifier->tmp_map.x509_cert, time, sizeof(time));
+    XFPRINTF(stdout, "Valid to: \t%s\n", time);
+}
+
 static inline void assign_last_error(Certifier *certifier, CertifierError *error) {
     error_clear(&certifier->last_error);
     certifier->last_error = *error;
@@ -757,6 +859,16 @@ void *certifier_get_property(Certifier *certifier, int name) {
     return property_get(certifier->prop_map, name);
 }
 
+bool certifier_is_option_set(Certifier *certifier, int name)
+{
+    if (certifier == NULL) {
+        log_error("certifier cannot be NULL");
+        return false;
+    }
+
+    return property_is_option_set(certifier->prop_map, name);
+}
+
 int certifier_load_cfg_file(Certifier *certifier) {
     NULL_CHECK(certifier);
 
@@ -812,14 +924,11 @@ char *certifier_get_version(Certifier *certifier) {
 
     char *certifier_version = NULL;
 
-    const char *permission_enabled = "PERMISSION:DISABLED";
-
     if ((security_version != NULL) && (curl_version_data != NULL)) {
-        certifier_version = util_format_str("libcertifier %s;libcurl %s;%s;%s",
+        certifier_version = util_format_str("libcertifier %s;libcurl %s;%s",
                                             CERTIFIER_VERSION,
                                             curl_version_data->version,
-                                            security_version,
-                                            permission_enabled);
+                                            security_version);
     }
 
     if (security_version != NULL) {
@@ -1175,13 +1284,19 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
     JSON_Object *root_object = json_value_get_object(root_value);
     char *serialized_string = NULL;
 
+    const char *node_id = property_get(props, CERTIFIER_OPT_NODE_ID);
     const char *system_id = property_get(props, CERTIFIER_OPT_SYSTEM_ID);
     const char *mac_address = property_get(props, CERTIFIER_OPT_MAC_ADDRESS);
+    const char *profile_name = property_get(props, CERTIFIER_OPT_PROFILE_NAME);
+    const char *product_id = property_get(props, CERTIFIER_OPT_PRODUCT_ID);
     size_t  num_days   = (size_t) property_get(props, CERTIFIER_OPT_NUM_DAYS);
     bool is_certificate_lite = property_is_option_set(props, CERTIFIER_OPTION_CERTIFICATE_LITE);
 
     json_object_set_string(root_object, "csr", (const char *) csr);
     json_object_set_string(root_object, "nodeAddress", node_address);
+    json_object_set_string(root_object, "nodeId", node_id);
+    json_object_set_string(root_object, "profileName", profile_name);
+    json_object_set_string(root_object, "productId", product_id);
 
     if (util_is_not_empty(system_id))
     {

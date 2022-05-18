@@ -2652,6 +2652,17 @@ unsigned char *security_X509_to_DER(X509_CERT *cert, size_t *out_len) {
     return result;
 }
 
+void security_print_subject_issuer(X509_CERT *cert) {
+    char subject[1024];
+    char issuer[1024];
+
+    mbedtls_x509_dn_gets(subject, sizeof(subject), &cert->subject);
+    mbedtls_x509_dn_gets(issuer, sizeof(issuer), &cert->issuer);
+
+    printf("subject=%s\n\n", subject);
+    printf("issuer=%s\n\n", issuer);
+}
+
 CertifierError security_verify_signature(ECC_KEY *key,
                                          const char *signature_b64,
                                          const unsigned char *input, int input_len) {

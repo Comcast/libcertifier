@@ -139,6 +139,8 @@
 #define CERTIFIER_ERR_GEN_1 100803
 #define CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_5 100804
 
+#define CERTIFIER_ERR_REVOKE_CERT_STATUS_1 110000
+
 #define CERTIFIER_ERR_GET_CERT_STATUS_1 130000
 
 #define CERTIFIER_ERR_RENEW_CERT_1 140000
@@ -171,6 +173,9 @@
 #define CERTIFIER_ERR_REGISTRATION_STATUS_SIMULATION_1         9
 #define CERTIFIER_ERR_REGISTRATION_STATUS_SIMULATION_2         10
 
+#define CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN  1
+#define CERTIFIER_ERR_GET_CERT_STATUS_REVOKED 2
+
 typedef enum {
     CERTIFIER_LOG_TRACE = 0,
     CERTIFIER_LOG_DEBUG,
@@ -202,6 +207,8 @@ certifier_set_property(Certifier *certifier, int name, const void *value);
 
 void *
 certifier_get_property(Certifier *certifier, int name);
+
+bool certifier_is_option_set(Certifier *certifier, int name);
 
 /**
  * Load the configuration file in CERTIFIER_OPT_CFG_FILENAME
@@ -254,6 +261,21 @@ int
 certifier_get_device_registration_status(Certifier *certifier);
 
 /**
+ * Get the Certificate Status (GOOD, UNKNOWN, REVOKED)
+ * @param certifier
+ * @return
+ */
+int
+certifier_get_device_certificate_status(Certifier *certifier);
+
+/**
+ * Revoke a certificate
+ * @param certifier
+ * @return
+ */
+int certifier_revoke_certificate(Certifier *certifier);
+
+/**
  * Callback that will receive log messages
  * @param prio the log priority
  * @param file the source file that emitted 'msg'
@@ -280,5 +302,8 @@ void certifier_set_log_callback(Certifier *certifier,
  */
 char *certifier_get_x509_pem(Certifier *certifier);
 
+void certifier_print_certificate(Certifier *certifier, const char *pem, int pem_len);
+
+void certifier_print_certificate_validity(Certifier *certifier);
 
 #endif

@@ -37,8 +37,10 @@
 #define DEFAULT_CA_INFO              "libcertifier-cert.crt"
 #define DEFAULT_CA_PATH              "."
 #define DEFAULT_CERTIFER_URL         "https://certifier.xpki.io/v1/certifier/certificate"
+#define DEFAULT_PROFILE_NAME         "XFN_Matter_OP_Class_3_ICA"
 #define DEFAULT_CERT_MIN_TIME_LEFT_S 7 * 24 * 60 * 60;
 #define DEFAULT_OPT_SOURCE           "unset-libcertifier-c-native"
+#define DEFAULT_PRODUCT_ID           "1101"
 
 /*
  * All flexible arrays must be on the bottom (last ones)
@@ -60,11 +62,15 @@ struct _PropMap {
     char *cfg_filename;
     char *crt_type;
     char *p12_filename;
+    char *output_p12_filename;
     char *password;
     char *certifier_id;
     char *system_id;
+    char *node_id;
+    char *product_id;
     char *mac_address;
     char *crt;
+    char *profile_name;
     char *source;
     char *cn_prefix;
     char *ext_key_usage_value;
@@ -229,6 +235,10 @@ property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value) 
         SV(prop_map->p12_filename, value);
             break;
 
+        case CERTIFIER_OPT_OUTPUT_KEYSTORE:
+        SV(prop_map->output_p12_filename, value);
+            break;
+
         case CERTIFIER_OPT_PASSWORD:
         SV(prop_map->password, value);
             break;
@@ -245,12 +255,24 @@ property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value) 
         SV(prop_map->crt, value);
             break;
 
+        case CERTIFIER_OPT_PROFILE_NAME:
+        SV(prop_map->profile_name, value);
+            break;
+
         case CERTIFIER_OPT_ECC_CURVE_ID:
         SV(prop_map->ecc_curve_id, value);
             break;
 
         case CERTIFIER_OPT_SYSTEM_ID:
         SV(prop_map->system_id, value);
+            break;
+
+        case CERTIFIER_OPT_NODE_ID:
+        SV(prop_map->node_id, value);
+            break;
+
+        case CERTIFIER_OPT_PRODUCT_ID:
+        SV(prop_map->product_id, value);
             break;
 
         case CERTIFIER_OPT_MAC_ADDRESS:
@@ -392,6 +414,10 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name) {
             retval = prop_map->p12_filename;
             break;
 
+        case CERTIFIER_OPT_OUTPUT_KEYSTORE:
+            retval = prop_map->output_p12_filename;
+            break;
+
         case CERTIFIER_OPT_PASSWORD:
             retval = prop_map->password;
             break;
@@ -408,6 +434,10 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name) {
             retval = prop_map->crt;
             break;
 
+        case CERTIFIER_OPT_PROFILE_NAME:
+            retval = prop_map->profile_name;
+            break;
+
         case CERTIFIER_OPT_ECC_CURVE_ID:
             retval = prop_map->ecc_curve_id;
             break;
@@ -418,6 +448,14 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name) {
 
         case CERTIFIER_OPT_SYSTEM_ID:
             retval = prop_map->system_id;
+            break;
+
+        case CERTIFIER_OPT_NODE_ID:
+            retval = prop_map->node_id;
+            break;
+
+        case CERTIFIER_OPT_PRODUCT_ID:
+            retval = prop_map->product_id;
             break;
 
         case CERTIFIER_OPT_MAC_ADDRESS:
@@ -565,6 +603,24 @@ property_set_defaults(CertifierPropMap *prop_map) {
         }
     }
 
+    if (prop_map->profile_name == NULL) {
+        return_code = property_set(prop_map, CERTIFIER_OPT_PROFILE_NAME, DEFAULT_PROFILE_NAME);
+        if (return_code != 0) {
+            log_error("Failed to set default property name: CERTIFIER_OPT_PROFILE_NAME with error code: %i",
+                      return_code);
+            return return_code;
+        }
+    }
+
+    if (prop_map->product_id == NULL) {
+        return_code = property_set(prop_map, CERTIFIER_OPT_PRODUCT_ID, DEFAULT_PRODUCT_ID);
+        if (return_code != 0) {
+            log_error("Failed to set default property name: CERTIFIER_OPT_PRODUCT_ID with error code: %i",
+                      return_code);
+            return return_code;
+        }
+    }
+
     return_code = property_set(prop_map, CERTIFIER_OPT_HTTP_TIMEOUT, (void *) DEFAULT_HTTP_TIMEOUT);
     if (return_code != 0) {
         log_error("Failed to set default property name: CERTIFIER_OPT_HTTP_TIMEOUT with error code: %i", return_code);
@@ -695,9 +751,12 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
     JSON_Value *json;
 
     const char *certifier_url_value = NULL;
+    const char *profile_name_value = NULL;
     const char *crt_type_value = NULL;
     const char *password_value = NULL;
     const char *system_id_value = NULL;
+    const char *node_id_value = NULL;
+    const char *product_id_value = NULL;
     int http_timeout_value;
     int http_connect_timeout_value;
     int http_trace_value;
@@ -751,6 +810,12 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
         property_set(propMap, CERTIFIER_OPT_CERTIFIER_URL, certifier_url_value);
     }
 
+    profile_name_value = json_object_get_string(json_object(json), "libcertifier.profile.name");
+    if (profile_name_value) {
+        log_info("Loaded profile name: %s from config file.", profile_name_value);
+        property_set(propMap, CERTIFIER_OPT_PROFILE_NAME, profile_name_value);
+    }
+
     crt_type_value = json_object_get_string(json_object(json), "libcertifier.crt.type");
     if (crt_type_value) {
         log_info("Loaded crt.type: %s from config file.", crt_type_value);
@@ -768,6 +833,18 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
     if (system_id_value) {
         log_info("Loaded system_id_value: %s from config file.", system_id_value);
         property_set(propMap, CERTIFIER_OPT_SYSTEM_ID, system_id_value);
+    }
+
+    node_id_value = json_object_get_string(json_object(json), "libcertifier.node.id");
+    if (node_id_value) {
+        log_info("Loaded node_id_value: %s from config file.", node_id_value);
+        property_set(propMap, CERTIFIER_OPT_NODE_ID, node_id_value);
+    }
+
+    product_id_value = json_object_get_string(json_object(json), "libcertifier.product.id");
+    if (product_id_value) {
+        log_info("Loaded product_id_value: %s from config file.", product_id_value);
+        property_set(propMap, CERTIFIER_OPT_PRODUCT_ID, product_id_value);
     }
 
     http_timeout_value = json_object_get_number(json_object(json), "libcertifier.http.timeout");
@@ -926,11 +1003,15 @@ static void free_prop_map_values(CertifierPropMap *prop_map) {
     FV(prop_map->crt_type);
     FV(prop_map->cfg_filename);
     FV(prop_map->p12_filename);
+    FV(prop_map->output_p12_filename);
     FV(prop_map->password);
     FV(prop_map->certifier_id);
     FV(prop_map->system_id);
+    FV(prop_map->node_id);
+    FV(prop_map->product_id);
     FV(prop_map->mac_address);
     FV(prop_map->crt);
+    FV(prop_map->profile_name);
     FV(prop_map->ecc_curve_id);
     FV(prop_map->simulated_cert_expiration_date_after);
     FV(prop_map->simulated_cert_expiration_date_before);

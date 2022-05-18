@@ -281,6 +281,7 @@ if (${ENABLE_TESTS})
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/libcertifier.cfg.sample ${CMAKE_CURRENT_BINARY_DIR}/libcertifier.cfg
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/libcertifier-cert.crt ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/resources/device-attestation-certificate.p12 ${CMAKE_CURRENT_BINARY_DIR}
+        COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/resources/seed.p12 ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/tests/functional/test-app-reg.sh ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/tests/functional/test-create-crt.sh ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/tests/functional/test-create-node-address.sh ${CMAKE_CURRENT_BINARY_DIR}

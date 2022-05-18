@@ -150,6 +150,15 @@ int security_sha256_update_cstr(sha256_ctx *ctx, const char *str) {
 }
 
 int
+security_sha1(unsigned char *output, const unsigned char *input, size_t input_len) {
+    sha1_ctx *h = security_sha1_init();
+
+    security_sha1_update(h, input, input_len);
+    security_sha1_finish(h, output);
+    return 0;
+}
+
+int
 security_sha256(uint8_t *digest, const uint8_t *message, size_t len) {
     sha256_ctx *h = security_sha256_init();
 

@@ -9,7 +9,7 @@ Command Line Examples
 The command below assumes there is a file called `factory_lrg`, which is the pre-existing PKCS12 with a password of `changeit` without the single quotes.
 
 ----
-./certifierUtil -m 128 -X X509 -k ./factory_lrg -p changeit
+./certifierUtil get-crt-token -X X509 -k ./factory_lrg -p changeit
 ----
 
 This command could also be invoked from `./tests/functional/create_x509_crt.sh`.  Example -
@@ -35,17 +35,45 @@ Sample output -
 The command below , passes in the contents of the `base64_data` from the command above (create x509 crt).   This command will make an HTTPS call to certifier and will create a brand new password-protected PKCS12 file that contains the certificate chain returned and public/private key pair. `libcertifier.cfg` must be present and have valid values.
 
 ----
+./certifierUtil get-cert -f -T <base64_data>
+----
+
+This command could also be invoked from `./tests/functional/test-device-reg.sh`. Example:
+
+----
 cd ./tests/functional
 ./test-device-reg.sh <base64_data>
 ----
 
 *Fetch an X509 cert end-to-end*
 
-The command below combines both examples above into a single script.  Python3 is required to run this script.
+The command below combines both examples above into a single call.
+
+----
+./certifierUtil get-cert -f -k ./factory_lrg -p changeit
+----
+
+This command could also be invoked from `./tests/functional/test-fetch-cert-e2e.sh`, which combines both examples above into a single script.  Python3 is required to run this script.
 
 ----
 cd ./tests/functional
 ././test-fetch-cert-e2e.sh ../../factory_lrg changeit
+----
+
+*Fetch a Matter Device Attestation Certificate*
+
+The command below fetches a Device Attestation Certificate with a desired Product-ID (64-bit hex). VendorID will always be fixed to 0xFFF4
+
+----
+./certifierUtil get-cert -k ./seed.p12 -p changeit -o matter_dac.p12 --product-id 1101 -P XFN_DL_PAI_1_Class_3
+----
+
+*Fetch a Matter Operational Certificate*
+
+The command below fetches a Matter-compliant Operational Certificate with a desired NodeID (64-bit hex).
+
+----
+./certifierUtil get-cert -k ./matter_dac.p12 -p changeit -o matter_opcert.p12 --node-id AAAABBBBCCCCDDDD -P XFN_Matter_OP_Class_3_ICA
 ----
 
 == *Other Examples*
@@ -53,122 +81,412 @@ cd ./tests/functional
 *Get Certificate Status*
 
 ----
-./certifierUtil -m 4096
+./certifierUtil get-cert-status -k <pkcs12-file-path>
 ----
 
 *Renew Certificate*
 
 ----
-./certifierUtil -m 8192
+./certifierUtil renew-cert [-k <pkcs12-file-path>]
 ----
 
 *Print Certificate (B64 of DER)*
 
 ----
-./certifierUtil -m 16384
+./certifierUtil print-cert -k <pkcs12-file-path>
 ----
 
 *Register an app*
 
 ----
-./certifierUtil -c -f -S '<auth_token>'
+./certifierUtil get-cert -c -f -S '<auth_token>'
 ----
 
-*Create Node Address*
-
-----
-./certifierUtil -m 32 -O "<value>"
-----
-
-== *certifierUtil options*
+== *certifierUtil commands*
 
 |===
-| *Long Option* | *Short Option* | *Examples*
+| *Command* | *Description*
+
+| help
+| Display this summary
+
+| version
+| Display version info
+
+| get-cert
+| Fetch Certificate from PKI
+
+| get-crt-token
+| Generate Base64 CRT Token
+
+| get-cert-status
+| Check validity of certificate
+
+| renew-cert
+| Renew certificate's validity period if expired
+
+| print-cert
+| Display leaf certificate's PEM Base64 data
+|===
+
+== *certifierUtil get-cert options*
+
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
 
 | help
 | h
-| -help*   h
+| --help +
+-h
+| Display this summary
 
-| version
-| V
-| -version -V
-
-| overwrite-p12-file
-| f
-| -overwrite-p12-file -f
-
-| client
-| c
-| -client -c
-
-| pkcs12-password
-| p
-| -pkcs12-password [value] +
--p [value] +
-(Defaults to 'changeit' if not supplied)
-
-| config
+| config-path
 | L
-| -config [value] +
--L [value] +
+| --config-path <file-path> +
+-L <file-path> +
 (Defaults to 'libcertifier.cfg' if not supplied)
-
-| mode
-| m
-| -mode [integer value] +
--m [integer value]
-
-| crt
-| T
-| -crt <crt>
+| Pass in custom set of configurations for commandline utility
 
 | crt-type
 | X
-| -crt-type <crt-type>
+| --crt-type <crt-type> +
+-X <crt-type>
+| Select Output CRT Type (X509 or other values)
 
-| system-id
-| M
-| -system-id [id] +
+| crt
+| T
+| --crt <crt> +
+-T <crt>
+| Input CRT (Base64). +
+It is an optional parameter, but will take precedence (against auth token) if used
+
+| node-id
+| n
+| --node-id <id> +
  +
-*   M [id]
+-n <id>
+| Choose NodeID (64-bit integer) to be assigned to the resulting certificate
 
-| auth-token
-| S
-| -auth-token [value] +
- +
--S [value]
-
-| output-node
-| O
-| -output-node [value] +
- +
--O [value]
-
-| target-node
-| t
-| -target-node [value] +
- +
--t [value]
-
-| action
-| a
-| -action [value] +
- +
--a [value]
-
-| input-node
+| product-id
 | i
-| -input-node [value] +
--i [value]
+| --product-id <id> +
+ +
+-n <id>
+| Choose NodeID (64-bit integer) to be assigned to the resulting certificate
+
+| overwrite-p12-file
+| f
+| --overwrite-p12-file +
+-f
+| Overwrite P12 File
 
 | pkcs12-path
 | k
-| -pkcs12-path [value] +
--k [value]
+| --pkcs12-path <file-path> +
+-k <file-path>
+| Path to the PKCS12 File
 
-| custom-property
-| D
-| -custom-property [name=value,name=value] +
+| pkcs12-password
+| p
+| --pkcs12-password <value> +
+-p <value> +
+(Defaults to 'changeit' if not supplied)
+| Password to decrypt input P12 File
+
+| client
+| c
+| --client +
+-c
+| Mark that request comes from a Client App. +
+It will overwrite configuration set in config file.
+
+| auth-token
+| S
+| --auth-token <value> +
  +
--D [name=value,name=value]
+-S <value>
+| Pass in App Authentication Token. +
+Only valid and mandatory when client option is also passed in.
+
+|===
+
+== *certifierUtil get-crt-token options*
+
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+
+| help
+| h
+| --help +
+-h
+| Display this summary
+
+| config-path
+| L
+| --config-path <file-path> +
+-L <file-path> +
+(Defaults to 'libcertifier.cfg' if not supplied)
+| Pass in custom set of configurations for commandline utility
+
+| crt-type
+| X
+| --crt-type <crt-type> +
+-X <crt-type>
+| Select Output CRT Type (X509 or other values)
+
+| auth-token
+| S
+| --auth-token <value> +
+ +
+-S <value>
+| Pass in App Authentication Token
+
+| pkcs12-path
+| k
+| --pkcs12-path <file-path> +
+-k <file-path>
+| Path to the PKCS12 File
+
+| pkcs12-password
+| p
+| --pkcs12-password <value> +
+-p <value> +
+(Defaults to 'changeit' if not supplied)
+| Password to decrypt input P12 File
+
+|===
+
+== *certifierUtil get-cert-status options*
+
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+
+| help
+| h
+| --help +
+-h
+| Display this summary
+
+| pkcs12-path
+| k
+| --pkcs12-path <file-path> +
+-k <file-path>
+| Path to the PKCS12 File
+
+| pkcs12-password
+| p
+| --pkcs12-password <value> +
+-p <value> +
+(Defaults to 'changeit' if not supplied)
+| Password to decrypt input P12 File
+
+| config
+| L
+| --config <value> +
+-L <value> +
+(Defaults to 'libcertifier.cfg' if not supplied)
+| Pass in custom set of configurations for commandline utility
+
+|===
+
+== *certifierUtil renew-cert options*
+
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+
+| help
+| h
+| --help +
+-h
+| Display this summary
+
+| pkcs12-path
+| k
+| --pkcs12-path <file-path> +
+-k <file-path>
+| Path to the PKCS12 File
+
+| pkcs12-password
+| p
+| --pkcs12-password <value> +
+-p <value> +
+(Defaults to 'changeit' if not supplied)
+| Password to decrypt input P12 File
+
+| config
+| L
+| --config <value> +
+-L <value> +
+(Defaults to 'libcertifier.cfg' if not supplied)
+| Pass in custom set of configurations for commandline utility
+
+| client
+| c
+| --client +
+-c
+| Mark that request comes from a Client App. +
+It will overwrite configuration set in config file.
+
+|===
+
+== *certifierUtil print-cert options*
+
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+
+| help
+| h
+| --help +
+-h
+| Display this summary
+
+| pkcs12-password
+| p
+| --pkcs12-password <value> +
+-p <value> +
+(Defaults to 'changeit' if not supplied)
+| Password to decrypt input P12 File
+
+| pkcs12-path
+| k
+| --pkcs12-path <value> +
+-k <value>
+| Path to the PKCS12 File
+
+| config
+| L
+| --config <value> +
+-L <value> +
+(Defaults to 'libcertifier.cfg' if not supplied)
+| Pass in custom set of configurations for commandline utility
+
+|===
+
+*Configuration File*
+
+Configuration File is a file used to specify internal certifier util parameters such as timeouts, ecc curve types and other miscellaneous items. This file follows the JSON Format and can be manually editted from the `libcertifier.cfg.sample` template file present in the root directory.
+
+Here are the details for every valid entry that can be added to the Configuration File:
+
+|===
+| *Entry Name* | *Default Value* | *Description*
+
+| libcertifier.cert.min_time_left_s
+| 604800
+| Set the minimum time that the certificate must remain valid before CLI tool will consider the certificate is nearly expired. +
+Note: value type = `int`
+
+| libcertifier.certifier.url
+| "https://certifier.xpki.io/v1/certifier"
+| xPKI URL
+
+| libcertifier.profile.name
+| "XFN_Matter_OP_Class_3_ICA"
+| Set Profile name for the desired certificate to fetch (Defaults to Matter Operational Certificate)
+
+| libcertifier.num.days
+| 365
+| Set the number of validity days of the issuing certificate
+
+| libcertifier.crt.type
+| "X509"
+| Choose CRT input type
+
+| libcertifier.disable.auto.renewal
+| 0
+| Enable automatic certificate renewal. +
+Note: value type = `bool`
+
+| libcertifier.ecc.curve.id
+| "prime256v1"
+| Select ECC Curve ID for the issuing certificate
+
+| libcertifier.http.connect.timeout
+| 10
+| Set HTTP Connection Timeout
+
+| libcertifier.http.timeout
+| 10
+| Set HTTP Timeout
+
+| libcertifier.http.trace
+| 0
+| Enable Debug/Trace output during HTTP exchange
+
+| libcertifier.int.ca
+| <default-PEM-CA-Certificate>
+| Store device's Intermediate CA Certificate
+
+| libcertifier.keystore
+| "lrg"
+| Set Path to the input PKCS#12 File containing a keypair and client certificate
+
+| libcertifier.log.file
+| "/tmp/libcertifier.log"
+| Set file to store all logs of the xPKI transaction
+
+| libcertifier.log.level
+| 0
+| Choose verbosity level of the logs
+
+| libcertifier.log.max.size
+| 5000000
+| Set max size (in bytes) to write in the log file
+
+| libcertifier.measure.performance
+| 0
+| Enable performance logs. +
+Note: value type = `bool`
+
+| libcertifier.password
+| "changeit"
+| Set password of the keystore/PKCS#12 file
+
+| libcertifier.root.ca
+| <default-PEM-ROOT-Certificate>
+| Store device's Root Certificate
+
+| libcertifier.source.name
+| "libcertifier-opensource"
+| Set the request source name
+
+| libcertifier.tls.insecure.host
+| 0
+| Mark TLS insecure host. +
+Note: value type = `bool`
+
+| libcertifier.tls.insecure.peer
+| 0
+| Mark TLS insecure peer. +
+Note: value type = `bool`
+
+| libcertifier.certificate.lite
+| 1
+| Mark request for a lite certificate. +
+Note: value type = `bool`
+
+| libcertifier.client.request
+| 0
+| Mark that request comes from a client app. +
+It can be overriden via -c commandline argument. +
+Note: value type = `bool`
+
+| libcertifier.product.id
+| "1101"
+| Set Product ID value in the Subject Field of the Certificates in the Chain. +
+Note: value type = `uint16_t`
+
+| libcertifier.cn.name
+| "AAAAAAAAAAAAAAAA"
+| Set CN Field value in the Subject Field of the Leaf Certificate
+
+| libcertifier.node.id
+| "CCCCCCCCCCCCCCCC"
+| Set Node ID OID Field value in the Subject Field of the Matter Operational Certificate
+
+| libcertifier.ext.key.usage
+| "critical,clientAuth,serverAuth"
+| Mark request for a lite certificate. +
+Note: value type = `bool`
+
 |===
