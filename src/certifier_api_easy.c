@@ -37,6 +37,32 @@ if (p == NULL)                                                          \
 
 #define safe_exit(le, rc) finish_operation(le, rc, NULL)
 
+#define BASE_SHORT_OPTIONS "hp:L:k:"
+#define CLIENT_SHORT_OPTION "c"
+#define GET_CRT_TOKEN_SHORT_OPTIONS "X:S:"
+#define GET_CERT_SHORT_OPTIONS "fT:P:o:i:n:"
+
+#define BASE_LONG_OPTIONS                             \
+    {"help",           no_argument,       NULL, 'h'}, \
+    {"pkcs12-path",    required_argument, NULL, 'k'}, \
+    {"pkcs12-password",required_argument, NULL, 'p'}, \
+    {"config",         required_argument, NULL, 'L'}
+
+#define CLIENT_LONG_OPTION                            \
+    {"client",         no_argument,       NULL, 'c'}
+
+#define GET_CRT_TOKEN_LONG_OPTIONS                    \
+    {"crt-type",       required_argument, NULL, 'X'}, \
+    {"auth-token",     required_argument, NULL, 'S'}
+
+#define GET_CERT_LONG_OPTIONS                    \
+    {"remove-pkcs12",  no_argument,       NULL, 'f'}, \
+    {"crt",            required_argument, NULL, 'T'}, \
+    {"profile-name",   required_argument, NULL, 'P'}, \
+    {"output-p12-file",required_argument, NULL, 'o'}, \
+    {"product-id",     required_argument, NULL, 'i'}, \
+    {"node-id",        required_argument, NULL, 'n'}
+
 static void finish_operation(CERTIFIER *easy, int return_code, const char *operation_output);
 
 // Private data
@@ -55,6 +81,62 @@ struct CERTIFIER {
     char **argv;
     CERTIFIERInfo last_info;
 };
+
+typedef struct {
+    CERTIFIER_MODE mode;
+    const char * short_opts;
+    const struct option * long_opts;
+} command_opt_lut_t;
+
+static size_t get_command_opt_index(command_opt_lut_t * command_opt_lut, size_t n_entries, CERTIFIER_MODE mode) {
+    for (size_t i = 0; i < n_entries; ++i) {
+        if ((mode & command_opt_lut[i].mode) == command_opt_lut[i].mode) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static const char * get_command_opt_helper(CERTIFIER_MODE mode) {
+#define BASE_HELPER                            \
+    "Usage:  certifierUtil %s [OPTIONS]\n"     \
+    "--help (-h)\n"                            \
+    "--pkcs12-path [PKCS12 Path] (-k)\n"       \
+    "--pkcs12-password (-p)\n"                 \
+    "--config [value] (-L)\n"
+
+#define CLIENT_HELPER  \
+    "--client (-c)\n"
+
+#define GET_CRT_TOKEN_HELPER      \
+    "--crt-type [value] (-X)\n"   \
+    "--auth-token [value] (-S)\n"
+
+#define GET_CERT_HELPER           \
+    "--crt [value] (-T)\n"        \
+    "--overwrite-p12-file (-f)\n" \
+    "--profile-name (-P)\n"       \
+    "--output-p12-file (-o)\n"    \
+    "--product-id (-i)\n"         \
+    "--node-id (-n)\n"
+
+    switch (mode) {
+        case CERTIFIER_MODE_REGISTER:
+            return BASE_HELPER GET_CRT_TOKEN_HELPER GET_CERT_HELPER CLIENT_HELPER;
+        case CERTIFIER_MODE_CREATE_CRT:
+            return BASE_HELPER GET_CRT_TOKEN_HELPER;
+        case CERTIFIER_MODE_GET_CERT_STATUS:
+            return BASE_HELPER;
+        case CERTIFIER_MODE_RENEW_CERT:
+            return BASE_HELPER CLIENT_HELPER;
+        case CERTIFIER_MODE_PRINT_CERT:
+            return BASE_HELPER;
+        case CERTIFIER_MODE_REVOKE_CERT:
+            return BASE_HELPER;
+        default:
+            return "";
+    }
+}
 
 static void free_easy_info(CERTIFIERInfo *info) {
     XFREE(info->json);
@@ -137,10 +219,55 @@ int certifier_api_easy_set_opt(CERTIFIER *easy, CERTIFIER_OPT option, void *valu
     return certifier_set_property(easy->certifier, option, value);
 }
 
+CERTIFIER_MODE certifier_api_easy_get_mode(CERTIFIER *easy) {
+    if (!easy) {
+        return CERTIFIER_MODE_NONE;
+    }
+
+    if (easy->argc <= 1 && easy->argv[1] == NULL) {
+        return CERTIFIER_MODE_NONE;
+    }
+
+    typedef struct {
+        char *name;
+        CERTIFIER_MODE mode;
+    } command_map_t;
+
+    command_map_t command_map[] = {
+        { "help",            CERTIFIER_MODE_NONE },
+        { "version",         CERTIFIER_MODE_PRINT_VER },
+        { "get-cert",        CERTIFIER_MODE_REGISTER },
+        { "get-crt-token",   CERTIFIER_MODE_CREATE_CRT },
+        { "get-cert-status", CERTIFIER_MODE_GET_CERT_STATUS },
+        { "renew-cert",      CERTIFIER_MODE_RENEW_CERT },
+        { "print-cert",      CERTIFIER_MODE_PRINT_CERT },
+        { "revoke",          CERTIFIER_MODE_REVOKE_CERT},
+    };
+
+    for (int i = 0; i < sizeof(command_map) / sizeof(command_map_t); ++i)
+    {
+        if (strcmp(easy->argv[1], command_map[i].name) == 0)
+        {
+            easy->argc = easy->argc - 1;
+            easy->argv = &easy->argv[1];
+            return command_map[i].mode;
+        }
+    }
+
+    return CERTIFIER_MODE_NONE;
+}
+
 int certifier_api_easy_set_mode(CERTIFIER *easy, CERTIFIER_MODE local_mode) {
     NULL_CHECK(easy);
 
     easy->mode = local_mode;
+
+    if (easy->mode == CERTIFIER_MODE_NONE || easy->mode == CERTIFIER_MODE_PRINT_VER)
+    {
+        // return 1 in cases where only helper/version info needs to be shown on screen.
+        return 1;
+    }
+
     return 0;
 }
 
@@ -250,7 +377,7 @@ static int do_create_x509_crt(CERTIFIER *easy) {
             const int cert_len = (int) XSTRLEN(tmp_crt);
             char *cert = XMALLOC(base64_encode_len(cert_len));
             base64_encode(cert, (const unsigned char *) tmp_crt, cert_len);
-
+            return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_CRT, cert);
             finish_operation(easy, return_code, cert);
 
             XFREE(cert);
@@ -419,15 +546,56 @@ static int do_registration(CERTIFIER *easy) {
     return return_code;
 }
 
+static int do_revoke(CERTIFIER *easy) {
+    int return_code = 0;
+    const char *certifier_id = NULL;
+
+    return_code = certifier_revoke_certificate(easy->certifier);
+    if (return_code != 0) {
+        return_code = CERTIFIER_ERR_REVOKE_CERT_STATUS_1 + return_code;
+    } else {
+        certifier_id = certifier_get_node_address(easy->certifier);
+    }
+
+    finish_operation(easy, return_code, certifier_id);
+
+    return return_code;
+}
+
 static int do_get_cert_status(CERTIFIER *easy) {
     int return_code = 0;
     const char *certifier_id = NULL;
 
     return_code = certifier_get_device_registration_status(easy->certifier);
-    if (return_code == 0) {
-        certifier_id = certifier_get_node_address(easy->certifier);
-    } else {
+    certifier_print_certificate_validity(easy->certifier);
+    if (return_code != 0) {
         return_code = CERTIFIER_ERR_GET_CERT_STATUS_1 + return_code;
+    } else {
+        return_code = certifier_get_device_certificate_status(easy->certifier);
+        if (return_code == 0) {
+            certifier_id = certifier_get_node_address(easy->certifier);
+        } else {
+            return_code = CERTIFIER_ERR_GET_CERT_STATUS_1 + return_code;
+        }
+    }
+
+    switch (return_code) {
+        case 0:
+            XFPRINTF(stdout, "Status: Valid\n\n");
+            break;
+        case CERTIFIER_ERR_GET_CERT_STATUS_1 + CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_2:
+            XFPRINTF(stdout, "Status: Expired\n\n");
+            break;
+        case CERTIFIER_ERR_GET_CERT_STATUS_1 + CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1:
+            XFPRINTF(stdout, "Status: Not Yet Valid\n\n");
+            break;
+        case CERTIFIER_ERR_GET_CERT_STATUS_1 + CERTIFIER_ERR_GET_CERT_STATUS_REVOKED:
+            XFPRINTF(stdout, "Status: Revoked\n\n");
+            break;
+        case CERTIFIER_ERR_GET_CERT_STATUS_1 + CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN:
+        default:
+            XFPRINTF(stdout, "Status: Unknown\n\n");
+            break;
     }
 
     finish_operation(easy, return_code, certifier_id);
@@ -457,12 +625,6 @@ static int do_print_cert(CERTIFIER *easy) {
     int return_code = 0;
     char *pem = NULL;
 
-    return_code = auto_renew_cert(easy);
-    if (return_code) {
-        return_code = CERTIFIER_ERR_PRINT_CERT_1 + return_code;
-        goto cleanup;
-    }
-
     return_code = certifier_setup_keys(easy->certifier);
 
     if (return_code) {
@@ -476,6 +638,8 @@ static int do_print_cert(CERTIFIER *easy) {
         return_code = CERTIFIER_ERR_PRINT_CERT_4;
         goto cleanup;
     }
+
+    certifier_print_certificate(easy->certifier, pem, strlen(pem));
 
     cleanup:
 
@@ -492,6 +656,34 @@ char *certifier_api_easy_get_version(CERTIFIER *easy) {
     }
 
     return certifier_get_version(easy->certifier);
+}
+
+void certifier_api_easy_print_helper(CERTIFIER *easy) {
+    if (easy->mode == CERTIFIER_MODE_PRINT_VER)
+    {
+        char *version_string = certifier_api_easy_get_version(easy);
+
+        if (version_string == NULL) {
+            log_error("Error getting version string as it was NULL!\n");
+            return;
+        }
+
+        XFPRINTF(stdout, "%s\n", version_string);
+
+        XFREE(version_string);
+    } else if (easy->mode == CERTIFIER_MODE_NONE) {
+        XFPRINTF(stdout, "Usage:  certifierUtil [COMMANDS] [OPTIONS]\n"
+                         "Commands:\n"
+                         "help\n"
+                         "version\n"
+                         "get-cert\n"
+                         "get-crt-token\n"
+                         "get-cert-status\n"
+                         "renew-cert\n"
+                         "print-cert\n"
+                         "revoke\n"
+                         );
+    }
 }
 
 const char *certifier_api_easy_get_node_address(CERTIFIER *easy) {
@@ -517,6 +709,8 @@ static CERTIFIER_OPT parse_CERTIFIER_OPT(char *str) {
     else if (XSTRCMP("CERTIFIER_OPT_OPTIONS", str) == 0) return CERTIFIER_OPT_OPTIONS;
     else if (XSTRCMP("CERTIFIER_OPT_ECC_CURVE_ID", str) == 0) return CERTIFIER_OPT_ECC_CURVE_ID;
     else if (XSTRCMP("CERTIFIER_OPT_SYSTEM_ID", str) == 0) return CERTIFIER_OPT_SYSTEM_ID;
+    else if (XSTRCMP("CERTIFIER_OPT_PRODUCT_ID", str) == 0) return CERTIFIER_OPT_PRODUCT_ID;
+    else if (XSTRCMP("CERTIFIER_OPT_PROFILE_NAME", str) == 0) return CERTIFIER_OPT_PROFILE_NAME;
     else if (XSTRCMP("CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE", str) == 0)
         return CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE;
     else if (XSTRCMP("CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_AFTER", str) == 0)
@@ -538,6 +732,23 @@ static CERTIFIER_OPT parse_CERTIFIER_OPT(char *str) {
     else return -1;
 }
 
+static bool is_valid_product_id(const char * pid) {
+    if (strlen(pid) != 4) {
+        return false;
+    }
+    return isxdigit(pid[0]) && isxdigit(pid[1]) && isxdigit(pid[2]) && isxdigit(pid[3]);
+}
+
+static bool is_valid_node_id(const char * nid) {
+    if (strlen(nid) != 16) {
+        return false;
+    }
+    return isxdigit(nid[0]) && isxdigit(nid[1]) && isxdigit(nid[2]) && isxdigit(nid[3]) &&
+           isxdigit(nid[4]) && isxdigit(nid[5]) && isxdigit(nid[6]) && isxdigit(nid[7]) &&
+           isxdigit(nid[8]) && isxdigit(nid[9]) && isxdigit(nid[10]) && isxdigit(nid[11]) &&
+           isxdigit(nid[12]) && isxdigit(nid[13]) && isxdigit(nid[14]) && isxdigit(nid[15]);
+}
+
 static int process_command_line(CERTIFIER *easy) {
     int return_code = 0;
 
@@ -545,25 +756,40 @@ static int process_command_line(CERTIFIER *easy) {
         return return_code;
     }
 
-    static const struct option long_opts[] = {
-            {"help",           no_argument,       NULL, 'h'},
-            {"version",        no_argument,       NULL, 'V'},
-            {"remove-pkcs12",  no_argument,       NULL, 'f'},
-            {"client",         no_argument,       NULL, 'c'},
-            {"pkcs12-password",required_argument, NULL, 'p'},
-            {"config",         required_argument, NULL, 'L'},
-            {"mode",           required_argument, NULL, 'm'},
-            {"crt-type",       required_argument, NULL, 'X'},
-            {"crt",            required_argument, NULL, 'T'},
-            {"system-id",      required_argument, NULL, 'M'},
-            {"auth-token",     required_argument, NULL, 'S'},
-            {"output-node",    required_argument, NULL, 'O'},
-            {"target-node",    required_argument, NULL, 't'},
-            {"action",         required_argument, NULL, 'a'},
-            {"input-node",     required_argument, NULL, 'i'},
-            {"pkcs12-path",    required_argument, NULL, 'k'},
-            {"macaddress",     required_argument, NULL, 'z'},
+    static const char * const get_cert_short_options      = BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS GET_CERT_SHORT_OPTIONS CLIENT_SHORT_OPTION;
+    static const char * const get_crt_token_short_options = BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS;
+    static const char * const renew_cert_short_options    = BASE_SHORT_OPTIONS CLIENT_SHORT_OPTION;
+    static const char * const base_short_options          = BASE_SHORT_OPTIONS;
+
+    static const struct option get_cert_long_opts[] = {
+            BASE_LONG_OPTIONS,
+            GET_CRT_TOKEN_LONG_OPTIONS,
+            GET_CERT_LONG_OPTIONS,
+            CLIENT_LONG_OPTION,
             {NULL, 0,                             NULL, 0}
+    };
+    static const struct option get_crt_token_long_opts[] = {
+            BASE_LONG_OPTIONS,
+            GET_CRT_TOKEN_LONG_OPTIONS,
+            {NULL, 0,                             NULL, 0}
+    };
+    static const struct option renew_cert_long_opts[] = {
+            BASE_LONG_OPTIONS,
+            CLIENT_LONG_OPTION,
+            {NULL, 0,                             NULL, 0}
+    };
+    static const struct option base_long_opts[] = {
+            BASE_LONG_OPTIONS,
+            {NULL, 0,                             NULL, 0}
+    };
+
+    static command_opt_lut_t command_opt_lut[] = {
+        {CERTIFIER_MODE_REGISTER, get_cert_short_options, get_cert_long_opts},
+        {CERTIFIER_MODE_CREATE_CRT, get_crt_token_short_options, get_crt_token_long_opts},
+        {CERTIFIER_MODE_GET_CERT_STATUS, base_short_options, base_long_opts},
+        {CERTIFIER_MODE_RENEW_CERT, renew_cert_short_options, renew_cert_long_opts},
+        {CERTIFIER_MODE_PRINT_CERT, base_short_options, base_long_opts},
+        {CERTIFIER_MODE_REVOKE_CERT, base_short_options, base_long_opts},
     };
 
     int i = 0;
@@ -575,9 +801,10 @@ static int process_command_line(CERTIFIER *easy) {
     char *version_string = certifier_api_easy_get_version(easy);
 
     for (;;) {
+        int command_opt_index = get_command_opt_index(command_opt_lut, sizeof(command_opt_lut) / sizeof(*command_opt_lut), easy->mode);
         int option_index;
-        int opt = XGETOPT_LONG(easy->argc, easy->argv, "hVfcp:L:m:T:X:M:S:O:t:D:a:i:k:z:",
-                              long_opts, &option_index);
+        int opt = XGETOPT_LONG(easy->argc, easy->argv, command_opt_lut[command_opt_index].short_opts,
+                              command_opt_lut[command_opt_index].long_opts, &option_index);
 
         if (opt == -1 || return_code != 0) {
             break;
@@ -585,34 +812,8 @@ static int process_command_line(CERTIFIER *easy) {
 
         switch (opt) {
             case 'h':
-                log_info("%s\nUsage:  certifierUtil [OPTIONS]\n"
-                         "--help (-h)\n"
-                         "--version (-V)\n"
-                         "--overwrite-p12-file (-f)\n"
-                         "--client (-c) \n"
-                         "--pkcs12-password (-p)\n"
-                         "--config [value] (-L)\n"
-                         "--mode [integer value] (-m)\n"
-                         "--crt [value] (-T)\n"
-                         "--crt-type [value] (-X)\n"
-                         "--system-id [value] (-M)\n"
-                         "--auth-token [value] (-S)\n"
-                         "--output-node [value] (-O)\n"
-                         "--target-node [value] (-t)\n"
-                         "--action [value] (-a)\n"
-                         "--input-node [value] (-i)\n"
-                         "--pkcs12-path [PKCS12 Path] (-k)\n"
-                         "--custom-property [name=value] (-D)\n"
-                         "\n",
-                         version_string);
+                XFPRINTF(stdout, get_command_opt_helper(easy->mode), easy->argv[0]);
                 exit(1);
-            case 'V':
-                if (version_string == NULL) {
-                    XPUTS("Error getting version string as it was NULL!");
-                } else {
-                    XPUTS(version_string);
-                }
-                XEXIT(0);
             case 'f':
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) true);
                 break;
@@ -621,13 +822,6 @@ static int process_command_line(CERTIFIER *easy) {
                 break;
             case 'L':
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_CFG_FILENAME, optarg);
-                break;
-            case 'm':
-                if (optarg == NULL) {
-                    break;
-                }
-                //TODO: these should be symbolic and validated
-                easy->mode = XATOI(optarg);
                 break;
             case 'c':
                 certifier_api_easy_set_is_client(easy, true);
@@ -648,22 +842,11 @@ static int process_command_line(CERTIFIER *easy) {
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_CRT_TYPE, optarg);
 
                 break;
-            case 'M':
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SYSTEM_ID, optarg);
-                break;
             case 'S':
                 if (optarg == NULL) {
                     break;
                 }
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_AUTH_TOKEN, optarg);
-
-                break;
-            case 'O':
-                if (optarg == NULL) {
-                    break;
-                }
-
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_CN_PREFIX, optarg);
 
                 break;
             case 'D':
@@ -694,39 +877,50 @@ static int process_command_line(CERTIFIER *easy) {
                     }
                 }
                 break;
-            case 't':
-                if (optarg == NULL) {
-                    break;
-                }
-
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_TARGET_NODE, optarg);
-
-                break;
-            case 'a':
-                if (optarg == NULL) {
-                    break;
-                }
-
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_ACTION, optarg);
-
-                break;
-            case 'i':
-                if (optarg == NULL) {
-                    break;
-                }
-
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_NODE, optarg);
-
-                break;
             case 'k':
-
                 if (optarg == NULL) {
                     break;
                 }
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_KEYSTORE, optarg);
 
                 break;
-            case 'z':
+            case 'o':
+                if (optarg == NULL) {
+                    break;
+                }
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE, optarg);
+
+                break;
+            case 'P':
+                if (optarg == NULL) {
+                    break;
+                }
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PROFILE_NAME, optarg);
+
+                break;
+            case 'i':
+                if (optarg == NULL) {
+                    break;
+                }
+                if (is_valid_product_id(optarg) == false) {
+                    log_error("Product ID is expected to be a 16-bit hex number");
+                    return_code = 1;
+                    break;
+                }
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PRODUCT_ID, optarg);
+
+                break;
+            case 'n':
+                if (optarg == NULL) {
+                    break;
+                }
+                if (is_valid_node_id(optarg) == false) {
+                    log_error("Node ID is expected to be a 64-bit hex number");
+                    return_code = 1;
+                    break;
+                }
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_NODE_ID, optarg);
+
                 break;
             case '?':
                 /* Case when user enters the command as
@@ -748,36 +942,12 @@ static int process_command_line(CERTIFIER *easy) {
                     log_info("Missing mandatory crt type option");
                     return_code = 1;
                     break;
-                } else if (optopt == 'm') {
-                    log_info("Missing mandatory Mode option");
-                    return_code = 1;
-                    break;
-                } else if (optopt == 'M') {
-                    log_info("Missing mandatory system id option");
-                    return_code = 1;
-                    break;
                 } else if (optopt == 'S') {
                     log_info("Missing mandatory auth token option");
                     return_code = 1;
                     break;
-                } else if (optopt == 'O') {
-                    log_info("Missing mandatory output node option");
-                    return_code = 1;
-                    break;
-                } else if (optopt == 't') {
-                    log_info("Missing mandatory target node option");
-                    return_code = 1;
-                    break;
                 } else if (optopt == 'D') {
                     log_info("Missing mandatory custom property  option");
-                    return_code = 1;
-                    break;
-                } else if (optopt == 'a') {
-                    log_info("Missing mandatory action property  option");
-                    return_code = 1;
-                    break;
-                } else if (optopt == 'i') {
-                    log_info("Missing mandatory input node property  option");
                     return_code = 1;
                     break;
                 } else if (optopt == 'k') {
@@ -802,6 +972,7 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
 
     free_easy_info(&easy->last_info);
     int return_code;
+    bool force_registration;
 
 
     if (easy->mode == CERTIFIER_MODE_NONE) {
@@ -814,6 +985,14 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
         safe_exit(easy, return_code);
         goto cleanup;
     }
+
+    if (easy->mode == CERTIFIER_MODE_REGISTER &&
+        certifier_get_property(easy->certifier, CERTIFIER_OPT_CRT) == NULL &&
+        !easy->is_client_app) {
+        easy->mode |= CERTIFIER_MODE_CREATE_CRT;
+    }
+
+    force_registration = certifier_is_option_set(easy->certifier, CERTIFIER_OPTION_FORCE_REGISTRATION);
 
     const char *password = certifier_get_property(easy->certifier, CERTIFIER_OPT_PASSWORD);
     if (util_is_empty(password)) {
@@ -835,6 +1014,11 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
             do_registration(easy);
             break;
 
+        case CERTIFIER_MODE_REVOKE_CERT:
+            do_create_crt(easy);
+            do_revoke(easy);
+            break;
+
         case CERTIFIER_MODE_CREATE_NODE_ADDRESS:
             do_create_node_address(easy);
             break;
@@ -842,6 +1026,23 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
         case CERTIFIER_MODE_CREATE_CRT:
             do_create_crt(easy);
             break;
+
+        case CERTIFIER_MODE_CREATE_CRT | CERTIFIER_MODE_REGISTER:
+            if (force_registration) {
+                certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) false);
+            }
+
+            do_create_crt(easy);
+
+            if (certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE) != NULL) {
+                certifier_set_property(easy->certifier, CERTIFIER_OPT_KEYSTORE,
+                                       certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE));
+            }
+            certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) force_registration);
+
+            do_registration(easy);
+            break;
+
         case CERTIFIER_MODE_GET_CERT_STATUS:
             do_get_cert_status(easy);
             break;

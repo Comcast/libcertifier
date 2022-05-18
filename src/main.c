@@ -29,12 +29,17 @@ main(int argc, char *argv[]) {
     CERTIFIER *easy = certifier_api_easy_new();
 
     certifier_api_easy_set_cli_args(easy, argc, argv);
-    return_code = certifier_api_easy_perform(easy);
+    return_code = certifier_api_easy_set_mode(easy, certifier_api_easy_get_mode(easy));
+    if (return_code == 1) { // meaning that command selected is either version or help
+        certifier_api_easy_print_helper(easy);
+    } else {
+        return_code = certifier_api_easy_perform(easy);
 
-    const char *result = certifier_api_easy_get_result_json(easy);
+        const char *result = certifier_api_easy_get_result_json(easy);
 
-    if (result != NULL) {
-        XPUTS(result);
+        if (result != NULL) {
+            XPUTS(result);
+        }
     }
 
     certifier_api_easy_destroy(easy);

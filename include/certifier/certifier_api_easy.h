@@ -50,7 +50,9 @@ typedef enum {
      * @post the certifier ID is available in certifier_api_easy_get_result.
      */
             CERTIFIER_MODE_REGISTER = 1,
-    //2, 4, 8 & 16 are unused
+
+            CERTIFIER_MODE_REVOKE_CERT = 2,
+    //4, 8 & 16 are unused
     /**
      * Generate a node address based on CERTIFIER_OPT_OUTPUT_NODE
      * For devices, this is the DER public key
@@ -87,7 +89,8 @@ typedef enum {
      */
             CERTIFIER_MODE_RENEW_CERT = 8192,
     CERTIFIER_MODE_PRINT_CERT = 16384,
-    // 32768 is unused
+
+    CERTIFIER_MODE_PRINT_VER = 32768,
 
 
     // 65536 is unused,
@@ -149,6 +152,15 @@ void *certifier_api_easy_get_opt(CERTIFIER *easy, CERTIFIER_OPT option);
 int certifier_api_easy_set_opt(CERTIFIER *easy, CERTIFIER_OPT option, void *value);
 
 /**
+ * tbw
+ * tbw
+ * @param easy
+ * @return tbw
+ * @see CERTIFIER_MODE for allowed values
+ */
+CERTIFIER_MODE certifier_api_easy_get_mode(CERTIFIER *easy);
+
+/**
  * Set the operation that certifier_api_easy_perform() will attempt.
  * When this is not set, the default action is to register the device.
  * @param easy
@@ -174,6 +186,12 @@ int certifier_api_easy_set_cli_args(CERTIFIER *easy, int argc, char **argv);
  * @return a plain version string (caller must free)
  */
 char *certifier_api_easy_get_version(CERTIFIER *easy);
+
+/**
+ * Print Help/Version Info
+ * @param easy
+ */
+void certifier_api_easy_print_helper(CERTIFIER *easy);
 
 /**
  * Execute an operation

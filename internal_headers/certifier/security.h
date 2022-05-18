@@ -32,6 +32,8 @@
 #define CERTIFIER_ERR_SECURITY_ENCODE_3 3
 #define CERTIFIER_ERR_SECURITY_ENCODE_4 5
 
+#define CERTIFIER_SHA1_DIGEST_LENGTH 20
+
 CertifierError
 security_init(void);
 
@@ -89,6 +91,17 @@ security_encode(const unsigned char *encoded_public_key, int len, int *return_co
 /*
 * Hash Functions
 */
+
+typedef struct sha1_ctx_st sha1_ctx;
+
+sha1_ctx *security_sha1_init();
+
+int security_sha1(unsigned char *output, const unsigned char *input, size_t input_len);
+
+int security_sha1_update(sha1_ctx *ctx, const unsigned char *input, size_t len);
+
+/* writes hash to digest and frees ctx */
+int security_sha1_finish(sha1_ctx *ctx, unsigned char *digest);
 
 int security_sha256(unsigned char *output, const unsigned char *input, size_t input_len);
 
@@ -156,6 +169,10 @@ CertifierError security_check_x509_valid_range(time_t current_time,
                                                const char *cert_before_time,
                                                const char *cert_after_time);
 
+int security_get_before_time_validity(X509_CERT *cert, char *time, size_t time_len);
+
+int security_get_not_after_time_validity(X509_CERT *cert, char *time, size_t time_len);
+
 CertifierError
 security_verify_x509(X509_CERT *cert, const char *signature_b64, const unsigned char *input, int input_len,
                      const char *security_cert_root_ca, const char *security_cert_int_ca,
@@ -204,6 +221,8 @@ int security_get_random_bytes(unsigned char *out, int len);
 unsigned char *security_X509_to_DER(X509_CERT *cert, size_t *out_len);
 
 X509_CERT *security_X509_from_DER(const unsigned char *der, size_t der_len);
+
+void security_print_subject_issuer(X509_CERT *cert);
 
 /**
  * Create a Certificate Request Token with a signed X509 certificate

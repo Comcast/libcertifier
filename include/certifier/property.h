@@ -49,7 +49,7 @@ typedef enum CERTIFIER_OPT
         CERTIFIER_OPT_CA_INFO = 8,
         CERTIFIER_OPT_CA_PATH = 9,
         CERTIFIER_OPT_CRT = 10,
-        // 11 is unused
+        CERTIFIER_OPT_PROFILE_NAME = 11,
 
         /**
      * Bitmap containing boolean options (read-only).
@@ -65,7 +65,7 @@ typedef enum CERTIFIER_OPT
      * @note value type: string
      */
         CERTIFIER_OPT_SYSTEM_ID = 14,
-        // 15 is unused
+        CERTIFIER_OPT_PRODUCT_ID = 15,
 
         /**
      * Simulate the "not-valid-before" date.
@@ -89,7 +89,8 @@ typedef enum CERTIFIER_OPT
         CERTIFIER_OPT_TARGET_NODE = 25,
         CERTIFIER_OPT_ACTION = 26,
         CERTIFIER_OPT_INPUT_NODE = 27,
-        // 28 - 36 are unused
+        CERTIFIER_OPT_NODE_ID = 28,
+        // 29 - 36 are unused
         CERTIFIER_OPT_LOG_MAX_SIZE = 37,
         // 38,39 are unused
         // 40 - 43 are unused
@@ -177,7 +178,12 @@ typedef enum CERTIFIER_OPT
      * @note value type: string 
      */
 
-        CERTIFIER_OPT_MAC_ADDRESS
+        CERTIFIER_OPT_MAC_ADDRESS,
+
+        /**
+     * @note value type: string
+     */
+        CERTIFIER_OPT_OUTPUT_KEYSTORE,
 
 } CERTIFIER_OPT;
 

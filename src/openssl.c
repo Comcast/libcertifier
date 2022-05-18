@@ -384,6 +384,30 @@ security_persist_pkcs_12_file(const char *filename, const char *pwd, ECC_KEY *pr
     return result->application_error_code;
 } /* persistPkcs12File */
 
+struct sha1_ctx_st {
+    SHA_CTX h;
+};
+
+sha1_ctx *security_sha1_init() {
+    sha1_ctx *ctx = XMALLOC(sizeof(struct sha1_ctx_st)); /* */
+    if (SHA1_Init(&ctx->h) != 1) {
+        XFREE(ctx);
+        return NULL;
+    }
+    return ctx;
+}
+
+int security_sha1_update(sha1_ctx *ctx, const unsigned char input[], size_t len) {
+    return SHA1_Update(&ctx->h, input, len) == 1 ? 0 : -1;
+}
+
+int security_sha1_finish(sha1_ctx *ctx, unsigned char *digest) {
+    int rc = 0;
+    rc = SHA1_Final(digest, &ctx->h) == 1 ? 0 : -1;
+    XFREE(ctx);
+    return rc;
+}
+
 struct sha256_ctx_st {
     SHA256_CTX h;
 };
@@ -1018,6 +1042,30 @@ unsigned char *security_X509_to_DER(X509_CERT *cert, size_t *out_len) {
     return out;
 }
 
+void security_print_subject_issuer(X509_CERT *cert) {
+    X509_NAME *subject = NULL;
+    X509_NAME *issuer = NULL;
+
+    subject = X509_get_subject_name(cert);
+    if (subject == NULL) {
+        return;
+    }
+
+    issuer = X509_get_issuer_name(cert);
+    if (issuer == NULL) {
+        return;
+    }
+
+    char *ssubject = X509_NAME_oneline(subject, NULL, 0);
+    char *sissuer = X509_NAME_oneline(issuer, NULL, 0);
+
+    printf("subject=%s\n\n", ssubject);
+    printf("issuer=%s\n\n", sissuer);
+
+    XFREE(ssubject);
+    XFREE(sissuer);
+}
+
 CertifierError load_certs_from_pkcs7(const char *pkcs7, X509_LIST **out) {
     CertifierError result = CERTIFIER_ERROR_INITIALIZER;
 
@@ -1243,6 +1291,40 @@ CertifierError security_check_x509_valid_range(time_t current_time,
     }
 
     return result;
+}
+
+int security_get_before_time_validity(X509_CERT *cert, char *time, size_t time_len) {
+    BIO *bio;
+
+    bio = BIO_new(BIO_s_mem());
+    if (bio) {
+        if (ASN1_TIME_print(bio, X509_get_notBefore(cert))) {
+            int bytes_read = BIO_read(bio, time, time_len - 1);
+            time[bytes_read] = '\0';
+        }
+        BIO_free(bio);
+    } else {
+        return 1;
+    }
+
+    return 0;
+}
+
+int security_get_not_after_time_validity(X509_CERT *cert, char *time, size_t time_len) {
+    BIO *bio;
+
+    bio = BIO_new(BIO_s_mem());
+    if (bio) {
+        if (ASN1_TIME_print(bio, X509_get_notAfter(cert))) {
+            int bytes_read = BIO_read(bio, time, time_len - 1);
+            time[bytes_read] = '\0';
+        }
+        BIO_free(bio);
+    } else {
+        return 1;
+    }
+
+    return 0;
 }
 
 static X509 *openssl_load_cert(const char *cert_str) {
