@@ -19,6 +19,10 @@
 #ifndef LIBCERTIFIER_TYPES_H
 #define LIBCERTIFIER_TYPES_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef IMPLEMENTOR_STRING
 #include <string.h>
 #define XSTRERROR         strerror
@@ -191,5 +195,8 @@ typedef struct x509_st X509_CERT;
 typedef struct stack_st_X509 X509_LIST;
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif //LIBCERTIFIER_TYPES_H

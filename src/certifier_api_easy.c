@@ -26,10 +26,23 @@
 #include "certifier/security.h"
 #include "certifier/http.h"
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 // Defines
 #define DEFAULT_PASSWORD             "changeit"
 #define VERY_SMALL_STRING_SIZE 32
 #define VERY_LARGE_STRING_SIZE 2048
+
+#define PRODUCT_ID_LENGTH 4ul
+#define CASE_AUTH_TAG_LENGTH 8ul
+#define NODE_ID_LENGTH    16ul
+#define FABRIC_ID_LENGTH  16ul
+
+#define KEYMGR_FIFO_IN_PATH  "/tmp/certifier-fifo-in"
+#define KEYMGR_FIFO_OUT_PATH "/tmp/certifier-fifo-out"
 
 #define NULL_CHECK(p)                                                   \
 if (p == NULL)                                                          \
@@ -38,18 +51,15 @@ if (p == NULL)                                                          \
 #define safe_exit(le, rc) finish_operation(le, rc, NULL)
 
 #define BASE_SHORT_OPTIONS "hp:L:k:"
-#define CLIENT_SHORT_OPTION "c"
 #define GET_CRT_TOKEN_SHORT_OPTIONS "X:S:"
-#define GET_CERT_SHORT_OPTIONS "fT:P:o:i:n:"
+#define GET_CERT_SHORT_OPTIONS "fT:P:o:i:n:F:a:w:"
+#define VALIDITY_DAYS_SHORT_OPTION "v:"
 
 #define BASE_LONG_OPTIONS                             \
     {"help",           no_argument,       NULL, 'h'}, \
     {"pkcs12-path",    required_argument, NULL, 'k'}, \
     {"pkcs12-password",required_argument, NULL, 'p'}, \
     {"config",         required_argument, NULL, 'L'}
-
-#define CLIENT_LONG_OPTION                            \
-    {"client",         no_argument,       NULL, 'c'}
 
 #define GET_CRT_TOKEN_LONG_OPTIONS                    \
     {"crt-type",       required_argument, NULL, 'X'}, \
@@ -60,8 +70,14 @@ if (p == NULL)                                                          \
     {"crt",            required_argument, NULL, 'T'}, \
     {"profile-name",   required_argument, NULL, 'P'}, \
     {"output-p12-file",required_argument, NULL, 'o'}, \
+    {"output-p12-pass",required_argument, NULL, 'w'}, \
     {"product-id",     required_argument, NULL, 'i'}, \
-    {"node-id",        required_argument, NULL, 'n'}
+    {"node-id",        required_argument, NULL, 'n'}, \
+    {"fabric-id",      required_argument, NULL, 'F'}, \
+    {"case-auth-tag",  required_argument, NULL, 'a'}
+
+#define VALIDITY_DAYS_LONG_OPTION                     \
+    {"validity-days",  required_argument, NULL, 'v'}
 
 static void finish_operation(CERTIFIER *easy, int return_code, const char *operation_output);
 
@@ -76,7 +92,6 @@ typedef struct CERTIFIERInfo {
 struct CERTIFIER {
     Certifier *certifier;
     CERTIFIER_MODE mode;
-    bool is_client_app;
     int argc;
     char **argv;
     CERTIFIERInfo last_info;
@@ -105,9 +120,6 @@ static const char * get_command_opt_helper(CERTIFIER_MODE mode) {
     "--pkcs12-password (-p)\n"                 \
     "--config [value] (-L)\n"
 
-#define CLIENT_HELPER  \
-    "--client (-c)\n"
-
 #define GET_CRT_TOKEN_HELPER      \
     "--crt-type [value] (-X)\n"   \
     "--auth-token [value] (-S)\n"
@@ -117,18 +129,24 @@ static const char * get_command_opt_helper(CERTIFIER_MODE mode) {
     "--overwrite-p12-file (-f)\n" \
     "--profile-name (-P)\n"       \
     "--output-p12-file (-o)\n"    \
+    "--output-p12-pass (-w)\n"    \
     "--product-id (-i)\n"         \
-    "--node-id (-n)\n"
+    "--node-id (-n)\n"            \
+    "--fabric-id (-F)\n"          \
+    "--case-auth-tag (-a)\n"
+
+#define VALIDITY_DAYS_HELPER \
+    "--validity-days (-v)\n"
 
     switch (mode) {
         case CERTIFIER_MODE_REGISTER:
-            return BASE_HELPER GET_CRT_TOKEN_HELPER GET_CERT_HELPER CLIENT_HELPER;
+            return BASE_HELPER GET_CRT_TOKEN_HELPER GET_CERT_HELPER VALIDITY_DAYS_HELPER;
         case CERTIFIER_MODE_CREATE_CRT:
             return BASE_HELPER GET_CRT_TOKEN_HELPER;
         case CERTIFIER_MODE_GET_CERT_STATUS:
             return BASE_HELPER;
         case CERTIFIER_MODE_RENEW_CERT:
-            return BASE_HELPER CLIENT_HELPER;
+            return BASE_HELPER VALIDITY_DAYS_HELPER;
         case CERTIFIER_MODE_PRINT_CERT:
             return BASE_HELPER;
         case CERTIFIER_MODE_REVOKE_CERT:
@@ -148,6 +166,17 @@ static void free_easy_info(CERTIFIERInfo *info) {
 
 CERTIFIER *certifier_api_easy_new(void) {
     CERTIFIER *easy = NULL;
+
+    unlink(KEYMGR_FIFO_IN_PATH);
+    if (mkfifo(KEYMGR_FIFO_IN_PATH, 0666) != 0) {
+        return NULL;
+    }
+
+    unlink(KEYMGR_FIFO_OUT_PATH);
+    if (mkfifo(KEYMGR_FIFO_OUT_PATH, 0666) != 0) {
+        return NULL;
+    }
+
     Certifier *certifier = certifier_new();
     if (certifier == NULL) {
         log_error("Received a null certifier.");
@@ -164,7 +193,12 @@ CERTIFIER *certifier_api_easy_new(void) {
     return easy;
 }
 
-Certifier * certifier_get_sertifier_instance(const CERTIFIER *easy)
+/**
+ * Get Certifier instance
+ * @param easy
+ * @return certifier instance
+ */
+static Certifier * certifier_get_certifier_instance(const CERTIFIER *easy)
 {
     return easy->certifier;
 }
@@ -175,7 +209,7 @@ CERTIFIER *certifier_api_easy_new_cfg(char *libcertifier_cfg) {
     if (util_file_exists(libcertifier_cfg))
     {
         certifier_api_easy_set_opt(easy, CERTIFIER_OPT_CFG_FILENAME, libcertifier_cfg);
-        int error_code = certifier_load_cfg_file(certifier_get_sertifier_instance(easy));
+        int error_code = certifier_load_cfg_file(certifier_get_certifier_instance(easy));
         if (error_code)
         {
             log_error("[FATAL] Failed to load config file %s.\n", libcertifier_cfg);
@@ -199,11 +233,10 @@ void certifier_api_easy_destroy(CERTIFIER *easy) {
         free_easy_info(&easy->last_info);
     }
 
-    XFREE(easy);
-}
+    unlink(KEYMGR_FIFO_IN_PATH);
+    unlink(KEYMGR_FIFO_OUT_PATH);
 
-void certifier_api_easy_set_is_client(CERTIFIER *easy, bool is_app) {
-    easy->is_client_app = is_app;
+    XFREE(easy);
 }
 
 void *certifier_api_easy_get_opt(CERTIFIER *easy, CERTIFIER_OPT option) {
@@ -234,7 +267,7 @@ CERTIFIER_MODE certifier_api_easy_get_mode(CERTIFIER *easy) {
     } command_map_t;
 
     command_map_t command_map[] = {
-        { "help",            CERTIFIER_MODE_NONE },
+        { "help",            CERTIFIER_MODE_PRINT_HELP },
         { "version",         CERTIFIER_MODE_PRINT_VER },
         { "get-cert",        CERTIFIER_MODE_REGISTER },
         { "get-crt-token",   CERTIFIER_MODE_CREATE_CRT },
@@ -260,13 +293,12 @@ CERTIFIER_MODE certifier_api_easy_get_mode(CERTIFIER *easy) {
 int certifier_api_easy_set_mode(CERTIFIER *easy, CERTIFIER_MODE local_mode) {
     NULL_CHECK(easy);
 
-    easy->mode = local_mode;
-
-    if (easy->mode == CERTIFIER_MODE_NONE || easy->mode == CERTIFIER_MODE_PRINT_VER)
+    if (easy->mode == CERTIFIER_MODE_NONE)
     {
-        // return 1 in cases where only helper/version info needs to be shown on screen.
         return 1;
     }
+
+    easy->mode = local_mode;
 
     return 0;
 }
@@ -338,13 +370,7 @@ static void finish_operation(CERTIFIER *easy, int return_code, const char *opera
 static int auto_renew_cert(CERTIFIER *easy) {
     NULL_CHECK(easy);
 
-    int registration_mode = CERTIFIER_DEVICE_REGISTRATION;
-
-    if (easy->is_client_app) {
-        registration_mode = CERTIFIER_APP_REGISTRATION;
-    }
-
-    return certifier_register(easy->certifier, registration_mode);
+    return certifier_register(easy->certifier);
 }
 
 static int do_create_x509_crt(CERTIFIER *easy) {
@@ -488,45 +514,12 @@ static int do_create_node_address(CERTIFIER *easy) {
     return return_code;
 }
 
-
-static int do_app_registration(CERTIFIER *easy) {
-
-    int return_code = 0;
-
-    if (util_is_empty(certifier_get_property(easy->certifier, CERTIFIER_OPT_AUTH_TOKEN))) {
-        log_warn("No Auth Token was set..");
-        return_code = CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
-        safe_exit(easy, return_code);
-        return return_code;
-    }
-
-    return_code = do_create_crt(easy);
-    if (return_code != 0) {
-        log_error("An error occurred while attempting to create a CRT.");
-        safe_exit(easy, return_code);
-        return return_code;
-    }
-
-    return return_code;
-}
-
 static int do_registration(CERTIFIER *easy) {
     int return_code = 0;
-    int registration_mode;
     const char *certifier_id = NULL;
 
-    if (easy->is_client_app) {
-        return_code = do_app_registration(easy);
-        if (return_code != 0) {
-            return return_code;
-        }
-        registration_mode = CERTIFIER_APP_REGISTRATION;
-    } else {
-        registration_mode = CERTIFIER_DEVICE_REGISTRATION;
-    }
-
     log_info("Calling certifier_register_device()");
-    return_code = certifier_register(easy->certifier, registration_mode);
+    return_code = certifier_register(easy->certifier);
 
     if (return_code != 0) {
         log_error("Received an error code: <%i> while calling certifier_register_device().  Exiting.",
@@ -568,33 +561,39 @@ static int do_get_cert_status(CERTIFIER *easy) {
 
     return_code = certifier_get_device_registration_status(easy->certifier);
     certifier_print_certificate_validity(easy->certifier);
-    if (return_code != 0) {
-        return_code = CERTIFIER_ERR_GET_CERT_STATUS_1 + return_code;
+    if (return_code != 0 && return_code != CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE) {
+        return_code |= CERTIFIER_ERR_GET_CERT_STATUS_1;
     } else {
-        return_code = certifier_get_device_certificate_status(easy->certifier);
+        return_code |= certifier_get_device_certificate_status(easy->certifier);
         if (return_code == 0) {
             certifier_id = certifier_get_node_address(easy->certifier);
         } else {
-            return_code = CERTIFIER_ERR_GET_CERT_STATUS_1 + return_code;
+            return_code |= CERTIFIER_ERR_GET_CERT_STATUS_1;
         }
     }
 
     switch (return_code) {
+        case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
+            XFPRINTF(stdout, "Warning! This certificate is about to expire. Please renew it using the 'renew-cert' command.\n");
         case 0:
-            XFPRINTF(stdout, "Status: Valid\n\n");
+            XFPRINTF(stdout, "Status: Valid\n");
             break;
-        case CERTIFIER_ERR_GET_CERT_STATUS_1 + CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_2:
-            XFPRINTF(stdout, "Status: Expired\n\n");
+        case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_2:
+            XFPRINTF(stdout, "Status: Expired\n");
             break;
-        case CERTIFIER_ERR_GET_CERT_STATUS_1 + CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1:
-            XFPRINTF(stdout, "Status: Not Yet Valid\n\n");
+        case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1:
+            XFPRINTF(stdout, "Status: Not Yet Valid\n");
             break;
-        case CERTIFIER_ERR_GET_CERT_STATUS_1 + CERTIFIER_ERR_GET_CERT_STATUS_REVOKED:
-            XFPRINTF(stdout, "Status: Revoked\n\n");
+        case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_REVOKED | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
+            XFPRINTF(stdout, "Warning! This certificate is about to expire. Please renew it using the 'renew-cert' command.\n");
+        case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_REVOKED:
+            XFPRINTF(stdout, "Status: Revoked\n");
             break;
-        case CERTIFIER_ERR_GET_CERT_STATUS_1 + CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN:
+        case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
+            XFPRINTF(stdout, "Warning! This certificate is about to expire. Please renew it using the 'renew-cert' command.\n");
+        case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN:
         default:
-            XFPRINTF(stdout, "Status: Unknown\n\n");
+            XFPRINTF(stdout, "Status: Unknown\n");
             break;
     }
 
@@ -658,20 +657,21 @@ char *certifier_api_easy_get_version(CERTIFIER *easy) {
     return certifier_get_version(easy->certifier);
 }
 
-void certifier_api_easy_print_helper(CERTIFIER *easy) {
+int certifier_api_easy_print_helper(CERTIFIER *easy) {
     if (easy->mode == CERTIFIER_MODE_PRINT_VER)
     {
         char *version_string = certifier_api_easy_get_version(easy);
 
         if (version_string == NULL) {
             log_error("Error getting version string as it was NULL!\n");
-            return;
+            return 1;
         }
 
         XFPRINTF(stdout, "%s\n", version_string);
 
         XFREE(version_string);
-    } else if (easy->mode == CERTIFIER_MODE_NONE) {
+    } else if (easy->mode == CERTIFIER_MODE_PRINT_HELP ||
+               easy->mode == CERTIFIER_MODE_NONE) {
         XFPRINTF(stdout, "Usage:  certifierUtil [COMMANDS] [OPTIONS]\n"
                          "Commands:\n"
                          "help\n"
@@ -684,6 +684,8 @@ void certifier_api_easy_print_helper(CERTIFIER *easy) {
                          "revoke\n"
                          );
     }
+
+    return 0;
 }
 
 const char *certifier_api_easy_get_node_address(CERTIFIER *easy) {
@@ -694,59 +696,73 @@ const char *certifier_api_easy_get_node_address(CERTIFIER *easy) {
     return certifier_get_node_address(easy->certifier);
 }
 
-
-static CERTIFIER_OPT parse_CERTIFIER_OPT(char *str) {
-    if (XSTRCMP("CERTIFIER_OPT_CFG_FILENAME", str) == 0) return CERTIFIER_OPT_CFG_FILENAME;
-    else if (XSTRCMP("CERTIFIER_OPT_CERTIFIER_URL", str) == 0) return CERTIFIER_OPT_CERTIFIER_URL;
-    else if (XSTRCMP("CERTIFIER_OPT_HTTP_TIMEOUT", str) == 0) return CERTIFIER_OPT_HTTP_TIMEOUT;
-    else if (XSTRCMP("CERTIFIER_OPT_HTTP_CONNECT_TIMEOUT", str) == 0) return CERTIFIER_OPT_HTTP_CONNECT_TIMEOUT;
-    else if (XSTRCMP("CERTIFIER_OPT_P12_FILENAME", str) == 0) return CERTIFIER_OPT_KEYSTORE;
-    else if (XSTRCMP("CERTIFIER_OPT_PASSWORD", str) == 0) return CERTIFIER_OPT_PASSWORD;
-    else if (XSTRCMP("CERTIFIER_OPT_CA_INFO", str) == 0) return CERTIFIER_OPT_CA_INFO;
-    else if (XSTRCMP("CERTIFIER_OPT_CA_PATH", str) == 0) return CERTIFIER_OPT_CA_PATH;
-    else if (XSTRCMP("CERTIFIER_OPT_CRT", str) == 0) return CERTIFIER_OPT_CRT;
-    else if (XSTRCMP("CERTIFIER_OPT_CRT_TYPE", str) == 0) return CERTIFIER_OPT_CRT_TYPE;
-    else if (XSTRCMP("CERTIFIER_OPT_OPTIONS", str) == 0) return CERTIFIER_OPT_OPTIONS;
-    else if (XSTRCMP("CERTIFIER_OPT_ECC_CURVE_ID", str) == 0) return CERTIFIER_OPT_ECC_CURVE_ID;
-    else if (XSTRCMP("CERTIFIER_OPT_SYSTEM_ID", str) == 0) return CERTIFIER_OPT_SYSTEM_ID;
-    else if (XSTRCMP("CERTIFIER_OPT_PRODUCT_ID", str) == 0) return CERTIFIER_OPT_PRODUCT_ID;
-    else if (XSTRCMP("CERTIFIER_OPT_PROFILE_NAME", str) == 0) return CERTIFIER_OPT_PROFILE_NAME;
-    else if (XSTRCMP("CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE", str) == 0)
-        return CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE;
-    else if (XSTRCMP("CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_AFTER", str) == 0)
-        return CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_AFTER;
-    else if (XSTRCMP("CERTIFIER_OPT_ROOT_CA", str) == 0) return CERTIFIER_OPT_ROOT_CA;
-    else if (XSTRCMP("CERTIFIER_OPT_INT_CA", str) == 0) return CERTIFIER_OPT_INT_CA;
-    else if (XSTRCMP("CERTIFIER_OPT_LOG_FILENAME", str) == 0) return CERTIFIER_OPT_LOG_FILENAME;
-    else if (XSTRCMP("CERTIFIER_OPT_LOG_LEVEL", str) == 0) return CERTIFIER_OPT_LOG_LEVEL;
-    else if (XSTRCMP("CERTIFIER_OPT_LOG_MAX_SIZE", str) == 0) return CERTIFIER_OPT_LOG_MAX_SIZE;
-    else if (XSTRCMP("CERTIFIER_OPT_AUTH_TOKEN", str) == 0) return CERTIFIER_OPT_AUTH_TOKEN;
-    else if (XSTRCMP("CERTIFIER_OPT_OUTPUT_NODE", str) == 0) return CERTIFIER_OPT_OUTPUT_NODE;
-    else if (XSTRCMP("CERTIFIER_OPT_TARGET_NODE", str) == 0) return CERTIFIER_OPT_TARGET_NODE;
-    else if (XSTRCMP("CERTIFIER_OPT_ACTION", str) == 0) return CERTIFIER_OPT_ACTION;
-    else if (XSTRCMP("CERTIFIER_OPT_INPUT_NODE", str) == 0) return CERTIFIER_OPT_INPUT_NODE;
-    else if (XSTRCMP("CERTIFIER_OPT_SOURCE", str) == 0) return CERTIFIER_OPT_SOURCE;
-    else if (XSTRCMP("CERTIFIER_OPT_CN_PREFIX", str) == 0) return CERTIFIER_OPT_CN_PREFIX;
-    else if (XSTRCMP("CERTIFIER_OPT_NUM_DAYS", str) == 0) return CERTIFIER_OPT_NUM_DAYS;
-    else if (XSTRCMP("CERTIFIER_OPT_EXT_KEY_USAGE", str) == 0) return CERTIFIER_OPT_EXT_KEY_USAGE;
-    else return -1;
-}
-
-static bool is_valid_product_id(const char * pid) {
-    if (strlen(pid) != 4) {
+static bool is_valid_id(const char *id, const size_t id_length) {
+    if (id == NULL) {
         return false;
     }
-    return isxdigit(pid[0]) && isxdigit(pid[1]) && isxdigit(pid[2]) && isxdigit(pid[3]);
+
+    for (size_t idx = 0; idx < id_length; ++idx) {
+        if (isxdigit(id[idx]) == 0) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
-static bool is_valid_node_id(const char * nid) {
-    if (strlen(nid) != 16) {
-        return false;
+static int is_password_an_fd(const char *arg, char *fd_password, const size_t fd_password_length) {
+    int ret = 0;
+    const char *fd_path = NULL;
+    char fdneedle[4]  = "fd:";
+    size_t fd_length = 3;
+    int fd = 0;
+    ssize_t bytes_read = 0;
+
+    if (strncmp(fdneedle, arg, fd_length) == 0) {
+        fd_path = &arg[fd_length];
+
+        fd = open(fd_path, O_RDONLY);
+
+        if (fd != -1) {
+            bytes_read = read(fd, fd_password, fd_password_length - 1);
+
+            if (bytes_read != -1) {
+                fd_password[bytes_read] = '\0';
+                ret = 1;
+            }
+
+            close(fd);
+            unlink(fd_path);
+        }
     }
-    return isxdigit(nid[0]) && isxdigit(nid[1]) && isxdigit(nid[2]) && isxdigit(nid[3]) &&
-           isxdigit(nid[4]) && isxdigit(nid[5]) && isxdigit(nid[6]) && isxdigit(nid[7]) &&
-           isxdigit(nid[8]) && isxdigit(nid[9]) && isxdigit(nid[10]) && isxdigit(nid[11]) &&
-           isxdigit(nid[12]) && isxdigit(nid[13]) && isxdigit(nid[14]) && isxdigit(nid[15]);
+
+    return ret;
+}
+
+static int is_password_in_keymgr(bool in, const char *arg, char *fd_password, const size_t fd_password_length) {
+    int ret = 0;
+    char keymgr_needle[4]  = "km:";
+    size_t keymgr_neddle_length = 3;
+    int fd = 0;
+    ssize_t bytes_read = 0;
+
+    if (strncmp(keymgr_needle, arg, keymgr_neddle_length) == 0) {
+
+        fd = open(in ? KEYMGR_FIFO_IN_PATH : KEYMGR_FIFO_OUT_PATH, O_RDONLY);
+
+        if (fd != -1) {
+            bytes_read = read(fd, fd_password, fd_password_length - 1);
+
+            if (bytes_read != -1) {
+                fd_password[bytes_read] = '\0';
+                ret = 1;
+            }
+
+            close(fd);
+        }
+    }
+
+    return ret;
 }
 
 static int process_command_line(CERTIFIER *easy) {
@@ -756,16 +772,16 @@ static int process_command_line(CERTIFIER *easy) {
         return return_code;
     }
 
-    static const char * const get_cert_short_options      = BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS GET_CERT_SHORT_OPTIONS CLIENT_SHORT_OPTION;
+    static const char * const get_cert_short_options      = BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS GET_CERT_SHORT_OPTIONS VALIDITY_DAYS_SHORT_OPTION;
     static const char * const get_crt_token_short_options = BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS;
-    static const char * const renew_cert_short_options    = BASE_SHORT_OPTIONS CLIENT_SHORT_OPTION;
+    static const char * const renew_cert_short_options    = BASE_SHORT_OPTIONS VALIDITY_DAYS_SHORT_OPTION;
     static const char * const base_short_options          = BASE_SHORT_OPTIONS;
 
     static const struct option get_cert_long_opts[] = {
             BASE_LONG_OPTIONS,
             GET_CRT_TOKEN_LONG_OPTIONS,
             GET_CERT_LONG_OPTIONS,
-            CLIENT_LONG_OPTION,
+            VALIDITY_DAYS_LONG_OPTION,
             {NULL, 0,                             NULL, 0}
     };
     static const struct option get_crt_token_long_opts[] = {
@@ -775,7 +791,7 @@ static int process_command_line(CERTIFIER *easy) {
     };
     static const struct option renew_cert_long_opts[] = {
             BASE_LONG_OPTIONS,
-            CLIENT_LONG_OPTION,
+            VALIDITY_DAYS_LONG_OPTION,
             {NULL, 0,                             NULL, 0}
     };
     static const struct option base_long_opts[] = {
@@ -792,13 +808,13 @@ static int process_command_line(CERTIFIER *easy) {
         {CERTIFIER_MODE_REVOKE_CERT, base_short_options, base_long_opts},
     };
 
-    int i = 0;
-    char buf1[VERY_LARGE_STRING_SIZE], buf2[VERY_LARGE_STRING_SIZE];
-    size_t c1, c2;
-    char *arr1[VERY_SMALL_STRING_SIZE] = {0};
-    char *arr2[VERY_SMALL_STRING_SIZE] = {0};
-
     char *version_string = certifier_api_easy_get_version(easy);
+
+    char fd_password[LARGE_STRING_SIZE + 1] = {0};
+    char id_array[NODE_ID_LENGTH + 1] = {0};
+    char *end_id_array = &id_array[NODE_ID_LENGTH];
+    // keep last index as \0. We want this to be a null terminated string.
+    memset(id_array, '0', sizeof(id_array) - 1);
 
     for (;;) {
         int command_opt_index = get_command_opt_index(command_opt_lut, sizeof(command_opt_lut) / sizeof(*command_opt_lut), easy->mode);
@@ -818,13 +834,25 @@ static int process_command_line(CERTIFIER *easy) {
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) true);
                 break;
             case 'p':
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD, optarg);
+                if (is_password_an_fd(optarg, fd_password, sizeof(fd_password)) ||
+                    is_password_in_keymgr(true, optarg, fd_password, sizeof(fd_password))) {
+
+                    return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD, fd_password);
+                } else {
+                    return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD, optarg);
+                }
+                break;
+            case 'w':
+                if (is_password_an_fd(optarg, fd_password, sizeof(fd_password)) ||
+                    is_password_in_keymgr(false, optarg, fd_password, sizeof(fd_password))) {
+
+                    return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT, fd_password);
+                } else {
+                    return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT, optarg);
+                }
                 break;
             case 'L':
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_CFG_FILENAME, optarg);
-                break;
-            case 'c':
-                certifier_api_easy_set_is_client(easy, true);
                 break;
             case 'T':
                 if (optarg == NULL) {
@@ -848,34 +876,6 @@ static int process_command_line(CERTIFIER *easy) {
                 }
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_AUTH_TOKEN, optarg);
 
-                break;
-            case 'D':
-                if (optarg == NULL) {
-                    break;
-                }
-
-                XSTRNCPY(buf1, optarg,
-                        sizeof(buf1) - 1);
-                buf1[sizeof(buf1) - 1] = '\0';
-
-                c1 = util_split(buf1, arr1, 20, ',');
-                if (c1 > 0) {
-                    for (i = 0; i < (int) c1; i++) {
-                        XSTRNCPY(buf2, arr1[i],
-                                sizeof(buf2) - 1);
-                        buf2[sizeof(buf2) - 1] = '\0';
-
-                        c2 = util_split(buf2, arr2, 20, '=');
-                        if (c2 == 2) {
-                            return_code = certifier_set_property(easy->certifier, parse_CERTIFIER_OPT(arr2[0]),
-                                                                 arr2[1]);
-                            if (return_code != 0) {
-                                break;
-                            }
-
-                        }
-                    }
-                }
                 break;
             case 'k':
                 if (optarg == NULL) {
@@ -902,24 +902,98 @@ static int process_command_line(CERTIFIER *easy) {
                 if (optarg == NULL) {
                     break;
                 }
-                if (is_valid_product_id(optarg) == false) {
+
+                if (strlen(optarg) > PRODUCT_ID_LENGTH) {
                     log_error("Product ID is expected to be a 16-bit hex number");
                     return_code = 1;
                     break;
                 }
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PRODUCT_ID, optarg);
+
+                memcpy(end_id_array - strlen(optarg), optarg, strlen(optarg));
+
+                if (is_valid_id(end_id_array - PRODUCT_ID_LENGTH, PRODUCT_ID_LENGTH) == false) {
+                    log_error("Product ID is expected to be a 16-bit hex number");
+                    return_code = 1;
+                    break;
+                }
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PRODUCT_ID, end_id_array - PRODUCT_ID_LENGTH);
 
                 break;
             case 'n':
                 if (optarg == NULL) {
                     break;
                 }
-                if (is_valid_node_id(optarg) == false) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE, optarg);
+
+                if (strlen(optarg) > NODE_ID_LENGTH) {
                     log_error("Node ID is expected to be a 64-bit hex number");
                     return_code = 1;
                     break;
                 }
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_NODE_ID, optarg);
+
+                memcpy(end_id_array - strlen(optarg), optarg, strlen(optarg));
+
+                if (is_valid_id(end_id_array - NODE_ID_LENGTH, NODE_ID_LENGTH) == false) {
+                    log_error("Node ID is expected to be a 64-bit hex number");
+                    return_code = 1;
+                    break;
+                }
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_NODE_ID, end_id_array - NODE_ID_LENGTH);
+
+                break;
+            case 'F':
+                if (optarg == NULL) {
+                    break;
+                }
+
+                if (strlen(optarg) > FABRIC_ID_LENGTH) {
+                    log_error("Fabric ID is expected to be a 64-bit hex number");
+                    return_code = 1;
+                    break;
+                }
+
+                memcpy(end_id_array - strlen(optarg), optarg, strlen(optarg));
+
+                if (is_valid_id(end_id_array - FABRIC_ID_LENGTH, FABRIC_ID_LENGTH) == false) {
+                    log_error("Fabric ID is expected to be a 64-bit hex number");
+                    return_code = 1;
+                    break;
+                }
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_FABRIC_ID, end_id_array - FABRIC_ID_LENGTH);
+
+                break;
+            case 'a':
+                if (optarg == NULL) {
+                    break;
+                }
+
+                if (strlen(optarg) > CASE_AUTH_TAG_LENGTH) {
+                    log_error("CASE Authentication Tag is expected to be a 32-bit hex number");
+                    return_code = 1;
+                    break;
+                }
+
+                memcpy(end_id_array - strlen(optarg), optarg, strlen(optarg));
+
+                if (is_valid_id(end_id_array - CASE_AUTH_TAG_LENGTH, CASE_AUTH_TAG_LENGTH) == false) {
+                    log_error("CASE Authentication Tag is expected to be a 32-bit hex number");
+                    return_code = 1;
+                    break;
+                }
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_AUTH_TAG_1, end_id_array - CASE_AUTH_TAG_LENGTH);
+
+                break;
+            case 'v':
+                if (optarg == NULL) {
+                    break;
+                }
+
+                if (atoi(optarg) > 0) {
+                    return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_NUM_DAYS, (const void *) (size_t) atoi(optarg));
+                } else {
+                    log_error("Expected input to be of positive integer type");
+                    return_code = 1;
+                }
 
                 break;
             case '?':
@@ -954,6 +1028,30 @@ static int process_command_line(CERTIFIER *easy) {
                     log_info("Missing mandatory keystore property option");
                     return_code = 1;
                     break;
+                } else if (optopt == 'P') {
+                    log_info("Missing mandatory Profile Name option");
+                    return_code = 1;
+                    break;
+                } else if (optopt == 'o') {
+                    log_info("Missing mandatory output keystore property option");
+                    return_code = 1;
+                    break;
+                } else if (optopt == 'i') {
+                    log_info("Missing mandatory Product Id option (16-bit hex)");
+                    return_code = 1;
+                    break;
+                } else if (optopt == 'n') {
+                    log_info("Missing mandatory Node Id option (64-bit hex)");
+                    return_code = 1;
+                    break;
+                } else if (optopt == 'F') {
+                    log_info("Missing mandatory Fabric Id option (64-bit hex)");
+                    return_code = 1;
+                    break;
+                } else if (optopt == 'v') {
+                    log_info("Missing mandatory number of validity days");
+                    return_code = 1;
+                    break;
                 } else {
                     log_info("Invalid option received");
                     return_code = 1;
@@ -974,9 +1072,10 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
     int return_code;
     bool force_registration;
 
-
-    if (easy->mode == CERTIFIER_MODE_NONE) {
-        easy->mode = CERTIFIER_MODE_REGISTER;
+    if (easy->mode == CERTIFIER_MODE_NONE ||
+        easy->mode == CERTIFIER_MODE_PRINT_VER ||
+        easy->mode == CERTIFIER_MODE_PRINT_HELP) {
+        return certifier_api_easy_print_helper(easy);
     }
 
     return_code = process_command_line(easy);
@@ -987,9 +1086,8 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
     }
 
     if (easy->mode == CERTIFIER_MODE_REGISTER &&
-        certifier_get_property(easy->certifier, CERTIFIER_OPT_CRT) == NULL &&
-        !easy->is_client_app) {
-        easy->mode |= CERTIFIER_MODE_CREATE_CRT;
+        certifier_get_property(easy->certifier, CERTIFIER_OPT_CRT) == NULL) {
+        easy->mode = CERTIFIER_MODE_COMBO_REGISTER;
     }
 
     force_registration = certifier_is_option_set(easy->certifier, CERTIFIER_OPTION_FORCE_REGISTRATION);
@@ -1005,12 +1103,28 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
         }
         log_info("Default CERTIFIER_OPT_PASSWORD was set.");
     }
+    if (util_is_empty(certifier_get_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT))) {
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT, password);
+        if (return_code != 0) {
+            log_error("Received return_code: <%i> while setting CERTIFIER_OPT_PASSWORD_OUT.  Exiting.",
+                      return_code);
+            safe_exit(easy, return_code);
+            goto cleanup;
+        }
+        log_info("CERTIFIER_OPT_PASSWORD_OUT was set with the same value as the input Password.");
+    }
 
     switch (easy->mode) {
         case CERTIFIER_MODE_NONE:
             break;
 
         case CERTIFIER_MODE_REGISTER:
+            if (certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE) != NULL) {
+                certifier_set_property(easy->certifier, CERTIFIER_OPT_KEYSTORE,
+                                       certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE));
+            }
+            certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD, certifier_get_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT));
+
             do_registration(easy);
             break;
 
@@ -1025,9 +1139,11 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
 
         case CERTIFIER_MODE_CREATE_CRT:
             do_create_crt(easy);
+            const char *generated_crt = certifier_get_property(easy->certifier, CERTIFIER_OPT_CRT);
+            XFPRINTF(stdout, "%s\n", generated_crt);
             break;
 
-        case CERTIFIER_MODE_CREATE_CRT | CERTIFIER_MODE_REGISTER:
+        case CERTIFIER_MODE_COMBO_REGISTER:
             if (force_registration) {
                 certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) false);
             }
@@ -1039,6 +1155,7 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
                                        certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE));
             }
             certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) force_registration);
+            certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD, certifier_get_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT));
 
             do_registration(easy);
             break;
@@ -1070,14 +1187,14 @@ http_response *certifier_api_easy_http_post(const CERTIFIER *easy,
                          const char *http_headers[],
                          const char *csr)
 {
-    return http_post(certifier_easy_api_get_props(certifier_get_sertifier_instance(easy)), url, http_headers, csr);
+    return http_post(certifier_easy_api_get_props(certifier_get_certifier_instance(easy)), url, http_headers, csr);
 }
 
 
 int certifier_api_easy_set_keys_and_node_address(CERTIFIER *easy, ECC_KEY *new_key)
 {
     CertifierError rc = {0};
-    return certifier_set_keys_and_node_address_with_cn_prefix(certifier_get_sertifier_instance(easy), new_key, NULL, rc);
+    return certifier_set_keys_and_node_address_with_cn_prefix(certifier_get_certifier_instance(easy), new_key, NULL, rc);
 }
 
 int certifier_api_easy_create_json_csr(CERTIFIER *easy, unsigned char *csr, char *node_address, char **json_csr)
@@ -1092,12 +1209,12 @@ int certifier_api_easy_create_json_csr(CERTIFIER *easy, unsigned char *csr, char
     if (!node_address)
     {
         node_address = XMALLOC(SMALL_STRING_SIZE);
-        certifier_easy_api_get_node_address(certifier_get_sertifier_instance(easy), node_address);
+        certifier_easy_api_get_node_address(certifier_get_certifier_instance(easy), node_address);
         free_node_address = 1;
     }
 
     serialized_string = certifier_create_csr_post_data(
-            certifier_easy_api_get_props(certifier_get_sertifier_instance(easy)),
+            certifier_easy_api_get_props(certifier_get_certifier_instance(easy)),
             csr,
             node_address,
             NULL);
@@ -1111,11 +1228,11 @@ int certifier_api_easy_create_json_csr(CERTIFIER *easy, unsigned char *csr, char
 
 void certifier_api_easy_set_ecc_key(CERTIFIER *easy, const ECC_KEY *key)
 {
-    _certifier_set_ecc_key(certifier_get_sertifier_instance(easy), key);
+    _certifier_set_ecc_key(certifier_get_certifier_instance(easy), key);
 }
 
 
 const ECC_KEY *certifier_api_easy_get_priv_key(CERTIFIER *easy)
 {
-    return (_certifier_get_privkey(certifier_get_sertifier_instance(easy)));
+    return (_certifier_get_privkey(certifier_get_certifier_instance(easy)));
 }

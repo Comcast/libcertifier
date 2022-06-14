@@ -2652,7 +2652,7 @@ unsigned char *security_X509_to_DER(X509_CERT *cert, size_t *out_len) {
     return result;
 }
 
-void security_print_subject_issuer(X509_CERT *cert) {
+void security_print_subject_issuer(const X509_CERT *cert) {
     char subject[1024];
     char issuer[1024];
 

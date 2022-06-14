@@ -33,14 +33,33 @@
 #define DEFAULT_HTTP_CONNECT_TIMEOUT 15
 #define DEFAULT_ECC_CURVE_ID         "prime256v1"
 #define DEFAULT_CFG_FILENAME         "libcertifier.cfg"
+#define DEFAULT_USER_CFG_FILENAME    "/usr/local/etc/certifier/libcertifier.cfg"
+#define DEFAULT_GLOBAL_CFG_FILENAME  "/etc/certifier/libcertifier.cfg"
 #define DEFAULT_CRT_TYPE             "X509"
 #define DEFAULT_CA_INFO              "libcertifier-cert.crt"
 #define DEFAULT_CA_PATH              "."
-#define DEFAULT_CERTIFER_URL         "https://certifier.xpki.io/v1/certifier/certificate"
+#define DEFAULT_CERTIFER_URL         "https://certifier.xpki.io/v1/certifier"
 #define DEFAULT_PROFILE_NAME         "XFN_Matter_OP_Class_3_ICA"
 #define DEFAULT_CERT_MIN_TIME_LEFT_S 7 * 24 * 60 * 60;
 #define DEFAULT_OPT_SOURCE           "unset-libcertifier-c-native"
 #define DEFAULT_PRODUCT_ID           "1101"
+
+static const char *get_default_cfg_filename()
+{
+    static char cfg[]      = DEFAULT_CFG_FILENAME;
+    static char user_cfg[] = DEFAULT_USER_CFG_FILENAME;
+    static char glbl_cfg[] = DEFAULT_GLOBAL_CFG_FILENAME;
+    char *cfg_order_list[] = { cfg, user_cfg, glbl_cfg };
+
+    for (int i = 0; i < sizeof(cfg_order_list) / sizeof(*cfg_order_list); ++i)
+    {
+        if (util_file_exists(cfg_order_list[i])) {
+            return cfg_order_list[i];
+        }
+    }
+
+    return NULL;
+}
 
 /*
  * All flexible arrays must be on the bottom (last ones)
@@ -64,10 +83,13 @@ struct _PropMap {
     char *p12_filename;
     char *output_p12_filename;
     char *password;
+    char *password_out;
     char *certifier_id;
     char *system_id;
+    char *fabric_id;
     char *node_id;
     char *product_id;
+    char *auth_tag_1;
     char *mac_address;
     char *crt;
     char *profile_name;
@@ -243,6 +265,10 @@ property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value) 
         SV(prop_map->password, value);
             break;
 
+        case CERTIFIER_OPT_PASSWORD_OUT:
+        SV(prop_map->password_out, value);
+            break;
+
         case CERTIFIER_OPT_CA_INFO:
         SV(prop_map->ca_info, value);
             break;
@@ -267,12 +293,20 @@ property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value) 
         SV(prop_map->system_id, value);
             break;
 
+        case CERTIFIER_OPT_FABRIC_ID:
+        SV(prop_map->fabric_id, value);
+            break;
+
         case CERTIFIER_OPT_NODE_ID:
         SV(prop_map->node_id, value);
             break;
 
         case CERTIFIER_OPT_PRODUCT_ID:
         SV(prop_map->product_id, value);
+            break;
+
+        case CERTIFIER_OPT_AUTH_TAG_1:
+        SV(prop_map->auth_tag_1, value);
             break;
 
         case CERTIFIER_OPT_MAC_ADDRESS:
@@ -422,6 +456,10 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name) {
             retval = prop_map->password;
             break;
 
+        case CERTIFIER_OPT_PASSWORD_OUT:
+            retval = prop_map->password_out;
+            break;
+
         case CERTIFIER_OPT_CA_INFO:
             retval = prop_map->ca_info;
             break;
@@ -450,12 +488,20 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name) {
             retval = prop_map->system_id;
             break;
 
+        case CERTIFIER_OPT_FABRIC_ID:
+            retval = prop_map->fabric_id;
+            break;
+
         case CERTIFIER_OPT_NODE_ID:
             retval = prop_map->node_id;
             break;
 
         case CERTIFIER_OPT_PRODUCT_ID:
             retval = prop_map->product_id;
+            break;
+
+        case CERTIFIER_OPT_AUTH_TAG_1:
+            retval = prop_map->auth_tag_1;
             break;
 
         case CERTIFIER_OPT_MAC_ADDRESS:
@@ -578,7 +624,8 @@ property_set_defaults(CertifierPropMap *prop_map) {
     }
 
     if (prop_map->cfg_filename == NULL) {
-        return_code = property_set(prop_map, CERTIFIER_OPT_CFG_FILENAME, DEFAULT_CFG_FILENAME);
+        const char *default_cfg_filename = get_default_cfg_filename();
+        return_code = property_set(prop_map, CERTIFIER_OPT_CFG_FILENAME, default_cfg_filename);
         if (return_code != 0) {
             log_error("Failed to set default property name: CERTIFIER_OPT_CFG_FILENAME with error code: %i",
                       return_code);
@@ -709,7 +756,8 @@ int property_set_ext(CertifierPropMap *prop_map) {
     char *file_contents = NULL;
     size_t file_contents_len = 0;
 
-    ret = util_slurp(DEFAULT_CFG_FILENAME, &file_contents, &file_contents_len);
+    const char *default_cfg_filename = get_default_cfg_filename();
+    ret = util_slurp(default_cfg_filename, &file_contents, &file_contents_len);
     if (ret != 0)
     {
         log_error("Received code: %i from util_slurp", ret);
@@ -755,8 +803,10 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
     const char *crt_type_value = NULL;
     const char *password_value = NULL;
     const char *system_id_value = NULL;
+    const char *fabric_id_value = NULL;
     const char *node_id_value = NULL;
     const char *product_id_value = NULL;
+    const char *auth_tag_1_value = NULL;
     int http_timeout_value;
     int http_connect_timeout_value;
     int http_trace_value;
@@ -835,6 +885,12 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
         property_set(propMap, CERTIFIER_OPT_SYSTEM_ID, system_id_value);
     }
 
+    fabric_id_value = json_object_get_string(json_object(json), "libcertifier.fabric.id");
+    if (fabric_id_value) {
+        log_info("Loaded fabric_id_value: %s from config file.", fabric_id_value);
+        property_set(propMap, CERTIFIER_OPT_FABRIC_ID, fabric_id_value);
+    }
+
     node_id_value = json_object_get_string(json_object(json), "libcertifier.node.id");
     if (node_id_value) {
         log_info("Loaded node_id_value: %s from config file.", node_id_value);
@@ -845,6 +901,12 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
     if (product_id_value) {
         log_info("Loaded product_id_value: %s from config file.", product_id_value);
         property_set(propMap, CERTIFIER_OPT_PRODUCT_ID, product_id_value);
+    }
+
+    auth_tag_1_value = json_object_get_string(json_object(json), "libcertifier.authentication.tag.1");
+    if (auth_tag_1_value) {
+        log_info("Loaded auth_tag_1_value: %s from config file.", auth_tag_1_value);
+        property_set(propMap, CERTIFIER_OPT_AUTH_TAG_1, auth_tag_1_value);
     }
 
     http_timeout_value = json_object_get_number(json_object(json), "libcertifier.http.timeout");
@@ -1005,10 +1067,13 @@ static void free_prop_map_values(CertifierPropMap *prop_map) {
     FV(prop_map->p12_filename);
     FV(prop_map->output_p12_filename);
     FV(prop_map->password);
+    FV(prop_map->password_out);
     FV(prop_map->certifier_id);
     FV(prop_map->system_id);
+    FV(prop_map->fabric_id);
     FV(prop_map->node_id);
     FV(prop_map->product_id);
+    FV(prop_map->auth_tag_1);
     FV(prop_map->mac_address);
     FV(prop_map->crt);
     FV(prop_map->profile_name);

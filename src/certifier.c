@@ -44,7 +44,7 @@
 static CERTIFIER_LOG_callback logger;
 
 typedef struct Map {
-    char node_address[VERY_SMALL_STRING_SIZE];
+    char node_address[XTRA_SMALL_STRING_SIZE];
     char *base64_public_key;
     unsigned char *der_public_key;
     int der_public_key_len;
@@ -366,8 +366,6 @@ int certifier_revoke_certificate(Certifier *certifier) {
     assign_last_error(certifier, &certificate_status);
     return_code = certificate_status.application_error_code;
 
-    cleanup:
-
     XFREE(p_der_cert);
 
     return (return_code);
@@ -633,7 +631,7 @@ void certifier_print_certificate(Certifier *certifier, const char *pem, int pem_
         puts(tmp);
     }
 
-    printf(PEM_END_CERTIFICATE "\n\n");
+    printf(PEM_END_CERTIFICATE "\n");
 }
 
 void certifier_print_certificate_validity(Certifier *certifier) {
@@ -952,7 +950,7 @@ static void free_tmp(Certifier *certifier) {
     XMEMSET(&certifier->tmp_map, 0, sizeof(certifier->tmp_map));
 }
 
-int certifier_register(Certifier *certifier, int mode) {
+int certifier_register(Certifier *certifier) {
     NULL_CHECK(certifier);
 
     int return_code = 0;
@@ -961,7 +959,6 @@ int certifier_register(Certifier *certifier, int mode) {
     CertifierError certifier_err_info = CERTIFIER_ERROR_INITIALIZER;
     char *renamed_p12_filename = NULL;
 
-    char *san = NULL;
     char *x509_certs = NULL;
     X509_LIST *certs = NULL;
 
@@ -1042,9 +1039,10 @@ int certifier_register(Certifier *certifier, int mode) {
                 /* Only generate an X509 CRT if it was not explicitly overridden to support manual recovery */
                 if (util_is_empty(certifier_get_property(certifier, CERTIFIER_OPT_CRT))) {
                     char *renew_crt = NULL;
+                    return_code = certifier_setup_keys(certifier);
                     const X509_CERT *cert = get_cert(certifier);
                     const ECC_KEY *private_key = _certifier_get_privkey(certifier);
-                    return_code = security_generate_x509_crt(&renew_crt,
+                    return_code |= security_generate_x509_crt(&renew_crt,
                                                              (X509_CERT *) cert,
                                                              (ECC_KEY *) private_key);
 
@@ -1190,19 +1188,10 @@ int certifier_register(Certifier *certifier, int mode) {
         }
     }
 
-    san = security_get_field_from_cert(certifier->tmp_map.x509_cert, "X509v3 Subject Alternative Name");
-    // FIXME: Suspicious overwrite. This value is not exposed via the certifier.h interface and is the certifier_id (OU)
-    // in certifier example certificates.
-    if (mode == CERTIFIER_APP_REGISTRATION && util_is_not_empty(san)) {
-        XSTRNCPY(certifier->tmp_map.node_address, san, sizeof(certifier->tmp_map.node_address) - 1);
-        certifier->tmp_map.node_address[sizeof(certifier->tmp_map.node_address) - 1] = '\0';
-    }
-
     // Clean up
     cleanup:
 
     security_free_cert_list(certs);
-    XFREE(san);
 
     XFREE(x509_certs);
 
@@ -1286,27 +1275,41 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
 
     const char *node_id = property_get(props, CERTIFIER_OPT_NODE_ID);
     const char *system_id = property_get(props, CERTIFIER_OPT_SYSTEM_ID);
+    const char *fabric_id = property_get(props, CERTIFIER_OPT_FABRIC_ID);
     const char *mac_address = property_get(props, CERTIFIER_OPT_MAC_ADDRESS);
     const char *profile_name = property_get(props, CERTIFIER_OPT_PROFILE_NAME);
     const char *product_id = property_get(props, CERTIFIER_OPT_PRODUCT_ID);
+    const char *authenticated_tag_1 = property_get(props, CERTIFIER_OPT_AUTH_TAG_1);
     size_t  num_days   = (size_t) property_get(props, CERTIFIER_OPT_NUM_DAYS);
     bool is_certificate_lite = property_is_option_set(props, CERTIFIER_OPTION_CERTIFICATE_LITE);
 
     json_object_set_string(root_object, "csr", (const char *) csr);
-    json_object_set_string(root_object, "nodeAddress", node_address);
-    json_object_set_string(root_object, "nodeId", node_id);
+
+    if (util_is_not_empty(node_address)) {
+        json_object_set_string(root_object, "nodeAddress", node_address);
+    }
+
+    if (util_is_not_empty(node_id)) {
+        json_object_set_string(root_object, "nodeId", node_id);
+    }
+
     json_object_set_string(root_object, "profileName", profile_name);
     json_object_set_string(root_object, "productId", product_id);
 
-    if (util_is_not_empty(system_id))
+    if (util_is_not_empty(authenticated_tag_1)) {
+        json_object_set_string(root_object, "authenticatedTag1", authenticated_tag_1);
+    }
+
+    if (is_certificate_lite)
     {
-        if (is_certificate_lite)
-        {
-            log_debug("\nfabric Id :\n%s\n", system_id);
-            json_object_set_string(root_object, "fabricId", system_id);
+        if (util_is_not_empty(fabric_id)) {
+            log_debug("\nfabric Id :\n%s\n", fabric_id);
+            json_object_set_string(root_object, "fabricId", fabric_id);
         }
-        else
-        {
+    }
+    else
+    {
+        if (util_is_not_empty(system_id)) {
             log_debug("\nsystem Id :\n%s\n", system_id);
             json_object_set_string(root_object, "systemId", system_id);
         }

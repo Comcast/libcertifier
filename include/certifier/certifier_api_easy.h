@@ -23,6 +23,10 @@
 #include "certifier/property.h"
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct CERTIFIER CERTIFIER;
 
 typedef struct http_response http_response;
@@ -71,7 +75,9 @@ typedef enum {
      */
             CERTIFIER_MODE_CREATE_CRT = 128,
 
-    // 512, 1024 & 2048 are unused
+    CERTIFIER_MODE_COMBO_REGISTER = 512,
+
+    // 1024 & 2048 are unused
 
     /**
      * Request the current certificate status
@@ -88,13 +94,14 @@ typedef enum {
      * @post the certifier ID is available in certifier_api_easy_get_result.
      */
             CERTIFIER_MODE_RENEW_CERT = 8192,
+
     CERTIFIER_MODE_PRINT_CERT = 16384,
 
     CERTIFIER_MODE_PRINT_VER = 32768,
 
+    CERTIFIER_MODE_PRINT_HELP = 65536,
 
-    // 65536 is unused,
-    // is unused 131072
+    // 131072 is unused
 } CERTIFIER_MODE;
 
 /**
@@ -119,14 +126,15 @@ CERTIFIER *certifier_api_easy_new_cfg(char *libcertifier_cfg);
 void certifier_api_easy_destroy(CERTIFIER *easy);
 
 /**
- * Set certifier client application mode.
+ * Get a certifier configuration option.
+ * @see CERTIFIER_MODE documentation for primary options and CERTIFIER_OPT for a complete list of options.
+ * @note Take care to use the correct return type for each option. Results are undefined for
+ *       mismatched option types (e.g., a string where a number is required).
  * @param easy
- * @param is_app
- * @note This affects the certifier registration type.
- * @note This disables CAR/DAR authorization support when is_app is true.
- * @see CERTIFIER_APP_REGISTRATION
+ * @param option
+ * @return value See option description for valid values (the value is copied by certifier).
  */
-void certifier_api_easy_set_is_client(CERTIFIER *easy, bool is_app);
+void *certifier_api_easy_get_opt(CERTIFIER *easy, CERTIFIER_OPT option);
 
 /**
  * Get a certifier configuration option.
@@ -191,7 +199,7 @@ char *certifier_api_easy_get_version(CERTIFIER *easy);
  * Print Help/Version Info
  * @param easy
  */
-void certifier_api_easy_print_helper(CERTIFIER *easy);
+int certifier_api_easy_print_helper(CERTIFIER *easy);
 
 /**
  * Execute an operation
@@ -215,13 +223,6 @@ const char *certifier_api_easy_get_result_json(CERTIFIER *easy);
  * @return a NULL terminated string. Any non-C-string data is base64 encoded.
  */
 const char *certifier_api_easy_get_result(CERTIFIER *easy);
-
-/**
- * Get Certifier instance
- * @param easy
- * @return sertifier instance
- */
-//Certifier * certifier_get_sertifier_instance(CERTIFIER *easy);
 
 /**
  * Send a CSR to HTTP server
@@ -248,4 +249,9 @@ const char *certifier_api_easy_get_node_address(CERTIFIER *easy);
 /**
  * @}
  */
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

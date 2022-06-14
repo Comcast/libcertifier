@@ -244,6 +244,8 @@ set(MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full")
 
 message(STATUS "extra cflags: ${CMAKE_C_FLAGS}")
 
+add_subdirectory(tests/keymgr)
+
 if (${ENABLE_TESTS})
     project(certifierTests)
     enable_testing()
@@ -272,42 +274,34 @@ if (${ENABLE_TESTS})
         target_include_directories(${PROJECT_NAME} PUBLIC include "tests/Unity/include" ${CERTIFIER_INCLUDE_DIRS} PRIVATE internal_headers)
         target_link_libraries(${PROJECT_NAME} ${CERTIFIER_LIBS})
     endif ()
-
-    add_test(NAME certifier-tests COMMAND ${PROJECT_NAME})
     
+    add_test(NAME certifier-tests COMMAND ${PROJECT_NAME})
+
     add_custom_command(
         TARGET ${PROJECT_NAME}
         POST_BUILD
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/libcertifier.cfg.sample ${CMAKE_CURRENT_BINARY_DIR}/libcertifier.cfg
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/libcertifier-cert.crt ${CMAKE_CURRENT_BINARY_DIR}
-        COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/resources/device-attestation-certificate.p12 ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/resources/seed.p12 ${CMAKE_CURRENT_BINARY_DIR}
-        COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/tests/functional/test-app-reg.sh ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/tests/functional/test-create-crt.sh ${CMAKE_CURRENT_BINARY_DIR}
-        COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/tests/functional/test-create-node-address.sh ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/tests/functional/test-create-x509-crt.sh ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/tests/functional/test-device-reg.sh ${CMAKE_CURRENT_BINARY_DIR}
-        COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/tests/functional/test-fetch-cert-e2e.sh ${CMAKE_CURRENT_BINARY_DIR}
+        COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/tests/functional/test-fetch-cert.sh ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT
             "Copy libcertifier.cfg to the build directory."
         VERBATIM
     )
-    add_test(NAME test-fetch-cert-e2e 
-        COMMAND ./test-fetch-cert-e2e.sh device-attestation-certificate.p12 changeit &&
-         ./test-device-reg.sh `cat x509_crt.tmp` X509 && 
-         ./test-app-reg.sh lrg
-    )
     
     add_test(NAME test-create-x509-crt 
-        COMMAND ./test-create-x509-crt.sh device-attestation-certificate.p12 changeit
-    )
-    
-    add_test(NAME test-create-node-address
-        COMMAND ./test-create-node-address.sh
+        COMMAND ./test-create-x509-crt.sh seed.p12 changeit
     )
 
     add_test(NAME test-create-crt 
-        COMMAND ./test-create-crt.sh 1MGhJ6LAFFWngqaj1dKLPQGsDP1KNVLwhK X509
+        COMMAND ./test-create-crt.sh 1MGhJ6LAFFWngqaj1dKLPQGsDP1KNVLwhK X509 seed.p12 changeit
+    )
+
+    add_test(NAME test-fetch-cert
+        COMMAND ./test-fetch-cert.sh seed.p12 changeit
     )
 
     if (${ENABLE_COVERAGE})
@@ -320,6 +314,7 @@ endif ()
 install(TARGETS certifier LIBRARY DESTINATION lib)
 install(DIRECTORY include/certifier DESTINATION include)
 install(TARGETS certifierUtil RUNTIME DESTINATION bin)
+install(FILES libcertifier.cfg.sample DESTINATION etc/certifier RENAME libcertifier.cfg)
 
 if (ENABLE_TESTS)
     install(TARGETS certifierTests RUNTIME DESTINATION bin)

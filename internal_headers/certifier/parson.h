@@ -42,11 +42,6 @@
 #ifndef parson_parson_h
 #define parson_parson_h
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 #include "certifier/types.h"
 
 /* Types and enums */
@@ -184,9 +179,5 @@ double json_value_get_number(const JSON_Value *value);
 int json_value_get_boolean(const JSON_Value *value);
 
 JSON_Object *json_object(const JSON_Value *value);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

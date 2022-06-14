@@ -22,8 +22,9 @@
   "libcertifier.tls.insecure.peer": 0,
   "libcertifier.certificate.lite": 1,
   "libcertifier.system.id":"BBBBBBBBBBBBBBBB",
+  "libcertifier.fabric.id":"DDDDDDDDDDDDDDDD",
   "libcertifier.product.id":"1101",
-  "libcertifier.cn.name":"AAAAAAAAAAAAAAAA",
+  "libcertifier.cn.name":"AAAAAAAA",
   "libcertifier.node.id":"CCCCCCCCCCCCCCCC",
   "libcertifier.ext.key.usage":"critical,clientAuth,serverAuth"
 }

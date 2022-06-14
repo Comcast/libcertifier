@@ -23,7 +23,6 @@
 #include "certifier/error.h"
 #include "certifier/types.h"
 
-
 #define VALIDATE_CERT 0x1
 #define VALIDATE_SIGNATURE 0x2
 
@@ -222,7 +221,7 @@ unsigned char *security_X509_to_DER(X509_CERT *cert, size_t *out_len);
 
 X509_CERT *security_X509_from_DER(const unsigned char *der, size_t der_len);
 
-void security_print_subject_issuer(X509_CERT *cert);
+void security_print_subject_issuer(const X509_CERT *cert);
 
 /**
  * Create a Certificate Request Token with a signed X509 certificate
@@ -240,5 +239,3 @@ char *security_get_version(void);
 char *security_aws_sign(char *const str, char *const awskey);
 
 #endif
-
-

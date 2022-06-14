@@ -323,7 +323,7 @@ certifierclient_check_certificate_status(CertifierPropMap *props,
     }
 
     strncpy(certifier_status_url + strlen(certifier_url) + sizeof(status_url) - 1,
-            array_digest, sizeof(array_digest));
+            array_digest, sizeof(certifier_status_url) - strlen(certifier_url) - strlen(status_url));
 
     resp = http_post(props, certifier_status_url, NULL, NULL);
     if (resp == NULL) {
