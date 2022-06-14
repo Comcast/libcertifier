@@ -117,8 +117,11 @@ static void test_certifier_client_requests(void **state) {
 
     const char *csr = "CSr";
     const char *node_address = "802802802";
+    const char *node_id = "AABBCCDDEEFFEEDD";
+    const char *profile_name = "profile";
+    const char *product_id = "product";
     const char *certifier_id = "12345";
-    const char *system_id = "system";
+    const char *fabric_id = "fabric";
     const char *certifier_url = "https://some.host";
     const char *bearer_token = "polar";
     const char *tracking_id = "12345678";
@@ -129,12 +132,15 @@ static void test_certifier_client_requests(void **state) {
     JSON_Value *root_value = json_value_init_object();
     JSON_Object *root_object = json_value_get_object(root_value);
 
-    g_mock_http_expected_url = "https://some.host";
+    g_mock_http_expected_url = "https://some.host/certificate";
 
     json_object_set_string(root_object, "csr", (const char *) csr);
     json_object_set_string(root_object, "nodeAddress", node_address);
-    if (XSTRLEN(system_id) > 0) {
-        json_object_set_string(root_object, "systemId", system_id);
+    json_object_set_string(root_object, "nodeId", node_id);
+    json_object_set_string(root_object, "profileName", profile_name);
+    json_object_set_string(root_object, "productId", product_id);
+    if (XSTRLEN(fabric_id) > 0) {
+        json_object_set_string(root_object, "fabricId", fabric_id);
     }
     json_object_set_string(root_object, "ledgerId", certifier_id);
     json_object_set_number(root_object, "validityDays", validity_days);
@@ -147,8 +153,11 @@ static void test_certifier_client_requests(void **state) {
     certifier_set_property(certifier, CERTIFIER_OPT_SOURCE, source);
     certifier_set_property(certifier, CERTIFIER_OPT_TRACKING_ID, tracking_id);
     certifier_set_property(certifier, CERTIFIER_OPT_CRT, bearer_token);
-    certifier_set_property(certifier, CERTIFIER_OPT_SYSTEM_ID, system_id);
+    certifier_set_property(certifier, CERTIFIER_OPT_FABRIC_ID, fabric_id);
     certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, certifier_url);
+    certifier_set_property(certifier, CERTIFIER_OPT_NODE_ID, node_id);
+    certifier_set_property(certifier, CERTIFIER_OPT_PROFILE_NAME, profile_name);
+    certifier_set_property(certifier, CERTIFIER_OPT_PRODUCT_ID, product_id);
 
     int options = certifier_get_property(certifier, CERTIFIER_OPT_OPTIONS);
     options |= CERTIFIER_OPT_CERTIFICATE_LITE;    
@@ -175,7 +184,10 @@ static void test_certifier_client_requests1(void **state) {
 
     const char *csr = "CSr";
     const char *ledger_id = "12345";
-    const char *system_id = "system";
+    const char *node_id = "AABBCCDDEEFFEEDD";
+    const char *profile_name = "profile";
+    const char *product_id = "product";
+    const char *fabric_id = "system";
     const char *certifier_url = "https://some.host";
     const char *bearer_token = "polar";
     const char *tracking_id = "12345678";
@@ -188,7 +200,7 @@ static void test_certifier_client_requests1(void **state) {
     JSON_Value *root_value = json_value_init_object();
     JSON_Object *root_object = json_value_get_object(root_value);
 
-    g_mock_http_expected_url = "https://some.host";
+    g_mock_http_expected_url = "https://some.host/certificate";
 
     return_code = certifier_set_property(certifier, CERTIFIER_OPT_CN_PREFIX, "xcal.tv"); 
     assert_int_equal(0, return_code);
@@ -207,8 +219,12 @@ static void test_certifier_client_requests1(void **state) {
     json_object_set_string(root_object, "csr", (const char *) csr);
     json_object_set_string(root_object, "nodeAddress", cn_prefix);
 
-    if (strlen(system_id) > 0) {
-        json_object_set_string(root_object, "systemId", system_id);
+    json_object_set_string(root_object, "nodeId", node_id);
+    json_object_set_string(root_object, "profileName", profile_name);
+    json_object_set_string(root_object, "productId", product_id);
+
+    if (strlen(fabric_id) > 0) {
+        json_object_set_string(root_object, "fabricId", fabric_id);
     }
 
     json_object_set_string(root_object, "ledgerId", ledger_id);
@@ -227,9 +243,11 @@ static void test_certifier_client_requests1(void **state) {
     certifier_set_property(certifier, CERTIFIER_OPT_SOURCE, source);
     certifier_set_property(certifier, CERTIFIER_OPT_TRACKING_ID, tracking_id);
     certifier_set_property(certifier, CERTIFIER_OPT_CRT, bearer_token);
-    certifier_set_property(certifier, CERTIFIER_OPT_SYSTEM_ID, system_id);
+    certifier_set_property(certifier, CERTIFIER_OPT_FABRIC_ID, fabric_id);
     certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, certifier_url);
-
+    certifier_set_property(certifier, CERTIFIER_OPT_NODE_ID, node_id);
+    certifier_set_property(certifier, CERTIFIER_OPT_PROFILE_NAME, profile_name);
+    certifier_set_property(certifier, CERTIFIER_OPT_PRODUCT_ID, product_id);
 
     int options = certifier_get_property(certifier, CERTIFIER_OPT_OPTIONS);
     options |= CERTIFIER_OPT_CERTIFICATE_LITE;    
@@ -1222,9 +1240,8 @@ void test_x509_cert(void **state) {
 }
 
 static void test_pkcs12(void **state) {
-    // the CN - 14XEKv1oMFvBWVcKC2om1oXD7PfBSjtC5N.xfinityhome.com as per the PKCS12 below has already been revoked, to prevent others from misusing.
     const char *pkcs12_blob_base64 =
-            "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";
+            "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";
 
     const char *pkcs12_file_name = "/tmp/test.p12";
     const char *pkcs12_file_name_2 = "/tmp/write_test.p12";
@@ -1255,7 +1272,7 @@ static void test_pkcs12(void **state) {
 
     blob_len = base64_decode(pkcs12_blob, pkcs12_blob_base64);
 
-    assert_int_equal(2306, blob_len);
+    assert_int_equal(2283, blob_len);
 
     //coverity[returned_null] assert_non_null() fail()s when this returns NULL
     pkcs12_file = XFOPEN(pkcs12_file_name, "w");
@@ -1337,7 +1354,7 @@ static void test_pkcs12(void **state) {
 
     certifier_id = security_get_field_from_cert(cert, "organizationalUnitName");
     assert_non_null(certifier_id);
-    assert_string_equal("1GotZUkz6BRsRQL4rAWVTvg4ugZD5PenHE", certifier_id);
+    assert_string_equal("Xfinity", certifier_id);
     XFREE(certifier_id);
 
     der_key_len = security_serialize_der_public_key(key, &der_key);
@@ -1382,7 +1399,7 @@ static void test_pkcs12(void **state) {
 
     certifier_id = security_get_field_from_cert(cert, "organizationalUnitName");
     assert_non_null(certifier_id);
-    assert_string_equal("1GotZUkz6BRsRQL4rAWVTvg4ugZD5PenHE", certifier_id);
+    assert_string_equal("Xfinity", certifier_id);
     XFREE(certifier_id);
     security_free_cert(cert);
 

@@ -4,4 +4,4 @@ if [ -z "$1" ]; then
     exit
 fi
 #to be executed from the build directory, where all binaries and these scripts are moved
-./certifierUtil -f -T $1
+./certifierUtil get-cert -f -T $1

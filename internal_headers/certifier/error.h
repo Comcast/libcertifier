@@ -129,5 +129,4 @@ enum {
 
 char * error_strerror(int e);
 
-
 #endif //LIBLEDGER_ERROR_H

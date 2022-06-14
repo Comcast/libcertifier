@@ -25,7 +25,6 @@
 extern "C" {
 #endif
 
-
 /**
  * @defgroup props Ledger configuration properties
  * @{
@@ -46,10 +45,11 @@ typedef enum CERTIFIER_OPT
         CERTIFIER_OPT_HTTP_CONNECT_TIMEOUT = 5,
         CERTIFIER_OPT_KEYSTORE = 6,
         CERTIFIER_OPT_PASSWORD = 7,
-        CERTIFIER_OPT_CA_INFO = 8,
-        CERTIFIER_OPT_CA_PATH = 9,
-        CERTIFIER_OPT_CRT = 10,
-        CERTIFIER_OPT_PROFILE_NAME = 11,
+        CERTIFIER_OPT_PASSWORD_OUT = 8,
+        CERTIFIER_OPT_CA_INFO = 9,
+        CERTIFIER_OPT_CA_PATH = 10,
+        CERTIFIER_OPT_CRT = 11,
+        CERTIFIER_OPT_PROFILE_NAME = 12,
 
         /**
      * Bitmap containing boolean options (read-only).
@@ -57,28 +57,16 @@ typedef enum CERTIFIER_OPT
      * @see CERTIFIER_OPT_OPTION for bits and CERTIFIER_OPT for available options
      * @note value type: int
      */
-        CERTIFIER_OPT_OPTIONS = 12,
-        CERTIFIER_OPT_ECC_CURVE_ID = 13,
+        CERTIFIER_OPT_OPTIONS = 13,
+        CERTIFIER_OPT_ECC_CURVE_ID = 14,
 
         /**
      * Set this to request certificates with an X.509 subjectAltName (otherName type).
      * @note value type: string
      */
-        CERTIFIER_OPT_SYSTEM_ID = 14,
-        CERTIFIER_OPT_PRODUCT_ID = 15,
-
-        /**
-     * Simulate the "not-valid-before" date.
-     * @note value type: ASN.1 time string in the format 'YYYYMMDDHHMMSSZ'
-     */
-        CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE = 16,
-
-        /**
-     * Simulate the "not-valid-after" date.
-     * @note value type: ASN.1 time string in the format 'YYYYMMDDHHMMSSZ'
-     */
-        CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_AFTER = 17,
-
+        CERTIFIER_OPT_SYSTEM_ID = 15,
+        CERTIFIER_OPT_FABRIC_ID = 16,
+        CERTIFIER_OPT_PRODUCT_ID = 17,
         CERTIFIER_OPT_ROOT_CA = 18,
         CERTIFIER_OPT_INT_CA = 19,
         CERTIFIER_OPT_LOG_FILENAME = 20,
@@ -90,7 +78,8 @@ typedef enum CERTIFIER_OPT
         CERTIFIER_OPT_ACTION = 26,
         CERTIFIER_OPT_INPUT_NODE = 27,
         CERTIFIER_OPT_NODE_ID = 28,
-        // 29 - 36 are unused
+        CERTIFIER_OPT_AUTH_TAG_1 = 29,
+        // 30 - 36 are unused
         CERTIFIER_OPT_LOG_MAX_SIZE = 37,
         // 38,39 are unused
         // 40 - 43 are unused
@@ -185,6 +174,18 @@ typedef enum CERTIFIER_OPT
      */
         CERTIFIER_OPT_OUTPUT_KEYSTORE,
 
+        /**
+     * Simulate the "not-valid-before" date.
+     * @note value type: ASN.1 time string in the format 'YYYYMMDDHHMMSSZ'
+     */
+        CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE,
+
+        /**
+     * Simulate the "not-valid-after" date.
+     * @note value type: ASN.1 time string in the format 'YYYYMMDDHHMMSSZ'
+     */
+        CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_AFTER,
+
 } CERTIFIER_OPT;
 
 typedef enum {
@@ -202,5 +203,9 @@ typedef enum {
 /**
  * @}
  */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PROPERTY_H */

@@ -21,8 +21,9 @@
 
 #include "certifier/property.h"
 
-#define CERTIFIER_APP_REGISTRATION            0x1
-#define CERTIFIER_DEVICE_REGISTRATION         0x2
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* CHUNK is the size of the memory chunk used by the zlib routines. */
 #define CHUNK 10000
@@ -141,7 +142,7 @@
 
 #define CERTIFIER_ERR_REVOKE_CERT_STATUS_1 110000
 
-#define CERTIFIER_ERR_GET_CERT_STATUS_1 130000
+#define CERTIFIER_ERR_GET_CERT_STATUS_1 (1 << 15)
 
 #define CERTIFIER_ERR_RENEW_CERT_1 140000
 
@@ -163,18 +164,18 @@
 #define CERTIFIER_ERR_SETUP_EMPTY_PASSWORD                    5
 #define CERTIFIER_ERR_SETUP_EMPTY_ECC_CURVE                   6
 
-#define CERTIFIER_ERR_REGISTRATION_STATUS_X509_NONEXISTENT     1
-#define CERTIFIER_ERR_REGISTRATION_STATUS_P12_NONEXISTENT      2
-#define CERTIFIER_ERR_REGISTRATION_STATUS_CERTIFIER_ID_NONEXISTENT 3
-#define CERTIFIER_ERR_REGISTRATION_STATUS_CERT_TIME_CHECK_1    4
-#define CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1       6
-#define CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_2       7
-#define CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE 8
-#define CERTIFIER_ERR_REGISTRATION_STATUS_SIMULATION_1         9
-#define CERTIFIER_ERR_REGISTRATION_STATUS_SIMULATION_2         10
+#define CERTIFIER_ERR_REGISTRATION_STATUS_X509_NONEXISTENT         (1 << 0)
+#define CERTIFIER_ERR_REGISTRATION_STATUS_P12_NONEXISTENT          (1 << 1)
+#define CERTIFIER_ERR_REGISTRATION_STATUS_CERTIFIER_ID_NONEXISTENT (1 << 2)
+#define CERTIFIER_ERR_REGISTRATION_STATUS_CERT_TIME_CHECK_1        (1 << 3)
+#define CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1           (1 << 4)
+#define CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_2           (1 << 5)
+#define CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE     (1 << 6)
+#define CERTIFIER_ERR_REGISTRATION_STATUS_SIMULATION_1             (1 << 7)
+#define CERTIFIER_ERR_REGISTRATION_STATUS_SIMULATION_2             (1 << 8)
 
-#define CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN  1
-#define CERTIFIER_ERR_GET_CERT_STATUS_REVOKED 2
+#define CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN                       (1 << 9)
+#define CERTIFIER_ERR_GET_CERT_STATUS_REVOKED                      (1 << 10)
 
 typedef enum {
     CERTIFIER_LOG_TRACE = 0,
@@ -199,7 +200,7 @@ certifier_destroy(Certifier *certifier);
  * @param mode
  * @return
  */
-int certifier_register(Certifier *certifier, int mode);
+int certifier_register(Certifier *certifier);
 
 int
 certifier_set_property(Certifier *certifier, int name, const void *value);
@@ -305,5 +306,9 @@ char *certifier_get_x509_pem(Certifier *certifier);
 void certifier_print_certificate(Certifier *certifier, const char *pem, int pem_len);
 
 void certifier_print_certificate_validity(Certifier *certifier);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -6,33 +6,22 @@ Command Line Examples
 
 *Create X509 CRT*
 
-The command below assumes there is a file called `factory_lrg`, which is the pre-existing PKCS12 with a password of `changeit` without the single quotes.
+The command below assumes there is a file called `seed.p12`, which is the pre-existing PKCS12 with a password of `changeit` without the single quotes.
 
 ----
-./certifierUtil get-crt-token -X X509 -k ./factory_lrg -p changeit
+./certifierUtil get-crt-token -X X509 -k ./seed.p12 -p changeit
 ----
 
 This command could also be invoked from `./tests/functional/create_x509_crt.sh`.  Example -
 
 ----
 cd ./tests/functional
-./test-create-x509-crt.sh ../../factory_lrg changeit
-----
-
-Sample output -
-
-----
-{
-    "return_code": 0,
-    "application_error_code": 0,
-    "library_error_code": 0,
-    "output": "<base64_data>"
-}
+./test-create-x509-crt.sh ../../seed.p12 changeit
 ----
 
 *Fetch a new certificate*
 
-The command below , passes in the contents of the `base64_data` from the command above (create x509 crt).   This command will make an HTTPS call to certifier and will create a brand new password-protected PKCS12 file that contains the certificate chain returned and public/private key pair. `libcertifier.cfg` must be present and have valid values.
+The command below , passes in the contents of the `base64_data` from the command above (create x509 crt).   This command will make an HTTPS call to certifier and will create a brand new password-protected PKCS12 file that contains the certificate chain returned and public/private key pair. `libcertifier.cfg` must be present and have valid values - See last Section of this page to learn how the configuration file works.
 
 ----
 ./certifierUtil get-cert -f -T <base64_data>
@@ -50,19 +39,12 @@ cd ./tests/functional
 The command below combines both examples above into a single call.
 
 ----
-./certifierUtil get-cert -f -k ./factory_lrg -p changeit
-----
-
-This command could also be invoked from `./tests/functional/test-fetch-cert-e2e.sh`, which combines both examples above into a single script.  Python3 is required to run this script.
-
-----
-cd ./tests/functional
-././test-fetch-cert-e2e.sh ../../factory_lrg changeit
+./certifierUtil get-cert -f -k ./seed.p12 -p changeit
 ----
 
 *Fetch a Matter Device Attestation Certificate*
 
-The command below fetches a Device Attestation Certificate with a desired Product-ID (64-bit hex). VendorID will always be fixed to 0xFFF4
+The command below fetches a Device Attestation Certificate with a desired Product-ID (16-bit hex). VendorID will always be fixed to 0xFFF4
 
 ----
 ./certifierUtil get-cert -k ./seed.p12 -p changeit -o matter_dac.p12 --product-id 1101 -P XFN_DL_PAI_1_Class_3
@@ -73,7 +55,7 @@ The command below fetches a Device Attestation Certificate with a desired Produc
 The command below fetches a Matter-compliant Operational Certificate with a desired NodeID (64-bit hex).
 
 ----
-./certifierUtil get-cert -k ./matter_dac.p12 -p changeit -o matter_opcert.p12 --node-id AAAABBBBCCCCDDDD -P XFN_Matter_OP_Class_3_ICA
+./certifierUtil get-cert -k ./seed.p12 -p changeit -o matter_opcert.p12 --node-id AAAABBBBCCCCDDDD -P XFN_Matter_OP_Class_3_ICA
 ----
 
 == *Other Examples*
@@ -84,22 +66,22 @@ The command below fetches a Matter-compliant Operational Certificate with a desi
 ./certifierUtil get-cert-status -k <pkcs12-file-path>
 ----
 
+*Revoke Certificate*
+
+----
+./certifierUtil revoke [-k <pkcs12-file-path>]
+----
+
 *Renew Certificate*
 
 ----
 ./certifierUtil renew-cert [-k <pkcs12-file-path>]
 ----
 
-*Print Certificate (B64 of DER)*
+*Print Certificate*
 
 ----
 ./certifierUtil print-cert -k <pkcs12-file-path>
-----
-
-*Register an app*
-
-----
-./certifierUtil get-cert -c -f -S '<auth_token>'
 ----
 
 == *certifierUtil commands*
@@ -127,6 +109,9 @@ The command below fetches a Matter-compliant Operational Certificate with a desi
 
 | print-cert
 | Display leaf certificate's PEM Base64 data
+
+| revoke
+| Revoke Certificate
 |===
 
 == *certifierUtil get-cert options*
@@ -139,46 +124,6 @@ The command below fetches a Matter-compliant Operational Certificate with a desi
 | --help +
 -h
 | Display this summary
-
-| config-path
-| L
-| --config-path <file-path> +
--L <file-path> +
-(Defaults to 'libcertifier.cfg' if not supplied)
-| Pass in custom set of configurations for commandline utility
-
-| crt-type
-| X
-| --crt-type <crt-type> +
--X <crt-type>
-| Select Output CRT Type (X509 or other values)
-
-| crt
-| T
-| --crt <crt> +
--T <crt>
-| Input CRT (Base64). +
-It is an optional parameter, but will take precedence (against auth token) if used
-
-| node-id
-| n
-| --node-id <id> +
- +
--n <id>
-| Choose NodeID (64-bit integer) to be assigned to the resulting certificate
-
-| product-id
-| i
-| --product-id <id> +
- +
--n <id>
-| Choose NodeID (64-bit integer) to be assigned to the resulting certificate
-
-| overwrite-p12-file
-| f
-| --overwrite-p12-file +
--f
-| Overwrite P12 File
 
 | pkcs12-path
 | k
@@ -193,12 +138,18 @@ It is an optional parameter, but will take precedence (against auth token) if us
 (Defaults to 'changeit' if not supplied)
 | Password to decrypt input P12 File
 
-| client
-| c
-| --client +
--c
-| Mark that request comes from a Client App. +
-It will overwrite configuration set in config file.
+| config-path
+| L
+| --config-path <file-path> +
+-L <file-path> +
+(Defaults to 'libcertifier.cfg' if not supplied)
+| Pass in custom set of configurations for commandline utility
+
+| crt-type
+| X
+| --crt-type <crt-type> +
+-X <crt-type>
+| Select Output CRT Type (X509 or other values)
 
 | auth-token
 | S
@@ -207,6 +158,69 @@ It will overwrite configuration set in config file.
 -S <value>
 | Pass in App Authentication Token. +
 Only valid and mandatory when client option is also passed in.
+
+| crt
+| T
+| --crt <crt> +
+-T <crt>
+| Input CRT (Base64). +
+It is an optional parameter, but will take precedence (against auth token) if used
+
+| overwrite-p12-file
+| f
+| --overwrite-p12-file +
+-f
+| Overwrite P12 File
+
+| profile-name
+| P
+| --profile-name <value> +
+-P <value>
+| Choose type of Certificate to be fetched from PKI (Either DAC Certificate - XFN_DL_PAI_1_Class_3 - or Matter Operational Certificate - XFN_Matter_OP_Class_3_ICA)
+
+| output-p12-file
+| o
+| --output-p12-file <value> +
+-o <value>
+| Choose pathname of the resulting file that will store the P12 Chain that will include the generated certificate
+
+| output-p12-pass
+| w
+| --output-12-pass <value> +
+-w <value>
+| Password to encrypt the output p12 file
+
+| product-id
+| i
+| --product-id <id> +
+ +
+-n <id>
+| Choose NodeID (64-bit integer) to be assigned to the resulting certificate
+
+| node-id
+| n
+| --node-id <id> +
+ +
+-n <id>
+| Choose NodeID (64-bit integer) to be assigned to the resulting certificate
+
+| fabric-id
+| F
+| --fabric-id <id> +
+-F <id>
+| Choose FabricID (64-bit integer) to be assigned to the resulting certificate
+
+| case-auth-tag
+| a
+| --case-auth-tag <id> +
+-a <id>
+| Choose CASE Authentication Tag (32-bit integer) to be assigned to the resulting certificate
+
+| validity-days
+| v
+| --validity-days <days> +
+-v <days>
+| Choose number of validity days that a certificate is issued with
 
 |===
 
@@ -220,6 +234,19 @@ Only valid and mandatory when client option is also passed in.
 | --help +
 -h
 | Display this summary
+
+| pkcs12-path
+| k
+| --pkcs12-path <file-path> +
+-k <file-path>
+| Path to the PKCS12 File
+
+| pkcs12-password
+| p
+| --pkcs12-password <value> +
+-p <value> +
+(Defaults to 'changeit' if not supplied)
+| Password to decrypt input P12 File
 
 | config-path
 | L
@@ -240,19 +267,6 @@ Only valid and mandatory when client option is also passed in.
  +
 -S <value>
 | Pass in App Authentication Token
-
-| pkcs12-path
-| k
-| --pkcs12-path <file-path> +
--k <file-path>
-| Path to the PKCS12 File
-
-| pkcs12-password
-| p
-| --pkcs12-password <value> +
--p <value> +
-(Defaults to 'changeit' if not supplied)
-| Password to decrypt input P12 File
 
 |===
 
@@ -320,12 +334,11 @@ Only valid and mandatory when client option is also passed in.
 (Defaults to 'libcertifier.cfg' if not supplied)
 | Pass in custom set of configurations for commandline utility
 
-| client
-| c
-| --client +
--c
-| Mark that request comes from a Client App. +
-It will overwrite configuration set in config file.
+| validity-days
+| v
+| --validity-days <days> +
+-v <days>
+| Choose number of validity days that a certificate is issued with
 
 |===
 
@@ -340,6 +353,13 @@ It will overwrite configuration set in config file.
 -h
 | Display this summary
 
+| pkcs12-path
+| k
+| --pkcs12-path <value> +
+-k <value>
+| Path to the PKCS12 File
+
+
 | pkcs12-password
 | p
 | --pkcs12-password <value> +
@@ -347,11 +367,38 @@ It will overwrite configuration set in config file.
 (Defaults to 'changeit' if not supplied)
 | Password to decrypt input P12 File
 
+| config
+| L
+| --config <value> +
+-L <value> +
+(Defaults to 'libcertifier.cfg' if not supplied)
+| Pass in custom set of configurations for commandline utility
+
+|===
+
+== *certifierUtil revoke options*
+
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+
+| help
+| h
+| --help +
+-h
+| Display this summary
+
 | pkcs12-path
 | k
 | --pkcs12-path <value> +
 -k <value>
 | Path to the PKCS12 File
+
+| pkcs12-password
+| p
+| --pkcs12-password <value> +
+-p <value> +
+(Defaults to 'changeit' if not supplied)
+| Password to decrypt input P12 File
 
 | config
 | L
@@ -465,24 +512,29 @@ Note: value type = `bool`
 | Mark request for a lite certificate. +
 Note: value type = `bool`
 
-| libcertifier.client.request
-| 0
-| Mark that request comes from a client app. +
-It can be overriden via -c commandline argument. +
-Note: value type = `bool`
+| libcertifier.system.id
+| "BBBBBBBBBBBBBBBB"
+| Set System ID value in the Subject Field of the Certificates in the Chain.
+
+| libcertifier.fabric.id
+| "DDDDDDDDDDDDDDDD"
+| Set Fabric ID value in the Subject Field of the Matter Operational Certificate in the Chain. +
+Note: 64-bit hex integer expected as input.
 
 | libcertifier.product.id
 | "1101"
 | Set Product ID value in the Subject Field of the Certificates in the Chain. +
-Note: value type = `uint16_t`
+Note: 16-bit hex integer expected as input.
 
 | libcertifier.cn.name
-| "AAAAAAAAAAAAAAAA"
-| Set CN Field value in the Subject Field of the Leaf Certificate
+| "AAAAAAAA"
+| Set CN Field value in the Subject Field of the Leaf Certificate. +
+Note: Maximum number of characters is 8 due to certificate size constraints.
 
 | libcertifier.node.id
 | "CCCCCCCCCCCCCCCC"
-| Set Node ID OID Field value in the Subject Field of the Matter Operational Certificate
+| Set Node ID OID Field value in the Subject Field of the Matter Operational Certificate. +
+Note: 64-bit hex integer expected as input.
 
 | libcertifier.ext.key.usage
 | "critical,clientAuth,serverAuth"

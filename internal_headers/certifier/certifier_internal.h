@@ -24,6 +24,7 @@
 #include "certifier/security.h"
 #include "certifier/types.h"
 
+#define XTRA_SMALL_STRING_SIZE 8
 #define VERY_SMALL_STRING_SIZE 32
 #define SMALL_STRING_SIZE 64
 #define MEDIUM_STRING_SIZE 256
