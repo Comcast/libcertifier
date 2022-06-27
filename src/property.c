@@ -32,6 +32,7 @@
 #define DEFAULT_HTTP_TIMEOUT         15
 #define DEFAULT_HTTP_CONNECT_TIMEOUT 15
 #define DEFAULT_ECC_CURVE_ID         "prime256v1"
+#define DEFAULT_OUTPUT_KEYSTORE      "output.p12"
 #define DEFAULT_CFG_FILENAME         "libcertifier.cfg"
 #define DEFAULT_USER_CFG_FILENAME    "/usr/local/etc/certifier/libcertifier.cfg"
 #define DEFAULT_GLOBAL_CFG_FILENAME  "/etc/certifier/libcertifier.cfg"
@@ -743,7 +744,15 @@ property_set_defaults(CertifierPropMap *prop_map) {
     if (return_code != 0) {
         log_error("Failed to set default property name: CERTIFIER_OPT_SOURCE with error code: %i", return_code);
         return return_code;
-    }   
+    }
+
+    if (prop_map->output_p12_filename == NULL) {
+        return_code = property_set(prop_map, CERTIFIER_OPT_OUTPUT_KEYSTORE, DEFAULT_OUTPUT_KEYSTORE);
+        if (return_code != 0) {
+            log_error("Failed to set default property name: CERTIFIER_OPT_OUTPUT_KEYSTORE with error code: %i", return_code);
+            return return_code;
+        }
+    }
 
     return return_code;
 }

@@ -23,6 +23,10 @@
 #include "certifier/error.h"
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define VALIDATE_CERT 0x1
 #define VALIDATE_SIGNATURE 0x2
 
@@ -237,5 +241,9 @@ security_generate_x509_crt(char **output_serialized_string, X509_CERT *x509_cert
 char *security_get_version(void);
 
 char *security_aws_sign(char *const str, char *const awskey);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

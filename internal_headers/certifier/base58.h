@@ -21,7 +21,15 @@
 
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern int
 base58_b58enc(char *b58, const void *bin, size_t binsz);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

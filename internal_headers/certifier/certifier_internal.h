@@ -24,6 +24,10 @@
 #include "certifier/security.h"
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define XTRA_SMALL_STRING_SIZE 8
 #define VERY_SMALL_STRING_SIZE 32
 #define SMALL_STRING_SIZE 64
@@ -99,5 +103,9 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
 /**
  * @}
  */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //LIBLEDGER_certifier_INTERNAL_H

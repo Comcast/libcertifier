@@ -22,6 +22,10 @@
 #include "certifier/property.h"
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CERTIFIER_ERR_PROPERTY_SET_1 1
 #define CERTIFIER_ERR_PROPERTY_SET_2 2
 #define CERTIFIER_ERR_PROPERTY_SET_3 3
@@ -83,5 +87,9 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name);
 
 int
 property_set_defaults_from_cfg_file(CertifierPropMap *propMap);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //LIBLEDGER_PROPERTY_INTERNAL_H

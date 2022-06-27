@@ -21,6 +21,10 @@
 
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CERTIFIER_ERROR_INITIALIZER { 0, 0, NULL, NULL }
 
 typedef struct {
@@ -128,5 +132,9 @@ enum {
 };
 
 char * error_strerror(int e);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //LIBLEDGER_ERROR_H

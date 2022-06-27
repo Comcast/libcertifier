@@ -29,6 +29,10 @@
 
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define LOG_VERSION "0.1.0"
 
 #define LOG_ERR_1 1
@@ -77,5 +81,9 @@ void log_set_callback(log_callback cb);
 void log_log(int level, const char *file, int line, const char *fmt, ...);
 
 int log_destroy(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

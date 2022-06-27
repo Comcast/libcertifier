@@ -21,6 +21,10 @@
 
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Format an error message for the source location this is called at
  */
@@ -77,5 +81,9 @@ int util_execute(const char *command, int *status, char **out, int *outlen, char
 int util_get_unixtime_ms(int64_t *timestamp);
 
 char *util_format_str(const char *fmt, ...);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

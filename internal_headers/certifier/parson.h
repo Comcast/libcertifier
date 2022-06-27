@@ -44,6 +44,10 @@
 
 #include "certifier/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Types and enums */
 typedef struct json_object_t JSON_Object;
 typedef struct json_array_t JSON_Array;
@@ -179,5 +183,9 @@ double json_value_get_number(const JSON_Value *value);
 int json_value_get_boolean(const JSON_Value *value);
 
 JSON_Object *json_object(const JSON_Value *value);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -19,10 +19,18 @@
 #ifndef C_CLIENT_MEMORY_H
 #define C_CLIENT_MEMORY_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 long int system_get_memory_used(void);
 
 double system_user_cpu_time(void);
 
 double system_system_cpu_time(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //C_CLIENT_MEMORY_H
