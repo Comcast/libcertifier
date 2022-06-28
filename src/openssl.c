@@ -274,7 +274,7 @@ security_persist_pkcs_12_file(const char *filename, const char *pwd, ECC_KEY *pr
     pkcs12bundle = PKCS12_create((char *) pwd, // certbundle access password
                                  "key",        // friendly certname
                                  pkey,         // the certificate private key
-                                 NULL,         // the main certificate
+                                 cert,         // the main certificate
                                  certs,        // stack of CA cert chain
                                  ppbe,         // int nid_key (default 3DES)
                                  ppbe,         // int nid_cert (40bitRC2)
@@ -1001,7 +1001,7 @@ X509_CERT *security_cert_list_get(X509_LIST *certs, int which) {
         return NULL;
     }
 
-    return sk_X509_value(certs, which);
+    return sk_X509_delete(certs, which);
 }
 
 void security_free_cert_list(X509_LIST *certs) {

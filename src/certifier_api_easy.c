@@ -369,22 +369,10 @@ static void finish_operation(CERTIFIER *easy, int return_code, const char *opera
     }
 }
 
-static int auto_renew_cert(CERTIFIER *easy) {
-    NULL_CHECK(easy);
-
-    return certifier_register(easy->certifier);
-}
-
 static int do_create_x509_crt(CERTIFIER *easy) {
     int return_code = 0;
 
     char *tmp_crt = NULL;
-
-    return_code = auto_renew_cert(easy);
-    if (return_code) {
-        return_code = CERTIFIER_ERR_CREATE_X509_CERT_1 + return_code;
-        goto cleanup;
-    }
 
     return_code = certifier_setup_keys(easy->certifier);
     if (return_code) {
@@ -612,7 +600,7 @@ static int do_renew_cert(CERTIFIER *easy) {
     int return_code = 0;
     const char *certifier_id = NULL;
 
-    return_code = auto_renew_cert(easy);
+    return_code = certifier_register(easy->certifier);
 
     if (return_code == 0) {
         certifier_id = certifier_get_node_address(easy->certifier);
