@@ -1147,7 +1147,7 @@ int certifier_register(Certifier *certifier) {
     security_print_certs_in_list(certs, stderr);
 
     /* Cert is owned by the 'certs' stack; create our own copy and save it */
-    _certifier_set_x509_cert(certifier, security_cert_list_get(certs, 0));
+    _certifier_set_x509_cert(certifier, security_cert_list_pop(certs, 0));
     if (certifier->tmp_map.x509_cert == NULL) {
         return_code = CERTIFIER_ERR_REGISTER_SECURITY_6;
         set_last_error(certifier, return_code,

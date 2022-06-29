@@ -210,6 +210,15 @@ X509_LIST *security_new_cert_list(void);
  */
 X509_CERT *security_cert_list_get(X509_LIST *certs, int which);
 
+/**
+ * Extract and delete a certificate from a list
+ * @param certs
+ * @param which The nth (0-indexed) certificate to select
+ * @return An X509 certificate or NULL on failure
+ * @warning The result is freed by security_free_cert_list. Caller owns the certficate now, since it was removed from the list.
+ */
+X509_CERT *security_cert_list_pop(X509_LIST *certs, int which);
+
 CertifierError security_load_certs_from_pem(const char *pem, X509_LIST **out);
 
 void security_print_certs_in_list(X509_LIST *certs, XFILE output);
