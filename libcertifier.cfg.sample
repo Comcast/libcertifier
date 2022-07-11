@@ -1,10 +1,8 @@
 {
-  "libcertifier.cert.min_time_left_s": 604800,
   "libcertifier.certifier.url": "https://certifier.xpki.io/v1/certifier",
   "libcertifier.profile.name": "XFN_Matter_OP_Class_3_ICA",
   "libcertifier.num.days": 365,
   "libcertifier.crt.type": "X509",
-  "libcertifier.disable.auto.renewal": 0,
   "libcertifier.ecc.curve.id": "prime256v1",
   "libcertifier.http.connect.timeout": 10,
   "libcertifier.http.timeout": 10,

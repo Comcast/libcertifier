@@ -371,6 +371,119 @@ int certifier_revoke_certificate(Certifier *certifier) {
     return (return_code);
 }
 
+static int save_x509certs_to_filesystem(Certifier *certifier, char *x509_certs,
+                                        bool renew_mode, const char *p12_filename)
+{
+    int rc = 0;
+    CertifierError certifier_err_info = CERTIFIER_ERROR_INITIALIZER;
+    X509_LIST *certs = NULL;
+
+    log_info("\nTrimming x509 certificates...\n");
+    util_trim(x509_certs);
+
+    log_info("\nLoading Certs from PKCS7...\n");
+    certifier_err_info = security_load_certs_from_pem(x509_certs, &certs);
+    assign_last_error(certifier, &certifier_err_info);
+    rc = certifier_err_info.application_error_code;
+    if (certifier_err_info.application_error_code != 0) {
+        log_error("\n<<< Failed to load certs from pkcs7. >>>\n");
+        rc = CERTIFIER_ERR_REGISTER_SECURITY_5;
+        goto cleanup;
+    }
+
+    security_print_certs_in_list(certs, stderr);
+
+    /* Cert is owned by the 'certs' stack; create our own copy and save it */
+    _certifier_set_x509_cert(certifier, security_cert_list_pop(certs, 0));
+    if (certifier->tmp_map.x509_cert == NULL) {
+        rc = CERTIFIER_ERR_REGISTER_SECURITY_6;
+        set_last_error(certifier, rc,
+                       util_format_error_here("Failed to get certificate from certificate list!"));
+        goto cleanup;
+    }
+
+    const char *password = certifier_get_property(certifier, CERTIFIER_OPT_PASSWORD);
+
+    //FIXME: This decision is done too late. Overwrite policy should be explicit
+    // and checked before trying to register (e.g., CERTIFIER_OPT_FORCE_REGISTRATION).
+    if (util_file_exists(p12_filename) && !renew_mode) {
+        log_info("\nPKCS12 file %s exists. NOT overwriting!\n", p12_filename);
+    } else {
+        log_info("\nSaving PKCS12 file %s...\n", p12_filename);
+        security_persist_pkcs_12_file(p12_filename, password, certifier->tmp_map.private_ec_key,
+                                      certifier->tmp_map.x509_cert, certs, &certifier_err_info);
+        assign_last_error(certifier, &certifier_err_info);
+        rc = certifier_err_info.application_error_code;
+        log_info("\nPersisted PKCS12 file %s\n", p12_filename);
+
+        if (certifier_err_info.application_error_code != 0) {
+            rc = CERTIFIER_ERR_REGISTER_SECURITY_7;
+            goto cleanup;
+        }
+    }
+
+    // Clean up
+    cleanup:
+
+    security_free_cert_list(certs);
+
+    return rc;
+}
+
+int certifier_renew_certificate(Certifier *certifier) {
+    NULL_CHECK(certifier);
+
+    int return_code = 0;
+    CertifierError certificate_status = CERTIFIER_ERROR_INITIALIZER;
+    unsigned char der_cert_hash[CERTIFIER_SHA1_DIGEST_LENGTH];
+    unsigned char *p_der_cert = NULL;
+    size_t der_cert_len = 0;
+    char *x509_certs = NULL;
+    char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_KEYSTORE);
+
+    free_tmp(certifier);
+
+    return_code = load_cert(certifier);
+    if (return_code != 0) {
+        return return_code;
+    }
+
+    p_der_cert = security_X509_to_DER(certifier->tmp_map.x509_cert, &der_cert_len);
+    security_sha1(der_cert_hash, p_der_cert, der_cert_len);
+
+    // Renew certificate
+    certificate_status = certifierclient_renew_x509_certificate(certifier->prop_map, der_cert_hash, sizeof(der_cert_hash),
+                                                                &x509_certs);
+    assign_last_error(certifier, &certificate_status);
+    return_code = certificate_status.application_error_code;
+
+    if (x509_certs == NULL || certificate_status.application_error_code != 0) {
+        log_error("\n<<< Failed to Request X509 Certificate! >>>\n");
+        assign_last_error(certifier, &certificate_status);
+        return_code = CERTIFIER_ERR_RENEW_CERT_1 + certificate_status.application_error_code;
+        goto cleanup;
+    } else {
+        log_info("\nObtained x509 Certificate Successfully!\n");
+    }
+
+    if (_certifier_get_privkey(certifier) == NULL ||
+        certifier->tmp_map.der_public_key == NULL ||
+        certifier->tmp_map.base64_public_key == NULL) {
+
+        log_error("Error in Setup.");
+        return_code = CERTIFIER_ERR_REGISTER_SETUP + return_code;
+        goto cleanup;
+    }
+
+    save_x509certs_to_filesystem(certifier, x509_certs, true, p12_filename);
+
+cleanup:
+    XFREE(x509_certs);
+    XFREE(p_der_cert);
+
+    return return_code;
+}
+
 int certifier_create_node_address(const unsigned char *input, int input_len, char **node_address) {
     int return_code = 0;
 
@@ -960,10 +1073,8 @@ int certifier_register(Certifier *certifier) {
     char *renamed_p12_filename = NULL;
 
     char *x509_certs = NULL;
-    X509_LIST *certs = NULL;
 
     int force_registration = 0;
-    bool is_cert_auto_renewal_enabled = false;
 
     const char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_KEYSTORE);
 
@@ -984,7 +1095,6 @@ int certifier_register(Certifier *certifier) {
     }
 
     force_registration = property_is_option_set(certifier->prop_map, CERTIFIER_OPTION_FORCE_REGISTRATION);
-    is_cert_auto_renewal_enabled = property_is_option_set(certifier->prop_map, CERTIFIER_OPTION_AUTO_RENEW_CERT);
 
     if (util_is_empty(p12_filename)) {
         return_code = CERTIFIER_ERR_REGISTER_SECURITY_6;
@@ -1033,51 +1143,12 @@ int certifier_register(Certifier *certifier) {
             goto cleanup;
 
         case CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1:
+            log_info("\nCertificate expired. Returning.\n");
+            goto cleanup;
+
         case CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
-            if (is_cert_auto_renewal_enabled) {
-                log_info("\nAutomatically renewing certificate...\n");
-                /* Only generate an X509 CRT if it was not explicitly overridden to support manual recovery */
-                if (util_is_empty(certifier_get_property(certifier, CERTIFIER_OPT_CRT))) {
-                    char *renew_crt = NULL;
-                    return_code = certifier_setup_keys(certifier);
-                    const X509_CERT *cert = get_cert(certifier);
-                    const ECC_KEY *private_key = _certifier_get_privkey(certifier);
-                    return_code |= security_generate_x509_crt(&renew_crt,
-                                                             (X509_CERT *) cert,
-                                                             (ECC_KEY *) private_key);
-
-                    if (return_code == 0) {
-                        int crt_len = (int) XSTRLEN(renew_crt);
-                        char *encodedCRT = XMALLOC(base64_encode_len(crt_len));
-                        if (encodedCRT == NULL) {
-                            set_last_error(certifier, return_code,
-                                           util_format_error_here("Could not allocate enough memory for encoded CRT!"));
-                            goto cleanup;
-                        }
-
-                        base64_encode(encodedCRT, (unsigned char *) renew_crt, crt_len);
-                        return_code = certifier_set_property(certifier, CERTIFIER_OPT_CRT, encodedCRT);
-                        XFREE(encodedCRT);
-
-                        if (return_code != 0) {
-                            set_last_error(certifier, return_code,
-                                           util_format_error_here("Could not set CERTIFIER_OPT_CRT property!"));
-                            goto cleanup;
-                        }
-                    } else {
-                        set_last_error(certifier, return_code,
-                                       util_format_error_here("Could not generate an X509 CRT!"));
-                        goto cleanup;
-                    }
-
-                    XFREE(renew_crt);
-                }
-            } else {
-                return_code = CERTIFIER_ERR_REGISTER_CERT_RENEWAL + return_code;
-                log_info("\nOpted out for auto renewal...\n");
-                goto cleanup;
-            }
-            break;
+            log_info("\nCertificate already exists and it is about to expire. Returning. No need to register again.\n");
+            goto cleanup;
 
         default:
             log_info(
@@ -1131,49 +1202,7 @@ int certifier_register(Certifier *certifier) {
         log_info("\nObtained x509 Certificate Successfully!\n");
     }
 
-    log_info("\nTrimming x509 certificates...\n");
-    util_trim(x509_certs);
-
-    log_info("\nLoading Certs from PKCS7...\n");
-    certifier_err_info = security_load_certs_from_pem(x509_certs, &certs);
-    assign_last_error(certifier, &certifier_err_info);
-    return_code = certifier_err_info.application_error_code;
-    if (certifier_err_info.application_error_code != 0) {
-        log_error("\n<<< Failed to load certs from pkcs7. >>>\n");
-        return_code = CERTIFIER_ERR_REGISTER_SECURITY_5;
-        goto cleanup;
-    }
-
-    security_print_certs_in_list(certs, stderr);
-
-    /* Cert is owned by the 'certs' stack; create our own copy and save it */
-    _certifier_set_x509_cert(certifier, security_cert_list_pop(certs, 0));
-    if (certifier->tmp_map.x509_cert == NULL) {
-        return_code = CERTIFIER_ERR_REGISTER_SECURITY_6;
-        set_last_error(certifier, return_code,
-                       util_format_error_here("Failed to get certificate from certificate list!"));
-        goto cleanup;
-    }
-
-    const char *password = certifier_get_property(certifier, CERTIFIER_OPT_PASSWORD);
-
-    //FIXME: This decision is done too late. Overwrite policy should be explicit
-    // and checked before trying to register (e.g., CERTIFIER_OPT_FORCE_REGISTRATION).
-    if (util_file_exists(p12_filename) && !is_cert_auto_renewal_enabled) {
-        log_info("\nPKCS12 file %s exists. NOT overwriting!\n", p12_filename);
-    } else {
-        log_info("\nSaving PKCS12 file %s...\n", p12_filename);
-        security_persist_pkcs_12_file(p12_filename, password, certifier->tmp_map.private_ec_key,
-                                      certifier->tmp_map.x509_cert, certs, &certifier_err_info);
-        assign_last_error(certifier, &certifier_err_info);
-        return_code = certifier_err_info.application_error_code;
-        log_info("\nPersisted PKCS12 file %s\n", p12_filename);
-
-        if (certifier_err_info.application_error_code != 0) {
-            return_code = CERTIFIER_ERR_REGISTER_SECURITY_7;
-            goto cleanup;
-        }
-    }
+    save_x509certs_to_filesystem(certifier, x509_certs, force_registration, p12_filename);
 
     // delete the Renamed file if it exists
     if (util_file_exists(renamed_p12_filename)) {
@@ -1190,8 +1219,6 @@ int certifier_register(Certifier *certifier) {
 
     // Clean up
     cleanup:
-
-    security_free_cert_list(certs);
 
     XFREE(x509_certs);
 

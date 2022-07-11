@@ -149,11 +149,6 @@ typedef enum CERTIFIER_OPT
         CERTIFIER_OPT_FORCE_REGISTRATION,
 
         /**
-     * Enable automatic certificate renewal (default: enabled)
-     * @note value type: bool
-     */
-        CERTIFIER_OPT_AUTO_RENEW_CERT,
-        /**
      * @note value type: bool
      */
         CERTIFIER_OPT_MEASURE_PERFORMANCE,
@@ -194,10 +189,10 @@ typedef enum {
     CERTIFIER_OPTION_TLS_INSECURE_HOST = 4,
     CERTIFIER_OPTION_TLS_INSECURE_PEER = 8,
     CERTIFIER_OPTION_FORCE_REGISTRATION = 16,
-    CERTIFIER_OPTION_AUTO_RENEW_CERT = 32,
+    // 32 is unused
     CERTIFIER_OPTION_CERTIFICATE_LITE = 64,
     CERTIFIER_OPTION_MEASURE_PERFORMANCE = 128,
-    //  256, 512, 1024 are uused
+    // 256, 512, 1024 are unused
 } CERTIFIER_OPT_OPTION;
 
 /**

@@ -4,7 +4,6 @@ xref:libcertifier.adoc[*Back to Manual*]
 
 |=======
 | *Property Name* | *Default Value* | *Description* 
-| libcertifier.cert.min_time_left_s   | 604800|  
 | libcertifier.certifier.url   | https://certifier.xpki.io/v1/certifier/certificate |  
 | libcertifier.num.days   | 365 |
 | libcertifier.disable.auto.renewal   | 0|  

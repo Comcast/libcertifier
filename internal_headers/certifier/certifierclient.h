@@ -47,6 +47,12 @@ certifierclient_revoke_x509_certificate(CertifierPropMap *props,
                                         const size_t digest_len);
 
 CertifierError
+certifierclient_renew_x509_certificate(CertifierPropMap *props,
+                                       const unsigned char *digest,
+                                       const size_t digest_len,
+                                       char **out_cert);
+
+CertifierError
 certifierclient_check_certificate_status(CertifierPropMap *props,
                                          const unsigned char *digest,
                                          const size_t digest_len);
