@@ -1302,9 +1302,12 @@ static void test_pkcs12(void **state) {
     assert_non_null(security_cert_list_get(certs, 1));
     assert_non_null(security_cert_list_get(certs, 2));
 
+    cert = security_cert_list_pop(certs, 2);
+    assert_non_null(cert);
+
     // now, let's write out what we just read...
     util_delete_file(pkcs12_file_name_3);
-    rc = security_persist_pkcs_12_file(pkcs12_file_name_3, pkcs12_passwd, key, security_cert_list_get(certs, 0), certs, &result);
+    rc = security_persist_pkcs_12_file(pkcs12_file_name_3, pkcs12_passwd, key, cert, certs, &result);
     assert_int_equal(0, rc);
     error_clear(&result);
     security_free_eckey(key);
@@ -1326,6 +1329,10 @@ static void test_pkcs12(void **state) {
     assert_non_null(security_cert_list_get(certs, 1));
     assert_non_null(security_cert_list_get(certs, 2));
     
+    cert = security_cert_list_pop(certs, 0);
+    assert_non_null(cert);
+    security_free_cert(cert);
+
     // end positive case
 
     result = security_get_X509_PKCS12_file(pkcs12_file_name, "fake_password", NULL, &cert);

@@ -460,11 +460,6 @@ Here are the details for every valid entry that can be added to the Configuratio
 |===
 | *Entry Name* | *Default Value* | *Description*
 
-| libcertifier.cert.min_time_left_s
-| 604800
-| Set the minimum time that the certificate must remain valid before CLI tool will consider the certificate is nearly expired. +
-Note: value type = `int`
-
 | libcertifier.certifier.url
 | "https://certifier.xpki.io/v1/certifier"
 | xPKI URL

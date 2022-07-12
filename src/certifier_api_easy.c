@@ -549,12 +549,12 @@ static int do_get_cert_status(CERTIFIER *easy) {
     int return_code = 0;
     const char *certifier_id = NULL;
 
-    return_code = certifier_get_device_registration_status(easy->certifier);
-    certifier_print_certificate_validity(easy->certifier);
+    return_code = certifier_get_device_certificate_status(easy->certifier);
     if (return_code != 0 && return_code != CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE) {
         return_code |= CERTIFIER_ERR_GET_CERT_STATUS_1;
     } else {
-        return_code |= certifier_get_device_certificate_status(easy->certifier);
+        return_code |= certifier_get_device_registration_status(easy->certifier);
+        certifier_print_certificate_validity(easy->certifier);
         if (return_code == 0) {
             certifier_id = certifier_get_node_address(easy->certifier);
         } else {
@@ -575,9 +575,6 @@ static int do_get_cert_status(CERTIFIER *easy) {
         case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1:
             XFPRINTF(stdout, "Status: Not Yet Valid\n");
             break;
-        case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_REVOKED | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
-            XFPRINTF(stdout, "Warning! This certificate is about to expire. Please renew it using the 'renew-cert' command.\n");
-            // fall through
         case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_REVOKED:
             XFPRINTF(stdout, "Status: Revoked\n");
             break;
@@ -600,7 +597,16 @@ static int do_renew_cert(CERTIFIER *easy) {
     int return_code = 0;
     const char *certifier_id = NULL;
 
-    return_code = certifier_register(easy->certifier);
+    return_code = certifier_get_device_registration_status(easy->certifier);
+    if (return_code == CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE ||
+        return_code == CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1)
+    {
+        return_code = do_create_x509_crt(easy);
+        return_code |= certifier_renew_certificate(easy->certifier);
+    } else {
+        log_error("Certificate has not yet expired and already exists.  Returning.  No need to register again.");
+        return_code = CERTIFIER_ERR_RENEW_CERT_1 + CERTIFIER_ERR_GET_CERT_STATUS_GOOD;
+    }
 
     if (return_code == 0) {
         certifier_id = certifier_get_node_address(easy->certifier);

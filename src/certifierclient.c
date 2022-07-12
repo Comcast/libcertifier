@@ -295,6 +295,142 @@ certifierclient_revoke_x509_certificate(CertifierPropMap *props,
 }
 
 CertifierError
+certifierclient_renew_x509_certificate(CertifierPropMap *props,
+                                       const unsigned char *digest,
+                                       const size_t digest_len,
+                                       char** out_cert) {
+    CertifierError rc = CERTIFIER_ERROR_INITIALIZER;
+
+    char auth_header[VERY_LARGE_STRING_SIZE * 4] = "";
+    char tracking_header[LARGE_STRING_SIZE] = "";
+    char source_header[SMALL_STRING_SIZE] = "";
+    JSON_Object *parsed_json_object_value = NULL;
+    JSON_Value *parsed_json_root_value = NULL;
+    char *serialized_string = NULL;
+    const char *certificate_chain = NULL;
+    http_response *resp = NULL;
+    const char *tracking_id = property_get(props, CERTIFIER_OPT_TRACKING_ID);
+    const char *bearer_token = property_get(props, CERTIFIER_OPT_CRT);
+    const char *source = property_get(props, CERTIFIER_OPT_SOURCE);
+    const char *certifier_url = property_get(props, CERTIFIER_OPT_CERTIFIER_URL);
+    log_debug("Tracking ID is: %s", tracking_id);
+
+    char array_digest[CERTIFIER_SHA1_DIGEST_LENGTH * 2 + 1];
+    char certifier_renew_url[256];
+    char renew_url[] = "/renew";
+    strncpy(certifier_renew_url, certifier_url, sizeof(certifier_renew_url));
+    strncpy(certifier_renew_url + strlen(certifier_url), renew_url, sizeof(certifier_renew_url) - strlen(certifier_url));
+
+    if (util_is_empty(source)) {
+        rc.application_error_code = CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
+        rc.application_error_msg = util_format_error_here("CERTIFIER_OPT_SOURCE must be set to a non-empty string!");
+        goto cleanup;
+    }
+
+    if (bearer_token != NULL) {
+        snprintf(auth_header, VERY_LARGE_STRING_SIZE * 4, "Authorization: Bearer %s", bearer_token);
+    }
+    snprintf(tracking_header, SMALL_STRING_SIZE, "x-xpki-tracking-id: %s", tracking_id);
+    snprintf(source_header, SMALL_STRING_SIZE, "x-xpki-source: %s", source);
+
+    const char *headers[] = {
+            "Accept: application/json",
+            "Content-Type: application/json",
+            auth_header,
+            tracking_header,
+            source_header,
+            NULL
+    };
+
+    if (dtoa(digest, digest_len, array_digest, sizeof(array_digest)) != 0) {
+        rc.application_error_code = CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
+        rc.application_error_msg = util_format_error_here("digest length invalid");
+        return rc;
+    }
+
+    JSON_Value *root_value = json_value_init_object();
+    JSON_Object *root_object = json_value_get_object(root_value);
+
+    json_object_set_string(root_object, "certificateId", array_digest);
+
+    serialized_string = json_serialize_to_string_pretty(root_value);
+
+    log_debug("\nCertificate Renew Request:\n%s\n", serialized_string);
+
+    resp = http_post(props, certifier_renew_url, headers, serialized_string);
+    if (resp == NULL) {
+        goto cleanup;
+    }
+
+    rc.application_error_code = resp->error;
+
+    // Check for errors
+    if (resp->error != 0) {
+        rc.application_error_msg = util_format_curl_error("certifierclient_renew_x509_certificate",
+                                                          resp->http_code, resp->error, resp->error_msg, resp->payload,
+                                                          __FILE__, __LINE__);
+        goto cleanup;
+    }
+
+    if (resp->payload == NULL) {
+        log_error("ERROR: Failed to populate payload");
+        goto cleanup;
+    }
+
+    /* print result */
+    log_debug("CURL Returned: \n%s\n", resp->payload);
+
+    parsed_json_root_value = json_parse_string_with_comments(resp->payload);
+    if (json_value_get_type(parsed_json_root_value) != JSONObject) {
+        rc.application_error_msg = util_format_curl_error("certifierclient_renew_x509_certificate", resp->http_code,
+                                                          resp->error,
+                                                          "Could not parse JSON.  Expected it to be an array.",
+                                                          resp->payload, __FILE__, __LINE__);
+        goto cleanup;
+    }
+
+    parsed_json_object_value = json_value_get_object(parsed_json_root_value);
+
+    if (parsed_json_object_value == NULL) {
+        rc.application_error_msg = util_format_curl_error("certifierclient_renew_x509_certificate",
+                                                          resp->http_code, resp->error,
+                                                          "Could not parse JSON.  parsed_json_object_value is NULL!.",
+                                                          resp->payload, __FILE__, __LINE__);
+        goto cleanup;
+    }
+
+    certificate_chain = json_object_get_string(parsed_json_object_value, "certificateChain");
+
+    if (certificate_chain == NULL) {
+        rc.application_error_msg = util_format_curl_error("certifierclient_request_x509_certificate",
+                                                          resp->http_code, resp->error,
+                                                          "Could not parse JSON.  certificate_chain is NULL!",
+                                                          resp->payload, __FILE__, __LINE__);
+        goto cleanup;
+    }
+
+    log_debug("Certificate Chain=%s\n", certificate_chain);
+
+    *out_cert = XSTRDUP(certificate_chain);
+
+    // Cleanup
+    cleanup:
+
+    http_free_response(resp);
+
+    if (parsed_json_root_value) {
+        json_value_free(parsed_json_root_value);
+    }
+
+    if (root_value) {
+        json_value_free(root_value);
+    }
+
+    XFREE(serialized_string);
+    return rc;
+}
+
+CertifierError
 certifierclient_check_certificate_status(CertifierPropMap *props,
                                          const unsigned char *digest,
                                          const size_t digest_len) {

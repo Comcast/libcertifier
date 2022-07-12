@@ -41,7 +41,7 @@
 #define DEFAULT_CA_PATH              "."
 #define DEFAULT_CERTIFER_URL         "https://certifier.xpki.io/v1/certifier"
 #define DEFAULT_PROFILE_NAME         "XFN_Matter_OP_Class_3_ICA"
-#define DEFAULT_CERT_MIN_TIME_LEFT_S 7 * 24 * 60 * 60;
+#define DEFAULT_CERT_MIN_TIME_LEFT_S 90 * 24 * 60 * 60;
 #define DEFAULT_OPT_SOURCE           "unset-libcertifier-c-native"
 #define DEFAULT_PRODUCT_ID           "1101"
 
@@ -396,7 +396,6 @@ property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value) 
         case CERTIFIER_OPT_TLS_INSECURE_HOST:
         case CERTIFIER_OPT_TLS_INSECURE_PEER:
         case CERTIFIER_OPT_FORCE_REGISTRATION:
-        case CERTIFIER_OPT_AUTO_RENEW_CERT:
         case CERTIFIER_OPT_MEASURE_PERFORMANCE:
         case CERTIFIER_OPT_CERTIFICATE_LITE: {
             unsigned int bit = name - CERTIFIER_OPT_BOOL_FIRST;
@@ -590,7 +589,6 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name) {
         case CERTIFIER_OPT_TLS_INSECURE_HOST:
         case CERTIFIER_OPT_TLS_INSECURE_PEER:
         case CERTIFIER_OPT_FORCE_REGISTRATION:
-        case CERTIFIER_OPT_AUTO_RENEW_CERT:
         case CERTIFIER_OPT_MEASURE_PERFORMANCE:
         case CERTIFIER_OPT_CERTIFICATE_LITE: {
             unsigned int bit = name - CERTIFIER_OPT_BOOL_FIRST;
@@ -735,9 +733,6 @@ property_set_defaults(CertifierPropMap *prop_map) {
     }
     log_set_max_size(prop_map->log_max_size);
 
-    prop_map->options |= CERTIFIER_OPTION_AUTO_RENEW_CERT;
-
-
     prop_map->cert_min_time_left_s = DEFAULT_CERT_MIN_TIME_LEFT_S;
 
     return_code = property_set(prop_map, CERTIFIER_OPT_SOURCE, DEFAULT_OPT_SOURCE);
@@ -820,7 +815,6 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
     int http_connect_timeout_value;
     int http_trace_value;
     const char *keystore_value = NULL;
-    int disable_auto_renewal_value;
     const char *ca_info_value = NULL;
     const char *ca_path_value = NULL;
     int tls_verify_peer_value;
@@ -832,7 +826,6 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
     int log_level_value;
     int log_max_size_value;
     int measure_performance_value;
-    double cert_min_time_left_s;
     int num_days;
     const char *source = NULL;
     int certificate_lite_value;
@@ -961,21 +954,11 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
         property_set(propMap, CERTIFIER_OPT_CA_PATH, ca_path_value);
     }
 
-    cert_min_time_left_s = json_object_get_number(json_object(json), "libcertifier.cert.min_time_left_s");
-    if (cert_min_time_left_s >= 0 && cert_min_time_left_s <= XINT_MAX) {
-        log_info("Loaded cert.min_time_left_s: %.0f", cert_min_time_left_s);
-        property_set(propMap, CERTIFIER_OPT_CERT_MIN_TIME_LEFT_S, (void *) (size_t) cert_min_time_left_s);
-    }
     num_days = json_object_get_number(json_object(json), "libcertifier.num.days");
     if (num_days)
     {
         log_info("Loaded num_days: %d", num_days);
         property_set(propMap, CERTIFIER_OPT_NUM_DAYS, (void *)(size_t)num_days);
-    }
-    disable_auto_renewal_value = json_object_get_number(json_object(json), "libcertifier.disable.auto.renewal");
-    if (disable_auto_renewal_value == 1) {
-        log_info("Loaded disable_auto_renewal_value: %i from cfg file.", disable_auto_renewal_value);
-        propMap->options &= ~CERTIFIER_OPTION_AUTO_RENEW_CERT;
     }
 
     tls_verify_peer_value = json_object_get_number(json_object(json), "libcertifier.tls.insecure.peer");

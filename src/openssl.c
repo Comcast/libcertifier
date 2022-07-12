@@ -1001,6 +1001,14 @@ X509_CERT *security_cert_list_get(X509_LIST *certs, int which) {
         return NULL;
     }
 
+    return sk_X509_value(certs, which);
+}
+
+X509_CERT *security_cert_list_pop(X509_LIST *certs, int which) {
+    if (certs == NULL) {
+        return NULL;
+    }
+
     return sk_X509_delete(certs, which);
 }
 

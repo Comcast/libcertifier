@@ -176,6 +176,7 @@ extern "C" {
 
 #define CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN                       (1 << 9)
 #define CERTIFIER_ERR_GET_CERT_STATUS_REVOKED                      (1 << 10)
+#define CERTIFIER_ERR_GET_CERT_STATUS_GOOD                         (1 << 11)
 
 typedef enum {
     CERTIFIER_LOG_TRACE = 0,
@@ -275,6 +276,13 @@ certifier_get_device_certificate_status(Certifier *certifier);
  * @return
  */
 int certifier_revoke_certificate(Certifier *certifier);
+
+/**
+ * Renew a certificate
+ * @param certifier
+ * @return
+ */
+int certifier_renew_certificate(Certifier *certifier);
 
 /**
  * Callback that will receive log messages
