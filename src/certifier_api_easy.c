@@ -148,7 +148,7 @@ static const char * get_command_opt_helper(CERTIFIER_MODE mode) {
         case CERTIFIER_MODE_GET_CERT_STATUS:
             return BASE_HELPER;
         case CERTIFIER_MODE_RENEW_CERT:
-            return BASE_HELPER VALIDITY_DAYS_HELPER;
+            return BASE_HELPER;
         case CERTIFIER_MODE_PRINT_CERT:
             return BASE_HELPER;
         case CERTIFIER_MODE_REVOKE_CERT:
@@ -773,7 +773,7 @@ static int process_command_line(CERTIFIER *easy) {
 
     static const char * const get_cert_short_options      = BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS GET_CERT_SHORT_OPTIONS VALIDITY_DAYS_SHORT_OPTION;
     static const char * const get_crt_token_short_options = BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS;
-    static const char * const renew_cert_short_options    = BASE_SHORT_OPTIONS VALIDITY_DAYS_SHORT_OPTION;
+    static const char * const renew_cert_short_options    = BASE_SHORT_OPTIONS;
     static const char * const base_short_options          = BASE_SHORT_OPTIONS;
 
     static const struct option get_cert_long_opts[] = {
@@ -790,7 +790,6 @@ static int process_command_line(CERTIFIER *easy) {
     };
     static const struct option renew_cert_long_opts[] = {
             BASE_LONG_OPTIONS,
-            VALIDITY_DAYS_LONG_OPTION,
             {NULL, 0,                             NULL, 0}
     };
     static const struct option base_long_opts[] = {

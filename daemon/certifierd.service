@@ -1,0 +1,12 @@
+[Unit]
+Description=LibCertifier Daemon that renews certificates automatically once a day
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/certifierd \
+	--conf-file /etc/certifier/libcertifier.cfg \
+	--log-file /var/log/certifier/certifierd.log
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
