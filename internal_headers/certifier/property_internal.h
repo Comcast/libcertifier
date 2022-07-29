@@ -88,6 +88,12 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name);
 int
 property_set_defaults_from_cfg_file(CertifierPropMap *propMap);
 
+const char *get_default_cfg_filename();
+
+const char *get_default_ca_path();
+
+const char *get_default_ca_info();
+
 #ifdef __cplusplus
 }
 #endif

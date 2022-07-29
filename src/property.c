@@ -38,14 +38,20 @@
 #define DEFAULT_GLOBAL_CFG_FILENAME  "/etc/certifier/libcertifier.cfg"
 #define DEFAULT_CRT_TYPE             "X509"
 #define DEFAULT_CA_INFO              "libcertifier-cert.crt"
+#define DEFAULT_USER_CA_INFO         "/usr/local/etc/certfier/libcertifier-cert.crt"
+#define DEFAULT_GLOBAL_CA_INFO       "/etc/certifier/libcertifier-cert.crt"
 #define DEFAULT_CA_PATH              "."
+#define DEFAULT_USER_CA_PATH         "/usr/local/etc/certfier"
+#define DEFAULT_GLOBAL_CA_PATH       "/etc/certifier"
 #define DEFAULT_CERTIFER_URL         "https://certifier.xpki.io/v1/certifier"
 #define DEFAULT_PROFILE_NAME         "XFN_Matter_OP_Class_3_ICA"
 #define DEFAULT_CERT_MIN_TIME_LEFT_S 90 * 24 * 60 * 60;
 #define DEFAULT_OPT_SOURCE           "unset-libcertifier-c-native"
 #define DEFAULT_PRODUCT_ID           "1101"
+#define DEFAULT_AUTORENEW_INTERVAL   86400
+#define DEFAULT_AUTORENEW_CERTS_PATH "~/.libcertifier"
 
-static const char *get_default_cfg_filename()
+const char *get_default_cfg_filename()
 {
     static char cfg[]      = DEFAULT_CFG_FILENAME;
     static char user_cfg[] = DEFAULT_USER_CFG_FILENAME;
@@ -56,6 +62,52 @@ static const char *get_default_cfg_filename()
     {
         if (util_file_exists(cfg_order_list[i])) {
             return cfg_order_list[i];
+        }
+    }
+
+    return NULL;
+}
+
+const char *get_default_ca_path()
+{
+    static char ca[]      = DEFAULT_CA_PATH;
+    static char user_ca[] = DEFAULT_USER_CA_PATH;
+    static char glbl_ca[] = DEFAULT_GLOBAL_CA_PATH;
+    char *ca_order_list[] = { ca, user_ca, glbl_ca };
+
+    static char ca_filepath[256] = { 0 };
+
+    for (int i = 0; i < sizeof(ca_order_list) / sizeof(*ca_order_list); ++i)
+    {
+        size_t max_len = strlen(ca_order_list[i]) + strlen(DEFAULT_CA_INFO) + 2;
+        if (max_len > sizeof(ca_filepath)) {
+            return NULL;
+        }
+
+        memcpy(ca_filepath, ca_order_list[i], strlen(ca_order_list[i]));
+        ca_filepath[strlen(ca_order_list[i])] = '/';
+        memcpy(ca_filepath + strlen(ca_order_list[i]) + 1, DEFAULT_CA_INFO, strlen(DEFAULT_CA_INFO));
+        ca_filepath[max_len - 1] = '\0';
+
+        if (util_file_exists(ca_filepath)) {
+            return ca_order_list[i];
+        }
+    }
+
+    return NULL;
+}
+
+const char *get_default_ca_info()
+{
+    static char ca[]      = DEFAULT_CA_INFO;
+    static char user_ca[] = DEFAULT_USER_CA_INFO;
+    static char glbl_ca[] = DEFAULT_GLOBAL_CA_INFO;
+    char *ca_order_list[] = { ca, user_ca, glbl_ca };
+
+    for (int i = 0; i < sizeof(ca_order_list) / sizeof(*ca_order_list); ++i)
+    {
+        if (util_file_exists(ca_order_list[i])) {
+            return ca_order_list[i];
         }
     }
 
@@ -75,6 +127,7 @@ struct _PropMap {
     int options;
     int cert_min_time_left_s;
     int num_days;
+    int autorenew_interval;
     char *log_file;
     char *ca_info;
     char *ca_path;
@@ -108,6 +161,7 @@ struct _PropMap {
     char *target_node;
     char *action;
     char *input_node;
+    char *autorenew_certs_path_list;
 };
 
 static void free_prop_map_values(CertifierPropMap *prop_map);
@@ -207,6 +261,10 @@ property_set_int(CertifierPropMap *prop_map, CERTIFIER_OPT name, int value) {
             prop_map->num_days = value;
             break;
 
+        case CERTIFIER_OPT_AUTORENEW_INTERVAL:
+            prop_map->autorenew_interval = value;
+            break;
+
         default:
             retval = CERTIFIER_ERR_PROPERTY_SET_5;
     }
@@ -227,6 +285,7 @@ property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value) 
         case CERTIFIER_OPT_LOG_FUNCTION:
         case CERTIFIER_OPT_CERT_MIN_TIME_LEFT_S:
         case CERTIFIER_OPT_NUM_DAYS:
+        case CERTIFIER_OPT_AUTORENEW_INTERVAL:
             // do nothing;
             break;
         default:
@@ -329,6 +388,7 @@ property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value) 
         case CERTIFIER_OPT_LOG_MAX_SIZE:
         case CERTIFIER_OPT_CERT_MIN_TIME_LEFT_S:
         case CERTIFIER_OPT_NUM_DAYS:
+        case CERTIFIER_OPT_AUTORENEW_INTERVAL:
             retval = property_set_int(prop_map, name, (int) (size_t) value);
             break;
 
@@ -379,6 +439,10 @@ property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value) 
 
         case CERTIFIER_OPT_EXT_KEY_USAGE:
         SV(prop_map->ext_key_usage_value, value);
+            break;
+
+        case CERTIFIER_OPT_AUTORENEW_CERTS_PATH_LIST:
+        SV(prop_map->autorenew_certs_path_list, value);
             break;
 
         case CERTIFIER_OPT_LOG_FUNCTION:
@@ -571,12 +635,20 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name) {
             retval = (void *) (size_t) prop_map->num_days; // TODO - need to revisit these casts
             break;
 
+        case CERTIFIER_OPT_AUTORENEW_INTERVAL:
+            retval = (void *) (size_t) prop_map->autorenew_interval; // TODO - need to revisit these casts
+            break;
+
         case CERTIFIER_OPT_CERT_MIN_TIME_LEFT_S:
             retval = (void *) (size_t) prop_map->cert_min_time_left_s; // TODO - need to revisit these casts
             break;
 
         case CERTIFIER_OPT_EXT_KEY_USAGE:
             retval = prop_map->ext_key_usage_value;
+            break;
+
+        case CERTIFIER_OPT_AUTORENEW_CERTS_PATH_LIST:
+            retval = prop_map->autorenew_certs_path_list;
             break;
 
         case CERTIFIER_OPT_LOG_FUNCTION:
@@ -680,7 +752,8 @@ property_set_defaults(CertifierPropMap *prop_map) {
     }
 
     if (prop_map->ca_info == NULL) {
-        return_code = property_set(prop_map, CERTIFIER_OPT_CA_INFO, DEFAULT_CA_INFO);
+        const char *default_ca_info = get_default_ca_info();
+        return_code = property_set(prop_map, CERTIFIER_OPT_CA_INFO, default_ca_info);
         if (return_code != 0) {
             log_error("Failed to set default property name: CERTIFIER_OPT_CA_INFO with error code: %i", return_code);
             return return_code;
@@ -688,7 +761,8 @@ property_set_defaults(CertifierPropMap *prop_map) {
     }
 
     if (prop_map->ca_path == NULL) {
-        return_code = property_set(prop_map, CERTIFIER_OPT_CA_PATH, DEFAULT_CA_PATH);
+        const char *default_ca_path = get_default_ca_path();
+        return_code = property_set(prop_map, CERTIFIER_OPT_CA_PATH, default_ca_path);
         if (return_code != 0) {
             log_error("Failed to set default property name: CERTIFIER_OPT_CA_PATH with error code: %i", return_code);
             return return_code;
@@ -745,6 +819,22 @@ property_set_defaults(CertifierPropMap *prop_map) {
         return_code = property_set(prop_map, CERTIFIER_OPT_OUTPUT_KEYSTORE, DEFAULT_OUTPUT_KEYSTORE);
         if (return_code != 0) {
             log_error("Failed to set default property name: CERTIFIER_OPT_OUTPUT_KEYSTORE with error code: %i", return_code);
+            return return_code;
+        }
+    }
+
+    return_code = property_set(prop_map, CERTIFIER_OPT_AUTORENEW_INTERVAL, (void *) DEFAULT_AUTORENEW_INTERVAL);
+    if (return_code != 0) {
+        log_error("Failed to set default property name: CERTIFIER_OPT_AUTORENEW_INTERVAL with error code: %i",
+                  return_code);
+        return return_code;
+    }
+
+    if (prop_map->autorenew_certs_path_list == NULL) {
+        return_code = property_set(prop_map, CERTIFIER_OPT_AUTORENEW_CERTS_PATH_LIST, DEFAULT_AUTORENEW_CERTS_PATH);
+        if (return_code != 0) {
+            log_error("Failed to set default property name: CERTIFIER_OPT_AUTORENEW_CERTS_PATH_LIST with error code: %i",
+                      return_code);
             return return_code;
         }
     }
@@ -826,11 +916,13 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
     int log_level_value;
     int log_max_size_value;
     int measure_performance_value;
+    int autorenew_interval_value;
     int num_days;
     const char *source = NULL;
     int certificate_lite_value;
     const char *cn_prefix = NULL;
     const char *ext_key_usage_value = NULL;
+    const char *autorenew_certs_path_list_value = NULL;
 
     int ret = 0;
 
@@ -932,8 +1024,14 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
 
     measure_performance_value = json_object_get_number(json_object(json), "libcertifier.measure.performance");
     if (measure_performance_value == 1) {
-        log_info("Loaded measure.performance: %i from cfg file.", http_trace_value);
+        log_info("Loaded measure.performance: %i from cfg file.", measure_performance_value);
         propMap->options |= CERTIFIER_OPTION_MEASURE_PERFORMANCE;
+    }
+
+    autorenew_interval_value = json_object_get_number(json_object(json), "libcertifier.autorenew.interval");
+    if (autorenew_interval_value == 1) {
+        log_info("Loaded autorenew.interval: %i from cfg file.", autorenew_interval_value);
+        property_set(propMap, CERTIFIER_OPT_AUTORENEW_INTERVAL, (void *) (size_t) autorenew_interval_value);
     }
 
     keystore_value = json_object_get_string(json_object(json), "libcertifier.keystore");
@@ -1039,6 +1137,12 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
         property_set(propMap, CERTIFIER_OPT_EXT_KEY_USAGE, ext_key_usage_value);
     }
 
+    autorenew_certs_path_list_value = json_object_get_string(json_object(json), "libcertifier.autorenew.certs.path.list");
+    if (autorenew_certs_path_list_value) {
+        log_info("Loaded autorenew certs path: %s from config file.", autorenew_certs_path_list_value);
+        property_set(propMap, CERTIFIER_OPT_AUTORENEW_CERTS_PATH_LIST, autorenew_certs_path_list_value);
+    }
+
     if (json) {
         json_value_free(json);
     }
@@ -1079,6 +1183,7 @@ static void free_prop_map_values(CertifierPropMap *prop_map) {
     FV(prop_map->target_node);
     FV(prop_map->action);
     FV(prop_map->input_node);
+    FV(prop_map->autorenew_certs_path_list);
     FV(prop_map->tracking_id);
     FV(prop_map->source);
     FV(prop_map->cn_prefix);

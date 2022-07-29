@@ -181,6 +181,22 @@ typedef enum CERTIFIER_OPT
      */
         CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_AFTER,
 
+        /**
+         * @brief choose the amount of time (in seconds) that the certifierd
+         * daemon shall sleep before * trying to renew a set of certificates
+         *
+         * @note value type: int
+         */
+        CERTIFIER_OPT_AUTORENEW_INTERVAL,
+
+        /**
+         * @brief choose the path where daemon will look-up for certificates
+         * to be renewed
+         *
+         * @note value type: string
+         */
+        CERTIFIER_OPT_AUTORENEW_CERTS_PATH_LIST,
+
 } CERTIFIER_OPT;
 
 typedef enum {

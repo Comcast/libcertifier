@@ -1,0 +1,101 @@
+#!/bin/sh
+#
+#       /etc/init.d/certifierd
+#
+#       Init script for Certifier daemon
+#
+# chkconfig:   2345 20 80
+# description: LibCertifier Daemon that renews certificates automatically once a day
+
+### BEGIN INIT INFO
+# Provides:       certifierd
+# Required-Start: $rsyslog
+# Required-Stop:
+# Should-Start:
+# Should-Stop:
+# Default-Start: 2 3 4 5
+# Default-Stop:  0 1 6
+# Short-Description: start and stop example of daemon
+# Description: Example of UNIX daemon
+### END INIT INFO
+
+# Source function library.
+. /lib/lsb/init-functions
+
+prog="certifierd"
+app="/usr/bin/$prog"
+lock_file="/var/lock/subsys/$prog"
+log_file="/var/log/$prog.log"
+conf_file="/etc/certifier/libcertifier.cfg"
+
+start() {
+    echo -n $"Starting $prog: "
+    start_daemon -p $lock_file $app --conf-file $conf_file --log-file $log_file --daemon
+    RETVAL=$?
+    [ $RETVAL -eq 0 ] && touch $lock_file
+    echo
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    killproc -p $lock_file $prog -INT
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $lock_file
+    return $RETVAL
+}
+
+restart() {
+    stop
+    start
+}
+
+reload() {
+    restart
+}
+
+force_reload() {
+    restart
+}
+
+rh_status() {
+    status_of_proc -p $lock_file "$prog process"
+}
+
+rh_status_q() {
+    rh_status >/dev/null 2>&1
+}
+
+case "$1" in
+    start)
+        rh_status_q && exit 0
+        $1
+        ;;
+    stop)
+        rh_status_q || exit 0
+        $1
+        ;;
+    restart)
+        $1
+        ;;
+    reload)
+        rh_status_q || exit 7
+        $1
+        ;;
+    force-reload)
+        force_reload
+        ;;
+    status)
+        rh_status
+        ;;
+    condrestart|try-restart)
+        rh_status_q || exit 0
+        restart
+        ;;
+    *)
+        echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
+        exit 2
+esac
+
+exit $?
