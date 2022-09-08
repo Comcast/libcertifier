@@ -47,7 +47,7 @@ public:
     CHIP_ERROR GetFirmwareInformation(MutableByteSpan & out_firmware_info_buffer) override;
     CHIP_ERROR GetDeviceAttestationCert(MutableByteSpan & out_dac_buffer) override;
     CHIP_ERROR GetProductAttestationIntermediateCert(MutableByteSpan & out_pai_buffer) override;
-    CHIP_ERROR SignWithDeviceAttestationKey(const ByteSpan & digest_to_sign, MutableByteSpan & out_signature_buffer) override;
+    CHIP_ERROR SignWithDeviceAttestationKey(const ByteSpan & message_to_sign, MutableByteSpan & out_signature_buffer) override;
 };
 
 CHIP_ERROR CertifierDACProvider::GetDeviceAttestationCert(MutableByteSpan & out_dac_buffer)
@@ -99,18 +99,18 @@ CHIP_ERROR CertifierDACProvider::GetFirmwareInformation(MutableByteSpan & out_fi
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR CertifierDACProvider::SignWithDeviceAttestationKey(const ByteSpan & digest_to_sign,
+CHIP_ERROR CertifierDACProvider::SignWithDeviceAttestationKey(const ByteSpan & message_to_sign,
                                                               MutableByteSpan & out_signature_buffer)
 {
     Crypto::P256ECDSASignature signature;
     Crypto::P256Keypair keypair;
 
     VerifyOrReturnError(IsSpanUsable(out_signature_buffer), CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(IsSpanUsable(digest_to_sign), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(IsSpanUsable(message_to_sign), CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(out_signature_buffer.size() >= signature.Capacity(), CHIP_ERROR_BUFFER_TOO_SMALL);
 
     ReturnErrorOnFailure(LoadKeypairFromRaw(ByteSpan{ kDacPrivateKey }, ByteSpan{ kDacPublicKey }, keypair));
-    ReturnErrorOnFailure(keypair.ECDSA_sign_hash(digest_to_sign.data(), digest_to_sign.size(), signature));
+    ReturnErrorOnFailure(keypair.ECDSA_sign_msg(message_to_sign.data(), message_to_sign.size(), signature));
 
     return CopySpanToMutableSpan(ByteSpan{ signature.ConstBytes(), signature.Length() }, out_signature_buffer);
 }

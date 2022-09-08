@@ -1,5 +1,5 @@
 /**
- * Copyright 2021 Comcast Cable Communications Management, LLC
+ * Copyright 2021-22 Comcast Cable Communications Management, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include "commands/discover/Commands.h"
 #include "commands/pairing/Commands.h"
 #include "commands/payload/Commands.h"
+#include "commands/storage/Commands.h"
 
 #include <zap-generated/cluster/Commands.h>
 #include <zap-generated/test/Commands.h>
@@ -38,6 +39,7 @@ int main(int argc, char * argv[])
     registerCommandsPairing(commands, &credIssuerCommands);
     registerCommandsTests(commands, &credIssuerCommands);
     registerClusters(commands, &credIssuerCommands);
+    registerCommandsStorage(commands);
 
     return commands.Run(argc, argv);
 }

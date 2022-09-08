@@ -32,7 +32,7 @@ private:
     {
         chip::Credentials::SetDeviceAttestationCredentialsProvider(chip::Credentials::Certifier::GetDACProvider());
 
-        setupParams.deviceAttestationVerifier = chip::Credentials::GetDefaultDACVerifier(trustStore);
+        mDacVerifier = setupParams.deviceAttestationVerifier = chip::Credentials::GetDefaultDACVerifier(trustStore);
 
         return CHIP_NO_ERROR;
     }
@@ -61,5 +61,20 @@ private:
             nodeId, fabricId, dacBufSpan, chip::ByteSpan(csrBuffer, csrBufferLength), nonceSpan, rcac, icac, noc);
     }
 
+    CHIP_ERROR AddAdditionalCDVerifyingCerts(const std::vector<std::vector<uint8_t>> & additionalCdCerts) override
+    {
+        VerifyOrReturnError(mDacVerifier != nullptr, CHIP_ERROR_INCORRECT_STATE);
+
+        for (const auto & cert : additionalCdCerts)
+        {
+            auto cdTrustStore = mDacVerifier->GetCertificationDeclarationTrustStore();
+            VerifyOrReturnError(cdTrustStore != nullptr, CHIP_ERROR_INCORRECT_STATE);
+            ReturnErrorOnFailure(cdTrustStore->AddTrustedKey(chip::ByteSpan(cert.data(), cert.size())));
+        }
+
+        return CHIP_NO_ERROR;
+    }
+
     chip::Controller::CertifierOperationalCredentialsIssuer mOpCredsIssuer;
+    chip::Credentials::DeviceAttestationVerifier * mDacVerifier;
 };
