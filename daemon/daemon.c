@@ -284,9 +284,9 @@ static void try_renew_certificates(Certifier *certifier)
 {
     for (size_t list_of_certs_idx = 0; *s_list_of_certs[list_of_certs_idx] != 0; ++list_of_certs_idx)
     {
-		certifier_set_property(certifier, CERTIFIER_OPT_KEYSTORE, s_list_of_certs[list_of_certs_idx]);
+		certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, s_list_of_certs[list_of_certs_idx]);
 		// TODO: Implement keymgr exchange
-		certifier_set_property(certifier, CERTIFIER_OPT_PASSWORD, "changeit");
+		certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, "changeit");
 
 		// check state
 		int rc = certifier_get_device_certificate_status(certifier);

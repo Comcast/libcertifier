@@ -25,8 +25,8 @@
 
 static void
 set_curl_options(CURL *curl, CertifierPropMap *prop_map) {
-    int host_validation = property_is_option_set(prop_map, CERTIFIER_OPTION_TLS_INSECURE_HOST) ? 0 : 2;
-    int peer_validation = property_is_option_set(prop_map, CERTIFIER_OPTION_TLS_INSECURE_PEER) ? 0 : 1;
+    int host_validation = 2;
+    int peer_validation = 1;
     int is_debug_http_enabled = property_is_option_set(prop_map, CERTIFIER_OPTION_DEBUG_HTTP);
     int is_trace_http_enabled = property_is_option_set(prop_map, CERTIFIER_OPTION_TRACE_HTTP);
     long http_timeout = (long) property_get(prop_map, CERTIFIER_OPT_HTTP_TIMEOUT);

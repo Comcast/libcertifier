@@ -291,24 +291,23 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
     VerifyOrExit(result == 0, err = CHIP_ERROR_INTERNAL);
 
     {
-        Platform::ScopedMemoryBuffer<uint8_t> tbsData;
-        ByteSpan tbsSpan;
-        size_t tbsDataLen = dac.size() + strlen(mTimestamp) + nonce.size() + strlen(cert_id);
         P256ECDSASignature signature;
         MutableByteSpan signatureSpan(signature, signature.Capacity());
+        uint8_t md[kSHA256_Hash_Length];
+        MutableByteSpan mdSpan(md);
+        Hash_SHA256_stream hashStream;
 
         DeviceAttestationCredentialsProvider * dacProvider = GetDeviceAttestationCredentialsProvider();
 
-        VerifyOrExit(tbsData.Alloc(tbsDataLen), err = CHIP_ERROR_NO_MEMORY);
+        hashStream.Clear();
+        SuccessOrExit(err = hashStream.Begin());
+        SuccessOrExit(err = hashStream.AddData(dac));
+        SuccessOrExit(err = hashStream.AddData(ByteSpan(reinterpret_cast<const uint8_t *>(mTimestamp), strlen(mTimestamp))));
+        SuccessOrExit(err = hashStream.AddData(nonce));
+        SuccessOrExit(err = hashStream.AddData(ByteSpan(reinterpret_cast<const uint8_t *>(cert_id), strlen(cert_id))));
+        SuccessOrExit(err = hashStream.Finish(mdSpan));
 
-        XMEMCPY(tbsData.Get(), dac.data(), dac.size());
-        XMEMCPY(tbsData.Get() + dac.size(), mTimestamp, strlen(mTimestamp));
-        XMEMCPY(tbsData.Get() + dac.size() + strlen(mTimestamp), nonce.data(), nonce.size());
-        XMEMCPY(tbsData.Get() + dac.size() + strlen(mTimestamp) + nonce.size(), cert_id, strlen(cert_id));
-
-        tbsSpan = ByteSpan { tbsData.Get(), tbsDataLen };
-
-        SuccessOrExit(err = dacProvider->SignWithDeviceAttestationKey(tbsSpan, signatureSpan));
+        SuccessOrExit(err = dacProvider->SignWithDeviceAttestationKey(mdSpan, signatureSpan));
         SuccessOrExit(err = signature.SetLength(signatureSpan.size()));
 
         SuccessOrExit(err = EcdsaRawSignatureToAsn1(kMAX_FE_Length, signatureSpan, derSignatureSpan));

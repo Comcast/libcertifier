@@ -125,22 +125,22 @@ The command below fetches a Matter-compliant Operational Certificate with a desi
 -h
 | Display this summary
 
-| pkcs12-path
+| input-p12-path
 | k
-| --pkcs12-path <file-path> +
+| --input-p12-path <file-path> +
 -k <file-path>
 | Path to the PKCS12 File
 
-| pkcs12-password
+| input-p12-password
 | p
-| --pkcs12-password <value> +
+| --input-p12-password <value> +
 -p <value> +
 (Defaults to 'changeit' if not supplied)
 | Password to decrypt input P12 File
 
-| config-path
+| config
 | L
-| --config-path <file-path> +
+| --config <file-path> +
 -L <file-path> +
 (Defaults to 'libcertifier.cfg' if not supplied)
 | Pass in custom set of configurations for commandline utility
@@ -152,10 +152,10 @@ The command below fetches a Matter-compliant Operational Certificate with a desi
 | Enable verbose log output mode. +
 Disabled by default - Only error messages are shown.
 
-| crt-type
+| auth-type
 | X
-| --crt-type <crt-type> +
--X <crt-type>
+| --auth-type <auth-type> +
+-X <auth-type>
 | Select Output CRT Type (X509 or other values)
 
 | auth-token
@@ -173,9 +173,9 @@ Only valid and mandatory when client option is also passed in.
 | Input CRT (Base64). +
 It is an optional parameter, but will take precedence (against auth token) if used
 
-| overwrite-p12-file
+| overwrite-p12
 | f
-| --overwrite-p12-file +
+| --overwrite-p12 +
 -f
 | Overwrite P12 File
 
@@ -185,49 +185,53 @@ It is an optional parameter, but will take precedence (against auth token) if us
 -P <value>
 | Choose type of Certificate to be fetched from PKI (Either DAC Certificate - XFN_DL_PAI_1_Class_3 - or Matter Operational Certificate - XFN_Matter_OP_Class_3_ICA)
 
-| output-p12-file
+| output-p12-path
 | o
-| --output-p12-file <value> +
+| --output-p12-path <value> +
 -o <value>
 | Choose pathname of the resulting file that will store the P12 Chain that will include the generated certificate
 
-| output-p12-pass
+| output-p12-password
 | w
-| --output-12-pass <value> +
+| --output-12-password <value> +
 -w <value>
 | Password to encrypt the output p12 file
-
-| product-id
-| i
-| --product-id <id> +
- +
--n <id>
-| Choose NodeID (64-bit integer) to be assigned to the resulting certificate
-
-| node-id
-| n
-| --node-id <id> +
- +
--n <id>
-| Choose NodeID (64-bit integer) to be assigned to the resulting certificate
-
-| fabric-id
-| F
-| --fabric-id <id> +
--F <id>
-| Choose FabricID (64-bit integer) to be assigned to the resulting certificate
-
-| case-auth-tag
-| a
-| --case-auth-tag <id> +
--a <id>
-| Choose CASE Authentication Tag (32-bit integer) to be assigned to the resulting certificate
 
 | validity-days
 | v
 | --validity-days <days> +
 -v <days>
 | Choose number of validity days that a certificate is issued with
+
+| product-id
+| i
+| --product-id <id> +
+ +
+-n <id>
+| Choose ProductID (16-bit integer) to be assigned to the resulting certificate. +
+Matter Only certificate parameter
+
+| node-id
+| n
+| --node-id <id> +
+ +
+-n <id>
+| Choose NodeID (64-bit integer) to be assigned to the resulting certificate +
+Matter Only certificate
+
+| fabric-id
+| F
+| --fabric-id <id> +
+-F <id>
+| Choose FabricID (64-bit integer) to be assigned to the resulting certificate +
+Matter Only certificate
+
+| case-auth-tag
+| a
+| --case-auth-tag <id> +
+-a <id>
+| Choose CASE Authentication Tag (32-bit integer) to be assigned to the resulting certificate +
+Matter Only certificate
 
 |===
 
@@ -242,22 +246,22 @@ It is an optional parameter, but will take precedence (against auth token) if us
 -h
 | Display this summary
 
-| pkcs12-path
+| input-p12-path
 | k
-| --pkcs12-path <file-path> +
+| --input-p12-path <file-path> +
 -k <file-path>
 | Path to the PKCS12 File
 
-| pkcs12-password
+| input-p12-password
 | p
-| --pkcs12-password <value> +
+| --input-p12-password <value> +
 -p <value> +
 (Defaults to 'changeit' if not supplied)
 | Password to decrypt input P12 File
 
-| config-path
+| config
 | L
-| --config-path <file-path> +
+| --config <file-path> +
 -L <file-path> +
 (Defaults to 'libcertifier.cfg' if not supplied)
 | Pass in custom set of configurations for commandline utility
@@ -269,10 +273,10 @@ It is an optional parameter, but will take precedence (against auth token) if us
 | Enable verbose log output mode. +
 Disabled by default - Only error messages are shown.
 
-| crt-type
+| auth-type
 | X
-| --crt-type <crt-type> +
--X <crt-type>
+| --auth-type <auth-type> +
+-X <auth-type>
 | Select Output CRT Type (X509 or other values)
 
 | auth-token
@@ -295,15 +299,15 @@ Disabled by default - Only error messages are shown.
 -h
 | Display this summary
 
-| pkcs12-path
+| input-p12-path
 | k
-| --pkcs12-path <file-path> +
+| --input-p12-path <file-path> +
 -k <file-path>
 | Path to the PKCS12 File
 
-| pkcs12-password
+| input-p12-password
 | p
-| --pkcs12-password <value> +
+| --input-p12-password <value> +
 -p <value> +
 (Defaults to 'changeit' if not supplied)
 | Password to decrypt input P12 File
@@ -335,15 +339,15 @@ Disabled by default - Only error messages are shown.
 -h
 | Display this summary
 
-| pkcs12-path
+| input-p12-path
 | k
-| --pkcs12-path <file-path> +
+| --input-p12-path <file-path> +
 -k <file-path>
 | Path to the PKCS12 File
 
-| pkcs12-password
+| input-p12-password
 | p
-| --pkcs12-password <value> +
+| --input-p12-password <value> +
 -p <value> +
 (Defaults to 'changeit' if not supplied)
 | Password to decrypt input P12 File
@@ -362,12 +366,6 @@ Disabled by default - Only error messages are shown.
 | Enable verbose log output mode. +
 Disabled by default - Only error messages are shown.
 
-| validity-days
-| t
-| --validity-days <days> +
--t <days>
-| Choose number of validity days that a certificate is issued with
-
 |===
 
 == *certifierUtil print-cert options*
@@ -381,16 +379,16 @@ Disabled by default - Only error messages are shown.
 -h
 | Display this summary
 
-| pkcs12-path
+| input-p12-path
 | k
-| --pkcs12-path <value> +
+| --input-p12-path <value> +
 -k <value>
 | Path to the PKCS12 File
 
 
-| pkcs12-password
+| input-p12-password
 | p
-| --pkcs12-password <value> +
+| --input-p12-password <value> +
 -p <value> +
 (Defaults to 'changeit' if not supplied)
 | Password to decrypt input P12 File
@@ -422,15 +420,15 @@ Disabled by default - Only error messages are shown.
 -h
 | Display this summary
 
-| pkcs12-path
+| input-p12-path
 | k
-| --pkcs12-path <value> +
+| --input-p12-path <value> +
 -k <value>
 | Path to the PKCS12 File
 
-| pkcs12-password
+| input-p12-password
 | p
-| --pkcs12-password <value> +
+| --input-p12-password <value> +
 -p <value> +
 (Defaults to 'changeit' if not supplied)
 | Password to decrypt input P12 File
@@ -468,18 +466,13 @@ Here are the details for every valid entry that can be added to the Configuratio
 | "XFN_Matter_OP_Class_3_ICA"
 | Set Profile name for the desired certificate to fetch (Defaults to Matter Operational Certificate)
 
-| libcertifier.num.days
+| libcertifier.validity.days
 | 365
 | Set the number of validity days of the issuing certificate
 
-| libcertifier.crt.type
+| libcertifier.auth.type
 | "X509"
 | Choose CRT input type
-
-| libcertifier.disable.auto.renewal
-| 0
-| Enable automatic certificate renewal. +
-Note: value type = `bool`
 
 | libcertifier.ecc.curve.id
 | "prime256v1"
@@ -497,13 +490,13 @@ Note: value type = `bool`
 | 0
 | Enable Debug/Trace output during HTTP exchange
 
-| libcertifier.int.ca
-| <default-PEM-CA-Certificate>
-| Store device's Intermediate CA Certificate
-
-| libcertifier.keystore
-| "lrg"
+| libcertifier.input.p12.path
+| "seed.p12"
 | Set Path to the input PKCS#12 File containing a keypair and client certificate
+
+| libcertifier.input.p12.password
+| "changeit"
+| Set password of the PKCS#12 file
 
 | libcertifier.log.file
 | "/tmp/libcertifier.log"
@@ -522,17 +515,9 @@ Note: value type = `bool`
 | Enable performance logs. +
 Note: value type = `bool`
 
-| libcertifier.password
-| "changeit"
-| Set password of the keystore/PKCS#12 file
-
-| libcertifier.root.ca
-| <default-PEM-ROOT-Certificate>
-| Store device's Root Certificate
-
-| libcertifier.source.name
+| libcertifier.source.id
 | "libcertifier-opensource"
-| Set the request source name
+| Set the request source id
 
 | libcertifier.tls.insecure.host
 | 0
