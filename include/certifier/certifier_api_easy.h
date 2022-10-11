@@ -19,17 +19,13 @@
 #ifndef CERTIFIER_API_EASY_H
 #define CERTIFIER_API_EASY_H
 
-#include "certifier.h"
 #include "certifier/property.h"
-#include "certifier/types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef struct CERTIFIER CERTIFIER;
-
-typedef struct http_response http_response;
 
 /**
  * Modes for certifier_api_easy_perform.
@@ -224,28 +220,6 @@ const char *certifier_api_easy_get_result_json(CERTIFIER *easy);
  */
 const char *certifier_api_easy_get_result(CERTIFIER *easy);
 
-/**
- * Send a CSR to HTTP server
- * @param easy
- * @param url
- * @param http_headers
- * @param csr
- * @return HTTP response
- */
-http_response *certifier_api_easy_http_post( const CERTIFIER *easy,
-                                             const char *url,
-                                             const char *http_headers[],
-                                             const char *csr);
-
-int certifier_api_easy_set_keys_and_node_address(CERTIFIER *easy, ECC_KEY *new_key);
-
-void certifier_api_easy_set_ecc_key(CERTIFIER *easy, const ECC_KEY *key);
-
-const ECC_KEY *certifier_api_easy_get_priv_key(CERTIFIER *easy);
-
-int certifier_api_easy_create_json_csr(CERTIFIER *easy, unsigned char *csr, char *node_address, char **json_csr);
-
-const char *certifier_api_easy_get_node_address(CERTIFIER *easy);
 /**
  * @}
  */

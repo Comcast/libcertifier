@@ -35,6 +35,7 @@
 
 #include <certifier/base64.h>
 #include <certifier/certifier_api_easy.h>
+#include <certifier/certifier_api_easy_internal.h>
 #include <certifier/certifier_internal.h>
 #include <certifier/http.h>
 #include <certifier/parson.h>

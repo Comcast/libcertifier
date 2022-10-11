@@ -246,7 +246,6 @@ set(MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full")
 
 message(STATUS "extra cflags: ${CMAKE_C_FLAGS}")
 
-add_subdirectory(tests/keymgr)
 add_subdirectory(daemon)
 
 if (${ENABLE_TESTS})
@@ -312,6 +311,27 @@ if (${ENABLE_TESTS})
         APPEND_COVERAGE_COMPILER_FLAGS()
         SETUP_TARGET_FOR_COVERAGE_LCOV(NAME ${PROJECT_NAME}_coverage EXECUTABLE ctest DEPENDENCIES ${PROJECT_NAME})
     endif ()
+endif ()
+
+if (${ENABLE_TESTS})
+    project(xcApiTests)
+
+    file(GLOB TEST_SOURCES "tests/xc_apis/*.c")
+    list(APPEND TEST_SOURCES "tests/Unity/src/unity.c")
+
+    add_executable(${PROJECT_NAME} ${TEST_SOURCES})
+
+    target_include_directories(${PROJECT_NAME} PUBLIC include "tests/Unity/include" ${CERTIFIER_INCLUDE_DIRS} PRIVATE internal_headers)
+    target_link_libraries(${PROJECT_NAME} certifier ${CERTIFIER_LIBS})
+
+    add_test(NAME xc-api-tests COMMAND ${PROJECT_NAME})
+
+#    add_custom_command(
+#        TARGET ${PROJECT_NAME}
+#        POST_BUILD
+#        COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/resources/stage-seed.p12 ${CMAKE_CURRENT_BINARY_DIR}
+#        VERBATIM
+#    )
 endif ()
 
 if (${ENABLE_MATTER_EXAMPLES})

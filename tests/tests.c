@@ -205,11 +205,11 @@ static void test_certifier_client_requests1(void **state) {
     return_code = certifier_set_property(certifier, CERTIFIER_OPT_CN_PREFIX, "xcal.tv"); 
     assert_int_equal(0, return_code);
 
-    return_code = certifier_set_property(certifier, CERTIFIER_OPT_NUM_DAYS, 730); 
+    return_code = certifier_set_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS, 730);
     assert_int_equal(0, return_code);
 
     cn_prefix = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX); 
-    num_days =  certifier_get_property(certifier, CERTIFIER_OPT_NUM_DAYS);
+    num_days =  certifier_get_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS);
     assert_int_equal(730, num_days);
     if (cn_prefix) {
        return_code = strncmp(cn_prefix, "xcal.tv", 8);       
@@ -1411,9 +1411,9 @@ static void test_pkcs12(void **state) {
     security_free_cert(cert);
 
     // test public certifier methods
-    certifier_set_property(certifier, CERTIFIER_OPT_PASSWORD, pkcs12_passwd);
+    certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, pkcs12_passwd);
     certifier_set_property(certifier, CERTIFIER_OPT_ECC_CURVE_ID, "prime256v1");
-    certifier_set_property(certifier, CERTIFIER_OPT_KEYSTORE, pkcs12_file_name);
+    certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, pkcs12_file_name);
     ret = certifier_setup_keys(certifier);
     assert_int_equal(0, ret);
     assert_non_null(certifier_get_node_address(certifier));
@@ -1424,12 +1424,12 @@ static void test_pkcs12(void **state) {
     XFREE(pem);
     pem = NULL;
 
-    certifier_set_property(certifier, CERTIFIER_OPT_KEYSTORE, "");
+    certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, "");
     ret = certifier_setup_keys(certifier);
     assert_int_equal(4, ret);
 
-    certifier_set_property(certifier, CERTIFIER_OPT_KEYSTORE, pkcs12_file_name);
-    certifier_set_property(certifier, CERTIFIER_OPT_PASSWORD, "");
+    certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, pkcs12_file_name);
+    certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, "");
     ret = certifier_setup_keys(certifier);
     assert_int_equal(5, ret);
 
@@ -1438,13 +1438,13 @@ static void test_pkcs12(void **state) {
     XFREE(pem);
     pem = NULL;
 
-    certifier_set_property(certifier, CERTIFIER_OPT_PASSWORD, pkcs12_passwd);
+    certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, pkcs12_passwd);
     certifier_set_property(certifier, CERTIFIER_OPT_ECC_CURVE_ID, "");
     ret = certifier_setup_keys(certifier);
     assert_int_equal(6, ret);
 
-    certifier_set_property(certifier, CERTIFIER_OPT_KEYSTORE, pkcs12_file_name);
-    certifier_set_property(certifier, CERTIFIER_OPT_PASSWORD, pkcs12_passwd);
+    certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, pkcs12_file_name);
+    certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, pkcs12_passwd);
     certifier_set_property(certifier, CERTIFIER_OPT_ECC_CURVE_ID, "prime256v1");
 
     ret = certifier_get_device_registration_status(certifier);
@@ -1457,8 +1457,8 @@ static void test_pkcs12(void **state) {
     //assert_int_equal(0, ret);
     //assert_non_null(output_x509_cert);
 
-    certifier_set_property(certifier, CERTIFIER_OPT_KEYSTORE, "/tmp/test.p12");
-    certifier_set_property(certifier, CERTIFIER_OPT_PASSWORD, "fake_password");
+    certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, "/tmp/test.p12");
+    certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, "fake_password");
     ret = certifier_setup_keys(certifier);
     assert_int_equal(1, ret);
 
@@ -1546,13 +1546,13 @@ static void test_logging(void **state) {
 static void test_options(void **state) {
     CertifierPropMap *props = _certifier_get_properties(certifier);
 
-    certifier_set_property(certifier, CERTIFIER_OPT_TLS_INSECURE_HOST, (void *) true);
-    assert_true(certifier_get_property(certifier, CERTIFIER_OPT_TLS_INSECURE_HOST));
-    assert_true(property_is_option_set(props, CERTIFIER_OPTION_TLS_INSECURE_HOST));
+    certifier_set_property(certifier, CERTIFIER_OPT_CERTIFICATE_LITE, (void *) true);
+    assert_true(certifier_get_property(certifier, CERTIFIER_OPT_CERTIFICATE_LITE));
+    assert_true(property_is_option_set(props, CERTIFIER_OPTION_CERTIFICATE_LITE));
 
-    certifier_set_property(certifier, CERTIFIER_OPT_TLS_INSECURE_HOST, false);
-    assert_false(certifier_get_property(certifier, CERTIFIER_OPT_TLS_INSECURE_HOST));
-    assert_false(property_is_option_set(props, CERTIFIER_OPTION_TLS_INSECURE_HOST));
+    certifier_set_property(certifier, CERTIFIER_OPT_CERTIFICATE_LITE, false);
+    assert_false(certifier_get_property(certifier, CERTIFIER_OPT_CERTIFICATE_LITE));
+    assert_false(property_is_option_set(props, CERTIFIER_OPTION_CERTIFICATE_LITE));
 }
 
 int main(int argc, char **argv) {
