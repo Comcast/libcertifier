@@ -12,11 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-copy("libcertifier_cfg_copy") {
-  sources = [ "matter_plugin/libcertifier.cfg" ]
-  outputs = [ "$root_out_dir/libcertifier.cfg" ]
-}
-
 copy("libcertifier_cert_copy") {
   sources = [ "libcertifier-cert.crt" ]
   outputs = [ "$root_out_dir/libcertifier-cert.crt" ]

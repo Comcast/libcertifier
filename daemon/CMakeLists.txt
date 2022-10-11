@@ -4,7 +4,7 @@ file(GLOB SOURCES "*.c")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} certifier)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/internal_headers)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_CURRENT_SOURCE_DIR}/../internal_headers)
 
 # The rule to install daemon binary
 install (TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)

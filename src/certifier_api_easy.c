@@ -22,6 +22,7 @@
 #include "certifier/log.h"
 #include "certifier/util.h"
 #include "certifier/certifier_api_easy.h"
+#include "certifier/certifier_api_easy_internal.h"
 #include "certifier/types.h"
 #include "certifier/security.h"
 #include "certifier/http.h"
@@ -32,7 +33,7 @@
 #include <unistd.h>
 
 // Defines
-#define DEFAULT_PASSWORD             "changeit"
+#define DEFAULT_PASSWORD       "changeit"
 #define VERY_SMALL_STRING_SIZE 32
 #define VERY_LARGE_STRING_SIZE 2048
 
@@ -40,9 +41,6 @@
 #define CASE_AUTH_TAG_LENGTH 8ul
 #define NODE_ID_LENGTH    16ul
 #define FABRIC_ID_LENGTH  16ul
-
-#define KEYMGR_FIFO_IN_PATH  "/tmp/certifier-fifo-in"
-#define KEYMGR_FIFO_OUT_PATH "/tmp/certifier-fifo-out"
 
 #define NULL_CHECK(p)                                                   \
 if (p == NULL)                                                          \
@@ -55,30 +53,30 @@ if (p == NULL)                                                          \
 #define GET_CERT_SHORT_OPTIONS "fT:P:o:i:n:F:a:w:"
 #define VALIDITY_DAYS_SHORT_OPTION "t:"
 
-#define BASE_LONG_OPTIONS                             \
-    {"help",           no_argument,       NULL, 'h'}, \
-    {"pkcs12-path",    required_argument, NULL, 'k'}, \
-    {"pkcs12-password",required_argument, NULL, 'p'}, \
-    {"config",         required_argument, NULL, 'L'}, \
-    {"verbose",        no_argument,       NULL, 'v'}
+#define BASE_LONG_OPTIONS                                \
+    {"help",              no_argument,       NULL, 'h'}, \
+    {"input-p12-path",    required_argument, NULL, 'k'}, \
+    {"input-p12-password",required_argument, NULL, 'p'}, \
+    {"config",            required_argument, NULL, 'L'}, \
+    {"verbose",           no_argument,       NULL, 'v'}
 
-#define GET_CRT_TOKEN_LONG_OPTIONS                    \
-    {"crt-type",       required_argument, NULL, 'X'}, \
-    {"auth-token",     required_argument, NULL, 'S'}
+#define GET_CRT_TOKEN_LONG_OPTIONS                       \
+    {"auth-type",         required_argument, NULL, 'X'}, \
+    {"auth-token",        required_argument, NULL, 'S'}
 
-#define GET_CERT_LONG_OPTIONS                    \
-    {"remove-pkcs12",  no_argument,       NULL, 'f'}, \
-    {"crt",            required_argument, NULL, 'T'}, \
-    {"profile-name",   required_argument, NULL, 'P'}, \
-    {"output-p12-file",required_argument, NULL, 'o'}, \
-    {"output-p12-pass",required_argument, NULL, 'w'}, \
-    {"product-id",     required_argument, NULL, 'i'}, \
-    {"node-id",        required_argument, NULL, 'n'}, \
-    {"fabric-id",      required_argument, NULL, 'F'}, \
-    {"case-auth-tag",  required_argument, NULL, 'a'}
+#define GET_CERT_LONG_OPTIONS                             \
+    {"overwrite-p12",      no_argument,       NULL, 'f'}, \
+    {"crt",                required_argument, NULL, 'T'}, \
+    {"profile-name",       required_argument, NULL, 'P'}, \
+    {"output-p12-path",    required_argument, NULL, 'o'}, \
+    {"output-p12-password",required_argument, NULL, 'w'}, \
+    {"product-id",         required_argument, NULL, 'i'}, \
+    {"node-id",            required_argument, NULL, 'n'}, \
+    {"fabric-id",          required_argument, NULL, 'F'}, \
+    {"case-auth-tag",      required_argument, NULL, 'a'}
 
-#define VALIDITY_DAYS_LONG_OPTION                     \
-    {"validity-days",  required_argument, NULL, 't'}
+#define VALIDITY_DAYS_LONG_OPTION                         \
+    {"validity-days",      required_argument, NULL, 't'}
 
 static void finish_operation(CERTIFIER *easy, int return_code, const char *operation_output);
 
@@ -117,24 +115,24 @@ static const char * get_command_opt_helper(CERTIFIER_MODE mode) {
 #define BASE_HELPER                            \
     "Usage:  certifierUtil %s [OPTIONS]\n"     \
     "--help (-h)\n"                            \
-    "--pkcs12-path [PKCS12 Path] (-k)\n"       \
-    "--pkcs12-password (-p)\n"                 \
+    "--input-p12-path [PKCS12 Path] (-k)\n"    \
+    "--input-p12-password (-p)\n"              \
     "--config [value] (-L)\n"                  \
     "--verbose (-v)\n"
 
 #define GET_CRT_TOKEN_HELPER      \
-    "--crt-type [value] (-X)\n"   \
+    "--auth-type [value] (-X)\n"  \
     "--auth-token [value] (-S)\n"
 
-#define GET_CERT_HELPER           \
-    "--crt [value] (-T)\n"        \
-    "--overwrite-p12-file (-f)\n" \
-    "--profile-name (-P)\n"       \
-    "--output-p12-file (-o)\n"    \
-    "--output-p12-pass (-w)\n"    \
-    "--product-id (-i)\n"         \
-    "--node-id (-n)\n"            \
-    "--fabric-id (-F)\n"          \
+#define GET_CERT_HELPER            \
+    "--crt [value] (-T)\n"         \
+    "--overwrite-p12 (-f)\n"       \
+    "--profile-name (-P)\n"        \
+    "--output-p12-path (-o)\n"     \
+    "--output-p12-password (-w)\n" \
+    "--product-id (-i)\n"          \
+    "--node-id (-n)\n"             \
+    "--fabric-id (-F)\n"           \
     "--case-auth-tag (-a)\n"
 
 #define VALIDITY_DAYS_HELPER \
@@ -168,16 +166,6 @@ static void free_easy_info(CERTIFIERInfo *info) {
 
 CERTIFIER *certifier_api_easy_new(void) {
     CERTIFIER *easy = NULL;
-
-    unlink(KEYMGR_FIFO_IN_PATH);
-    if (mkfifo(KEYMGR_FIFO_IN_PATH, 0666) != 0) {
-        return NULL;
-    }
-
-    unlink(KEYMGR_FIFO_OUT_PATH);
-    if (mkfifo(KEYMGR_FIFO_OUT_PATH, 0666) != 0) {
-        return NULL;
-    }
 
     Certifier *certifier = certifier_new();
     if (certifier == NULL) {
@@ -234,9 +222,6 @@ void certifier_api_easy_destroy(CERTIFIER *easy) {
         certifier_destroy(easy->certifier);
         free_easy_info(&easy->last_info);
     }
-
-    unlink(KEYMGR_FIFO_IN_PATH);
-    unlink(KEYMGR_FIFO_OUT_PATH);
 
     XFREE(easy);
 }
@@ -421,7 +406,7 @@ static int do_create_crt(CERTIFIER *easy) {
 
     char *crt = NULL;
     char *tmp_crt = NULL;
-    char *crt_type = certifier_get_property(easy->certifier, CERTIFIER_OPT_CRT_TYPE);
+    char *crt_type = certifier_get_property(easy->certifier, CERTIFIER_OPT_AUTH_TYPE);
 
     if (util_is_empty(crt_type)) {
         return_code = CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
@@ -709,61 +694,6 @@ static bool is_valid_id(const char *id, const size_t id_length) {
     return true;
 }
 
-static int is_password_an_fd(const char *arg, char *fd_password, const size_t fd_password_length) {
-    int ret = 0;
-    const char *fd_path = NULL;
-    char fdneedle[4]  = "fd:";
-    size_t fd_length = 3;
-    int fd = 0;
-    ssize_t bytes_read = 0;
-
-    if (strncmp(fdneedle, arg, fd_length) == 0) {
-        fd_path = &arg[fd_length];
-
-        fd = open(fd_path, O_RDONLY);
-
-        if (fd != -1) {
-            bytes_read = read(fd, fd_password, fd_password_length - 1);
-
-            if (bytes_read != -1) {
-                fd_password[bytes_read] = '\0';
-                ret = 1;
-            }
-
-            close(fd);
-            unlink(fd_path);
-        }
-    }
-
-    return ret;
-}
-
-static int is_password_in_keymgr(bool in, const char *arg, char *fd_password, const size_t fd_password_length) {
-    int ret = 0;
-    char keymgr_needle[4]  = "km:";
-    size_t keymgr_neddle_length = 3;
-    int fd = 0;
-    ssize_t bytes_read = 0;
-
-    if (strncmp(keymgr_needle, arg, keymgr_neddle_length) == 0) {
-
-        fd = open(in ? KEYMGR_FIFO_IN_PATH : KEYMGR_FIFO_OUT_PATH, O_RDONLY);
-
-        if (fd != -1) {
-            bytes_read = read(fd, fd_password, fd_password_length - 1);
-
-            if (bytes_read != -1) {
-                fd_password[bytes_read] = '\0';
-                ret = 1;
-            }
-
-            close(fd);
-        }
-    }
-
-    return ret;
-}
-
 static int process_command_line(CERTIFIER *easy) {
     int return_code = 0;
 
@@ -808,7 +738,6 @@ static int process_command_line(CERTIFIER *easy) {
 
     char *version_string = certifier_api_easy_get_version(easy);
 
-    char fd_password[LARGE_STRING_SIZE + 1] = {0};
     char id_array[NODE_ID_LENGTH + 1] = {0};
     char *end_id_array = &id_array[NODE_ID_LENGTH];
     // keep last index as \0. We want this to be a null terminated string.
@@ -832,22 +761,10 @@ static int process_command_line(CERTIFIER *easy) {
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) true);
                 break;
             case 'p':
-                if (is_password_an_fd(optarg, fd_password, sizeof(fd_password)) ||
-                    is_password_in_keymgr(true, optarg, fd_password, sizeof(fd_password))) {
-
-                    return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD, fd_password);
-                } else {
-                    return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD, optarg);
-                }
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, optarg);
                 break;
             case 'w':
-                if (is_password_an_fd(optarg, fd_password, sizeof(fd_password)) ||
-                    is_password_in_keymgr(false, optarg, fd_password, sizeof(fd_password))) {
-
-                    return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT, fd_password);
-                } else {
-                    return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT, optarg);
-                }
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD, optarg);
                 break;
             case 'L':
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_CFG_FILENAME, optarg);
@@ -865,7 +782,7 @@ static int process_command_line(CERTIFIER *easy) {
                     break;
                 }
 
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_CRT_TYPE, optarg);
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_AUTH_TYPE, optarg);
 
                 break;
             case 'S':
@@ -879,14 +796,14 @@ static int process_command_line(CERTIFIER *easy) {
                 if (optarg == NULL) {
                     break;
                 }
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_KEYSTORE, optarg);
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PATH, optarg);
 
                 break;
             case 'o':
                 if (optarg == NULL) {
                     break;
                 }
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE, optarg);
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH, optarg);
 
                 break;
             case 'P':
@@ -921,7 +838,7 @@ static int process_command_line(CERTIFIER *easy) {
                 if (optarg == NULL) {
                     break;
                 }
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE, optarg);
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH, optarg);
 
                 if (strlen(optarg) > NODE_ID_LENGTH) {
                     log_error("Node ID is expected to be a 64-bit hex number");
@@ -987,7 +904,7 @@ static int process_command_line(CERTIFIER *easy) {
                 }
 
                 if (atoi(optarg) > 0) {
-                    return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_NUM_DAYS, (const void *) (size_t) atoi(optarg));
+                    return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_VALIDITY_DAYS, (const void *) (size_t) atoi(optarg));
                 } else {
                     log_error("Expected input to be of positive integer type");
                     return_code = 1;
@@ -1093,26 +1010,26 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
 
     force_registration = certifier_is_option_set(easy->certifier, CERTIFIER_OPTION_FORCE_REGISTRATION);
 
-    const char *password = certifier_get_property(easy->certifier, CERTIFIER_OPT_PASSWORD);
+    const char *password = certifier_get_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
     if (util_is_empty(password)) {
-        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD, DEFAULT_PASSWORD);
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, DEFAULT_PASSWORD);
         if (return_code != 0) {
-            log_error("Received return_code: <%i> while setting default CERTIFIER_OPT_PASSWORD.  Exiting.",
+            log_error("Received return_code: <%i> while setting default CERTIFIER_OPT_INPUT_P12_PASSWORD.  Exiting.",
                       return_code);
             safe_exit(easy, return_code);
             goto cleanup;
         }
-        log_info("Default CERTIFIER_OPT_PASSWORD was set.");
+        log_info("Default CERTIFIER_OPT_INPUT_P12_PASSWORD was set.");
     }
-    if (util_is_empty(certifier_get_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT))) {
-        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT, password);
+    if (util_is_empty(certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD))) {
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD, password);
         if (return_code != 0) {
-            log_error("Received return_code: <%i> while setting CERTIFIER_OPT_PASSWORD_OUT.  Exiting.",
+            log_error("Received return_code: <%i> while setting CERTIFIER_OPT_OUTPUT_P12_PASSWORD.  Exiting.",
                       return_code);
             safe_exit(easy, return_code);
             goto cleanup;
         }
-        log_info("CERTIFIER_OPT_PASSWORD_OUT was set with the same value as the input Password.");
+        log_info("CERTIFIER_OPT_OUTPUT_P12_PASSWORD was set with the same value as the input Password.");
     }
 
     switch (easy->mode) {
@@ -1120,11 +1037,11 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
             break;
 
         case CERTIFIER_MODE_REGISTER:
-            if (certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE) != NULL) {
-                certifier_set_property(easy->certifier, CERTIFIER_OPT_KEYSTORE,
-                                       certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE));
+            if (certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH) != NULL) {
+                certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PATH,
+                                       certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH));
             }
-            certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD, certifier_get_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT));
+            certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD));
 
             do_registration(easy);
             break;
@@ -1151,12 +1068,12 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
 
             do_create_crt(easy);
 
-            if (certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE) != NULL) {
-                certifier_set_property(easy->certifier, CERTIFIER_OPT_KEYSTORE,
-                                       certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_KEYSTORE));
+            if (certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH) != NULL) {
+                certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PATH,
+                                       certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH));
             }
             certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) force_registration);
-            certifier_set_property(easy->certifier, CERTIFIER_OPT_PASSWORD, certifier_get_property(easy->certifier, CERTIFIER_OPT_PASSWORD_OUT));
+            certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD));
 
             do_registration(easy);
             break;

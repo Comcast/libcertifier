@@ -72,8 +72,8 @@ static void set_last_error(Certifier *certifier, const int error_code, char *err
 /**
  * Load certificate info
  * @pre This device is registered
- * @pre CERTIFIER_OPT_KEYSTORE is set to a valid pkcs#12 file
- * @pre CERTIFIER_OPT_PASSWORD is set
+ * @pre CERTIFIER_OPT_INPUT_P12_PATH is set to a valid pkcs#12 file
+ * @pre CERTIFIER_OPT_INPUT_P12_PASSWORD is set
  * @post tmp_map.x509_cert is set
  * @post last error info is set on failure
  * @return 0 on success or an error code
@@ -185,8 +185,8 @@ certifier_setup_keys(Certifier *certifier) {
     int return_code = 0;
     char *tmp_node_address = NULL;
 
-    const char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_KEYSTORE);
-    const char *password = certifier_get_property(certifier, CERTIFIER_OPT_PASSWORD);
+    const char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH);
+    const char *password = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
     const char *ecc_curve_id = certifier_get_property(certifier, CERTIFIER_OPT_ECC_CURVE_ID);
     char *cn_prefix = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
 
@@ -225,8 +225,8 @@ certifier_setup_keys(Certifier *certifier) {
 
 static int load_cert(Certifier *certifier) {
     X509_CERT *cert = NULL;
-    const char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_KEYSTORE);
-    const char *password = certifier_get_property(certifier, CERTIFIER_OPT_PASSWORD);
+    const char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH);
+    const char *password = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
     int return_code = 0;
 
     // If there is a .p12 file, then we were already registered
@@ -402,7 +402,7 @@ static int save_x509certs_to_filesystem(Certifier *certifier, char *x509_certs,
         goto cleanup;
     }
 
-    const char *password = certifier_get_property(certifier, CERTIFIER_OPT_PASSWORD);
+    const char *password = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
 
     //FIXME: This decision is done too late. Overwrite policy should be explicit
     // and checked before trying to register (e.g., CERTIFIER_OPT_FORCE_REGISTRATION).
@@ -439,7 +439,7 @@ int certifier_renew_certificate(Certifier *certifier) {
     unsigned char *p_der_cert = NULL;
     size_t der_cert_len = 0;
     char *x509_certs = NULL;
-    char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_KEYSTORE);
+    char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH);
 
     free_tmp(certifier);
 
@@ -947,8 +947,8 @@ int certifier_set_property(Certifier *certifier, int name, const void *value) {
             certifier_set_log_callback(certifier, value);
             break;
 
-        case CERTIFIER_OPT_KEYSTORE:
-        case CERTIFIER_OPT_PASSWORD:
+        case CERTIFIER_OPT_INPUT_P12_PATH:
+        case CERTIFIER_OPT_INPUT_P12_PASSWORD:
         case CERTIFIER_OPT_ECC_CURVE_ID:
             free_tmp(certifier);
             break;
@@ -1076,7 +1076,7 @@ int certifier_register(Certifier *certifier) {
 
     int force_registration = 0;
 
-    const char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_KEYSTORE);
+    const char *p12_filename = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH);
 
     double start_user_cpu_time = 0, end_user_cpu_time = 0;
     double start_system_cpu_time = 0, end_system_cpu_time = 0;
@@ -1307,7 +1307,7 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
     const char *profile_name = property_get(props, CERTIFIER_OPT_PROFILE_NAME);
     const char *product_id = property_get(props, CERTIFIER_OPT_PRODUCT_ID);
     const char *authenticated_tag_1 = property_get(props, CERTIFIER_OPT_AUTH_TAG_1);
-    size_t  num_days   = (size_t) property_get(props, CERTIFIER_OPT_NUM_DAYS);
+    size_t  num_days   = (size_t) property_get(props, CERTIFIER_OPT_VALIDITY_DAYS);
     bool is_certificate_lite = property_is_option_set(props, CERTIFIER_OPTION_CERTIFICATE_LITE);
 
     json_object_set_string(root_object, "csr", (const char *) csr);

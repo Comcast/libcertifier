@@ -39,12 +39,12 @@ extern "C" {
     }                                                                          \
 }                                                                              \
 
-struct http_response {
+typedef struct http_response {
     const char *error_msg;
     const char *payload;
     int http_code;
     int error;
-};
+} http_response;
 
 int http_init(void);
 

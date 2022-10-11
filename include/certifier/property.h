@@ -19,8 +19,6 @@
 #ifndef PROPERTY_H
 #define PROPERTY_H
 
-#include "certifier/types.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -39,17 +37,18 @@ typedef enum CERTIFIER_OPT
      * @post The file at the given path is loaded and any options are set (when the file exists and is valid).
      */
         CERTIFIER_OPT_CFG_FILENAME = 1,
-        CERTIFIER_OPT_CRT_TYPE = 2,
+        CERTIFIER_OPT_AUTH_TYPE = 2,
         CERTIFIER_OPT_CERTIFIER_URL = 3,
         CERTIFIER_OPT_HTTP_TIMEOUT = 4,
         CERTIFIER_OPT_HTTP_CONNECT_TIMEOUT = 5,
-        CERTIFIER_OPT_KEYSTORE = 6,
-        CERTIFIER_OPT_PASSWORD = 7,
-        CERTIFIER_OPT_PASSWORD_OUT = 8,
-        CERTIFIER_OPT_CA_INFO = 9,
-        CERTIFIER_OPT_CA_PATH = 10,
-        CERTIFIER_OPT_CRT = 11,
-        CERTIFIER_OPT_PROFILE_NAME = 12,
+        CERTIFIER_OPT_INPUT_P12_PATH = 6,
+        CERTIFIER_OPT_INPUT_P12_PASSWORD = 7,
+        CERTIFIER_OPT_OUTPUT_P12_PATH = 8,
+        CERTIFIER_OPT_OUTPUT_P12_PASSWORD = 9,
+        CERTIFIER_OPT_CA_INFO = 10,
+        CERTIFIER_OPT_CA_PATH = 11,
+        CERTIFIER_OPT_CRT = 12,
+        CERTIFIER_OPT_PROFILE_NAME = 13,
 
         /**
      * Bitmap containing boolean options (read-only).
@@ -57,18 +56,17 @@ typedef enum CERTIFIER_OPT
      * @see CERTIFIER_OPT_OPTION for bits and CERTIFIER_OPT for available options
      * @note value type: int
      */
-        CERTIFIER_OPT_OPTIONS = 13,
-        CERTIFIER_OPT_ECC_CURVE_ID = 14,
+        CERTIFIER_OPT_OPTIONS = 14,
+        CERTIFIER_OPT_ECC_CURVE_ID = 15,
 
         /**
      * Set this to request certificates with an X.509 subjectAltName (otherName type).
      * @note value type: string
      */
-        CERTIFIER_OPT_SYSTEM_ID = 15,
-        CERTIFIER_OPT_FABRIC_ID = 16,
-        CERTIFIER_OPT_PRODUCT_ID = 17,
-        CERTIFIER_OPT_ROOT_CA = 18,
-        CERTIFIER_OPT_INT_CA = 19,
+        CERTIFIER_OPT_SYSTEM_ID = 16,
+        CERTIFIER_OPT_FABRIC_ID = 17,
+        CERTIFIER_OPT_PRODUCT_ID = 18,
+        // 19 is unused
         CERTIFIER_OPT_LOG_FILENAME = 20,
         CERTIFIER_OPT_LOG_LEVEL = 21,
         // 22 is unused
@@ -92,7 +90,7 @@ typedef enum CERTIFIER_OPT
      */
         CERTIFIER_OPT_SOURCE = 45,
         CERTIFIER_OPT_CN_PREFIX = 46,
-        CERTIFIER_OPT_NUM_DAYS = 47,
+        CERTIFIER_OPT_VALIDITY_DAYS = 47,
         CERTIFIER_OPT_EXT_KEY_USAGE = 48,
 
             /**
@@ -129,18 +127,6 @@ typedef enum CERTIFIER_OPT
         CERTIFIER_OPT_TRACE_HTTP,
 
         /**
-     * Disable TLS host (subject/subject alternative name(s)) authentication
-     * @note value type: bool
-     */
-        CERTIFIER_OPT_TLS_INSECURE_HOST,
-
-        /**
-     * Disable TLS peer (certificate issuer) authentication
-     * @note value type: bool
-     */
-        CERTIFIER_OPT_TLS_INSECURE_PEER,
-
-        /**
      * Disable any existing keystore when registering.
      * This can be set, for example, when attempting to recover from a corrupted keystore, or to force a re-key.
      * @note The node address and common name will be regenerated upon successful registration.
@@ -163,11 +149,6 @@ typedef enum CERTIFIER_OPT
      */
 
         CERTIFIER_OPT_MAC_ADDRESS,
-
-        /**
-     * @note value type: string
-     */
-        CERTIFIER_OPT_OUTPUT_KEYSTORE,
 
         /**
      * Simulate the "not-valid-before" date.
@@ -202,13 +183,10 @@ typedef enum CERTIFIER_OPT
 typedef enum {
     CERTIFIER_OPTION_DEBUG_HTTP = 1,
     CERTIFIER_OPTION_TRACE_HTTP = 2,
-    CERTIFIER_OPTION_TLS_INSECURE_HOST = 4,
-    CERTIFIER_OPTION_TLS_INSECURE_PEER = 8,
-    CERTIFIER_OPTION_FORCE_REGISTRATION = 16,
-    // 32 is unused
-    CERTIFIER_OPTION_CERTIFICATE_LITE = 64,
-    CERTIFIER_OPTION_MEASURE_PERFORMANCE = 128,
-    // 256, 512, 1024 are unused
+    CERTIFIER_OPTION_FORCE_REGISTRATION = 4,
+    CERTIFIER_OPTION_MEASURE_PERFORMANCE = 8,
+    CERTIFIER_OPTION_CERTIFICATE_LITE = 16,
+    // 32, 64, 128, 256, 512, 1024 are unused
 } CERTIFIER_OPT_OPTION;
 
 /**
