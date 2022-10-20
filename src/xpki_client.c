@@ -20,6 +20,7 @@
 
 #include <certifier/base64.h>
 #include <certifier/certifier.h>
+#include <certifier/certifier_internal.h>
 #include <certifier/types.h>
 
 #define ReturnErrorOnFailure(expr)                                                                                                 \
@@ -51,8 +52,6 @@
         }                                                                                                                          \
     } while (0)
 
-static const char * XPKI_PROFILE_NAME_STRING[] = { FOREACH_PROFILE_NAME(GENERATE_STRING) };
-
 static inline Certifier * get_certifier_instance()
 {
     static Certifier * certifier = NULL;
@@ -65,7 +64,7 @@ static inline Certifier * get_certifier_instance()
     return certifier;
 }
 
-static XPKI_AUTH_TYPE map_to_xpki_auth_type(const char * str)
+XPKI_AUTH_TYPE map_to_xpki_auth_type(const char * str)
 {
     if (strcmp(str, "X509") == 0)
     {
@@ -75,19 +74,6 @@ static XPKI_AUTH_TYPE map_to_xpki_auth_type(const char * str)
     {
         return XPKI_AUTH_TOKEN;
     }
-}
-
-static XPKI_PROFILE_NAME map_to_xpki_profile_name(const char * str)
-{
-    for (XPKI_PROFILE_NAME profile_name = 0; profile_name < sizeof(XPKI_PROFILE_NAME_STRING) / sizeof(*XPKI_PROFILE_NAME_STRING);
-         ++profile_name)
-    {
-        if (strcmp(XPKI_PROFILE_NAME_STRING[profile_name], str) == 0)
-        {
-            return profile_name;
-        }
-    }
-    return XPKI_PROFILE_MAX;
 }
 
 static uint16_t get_product_id(const char * str)
@@ -136,23 +122,23 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
 
     void * param = NULL;
 
-    param                     = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH);
+    param                  = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH);
     params->input_p12_path = param ? (const char *) param : NULL;
 
-    param                  = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
+    param                      = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
     params->input_p12_password = param ? (const char *) param : NULL;
 
-    param                      = certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH);
+    param                   = certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH);
     params->output_p12_path = param ? (const char *) param : NULL;
 
-    param                   = certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD);
+    param                       = certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD);
     params->output_p12_password = param ? (const char *) param : NULL;
+
+    param                = certifier_get_property(certifier, CERTIFIER_OPT_PROFILE_NAME);
+    params->profile_name = param ? (const char *) param : NULL;
 
     param             = certifier_get_property(certifier, CERTIFIER_OPT_AUTH_TYPE);
     params->auth_type = param ? map_to_xpki_auth_type(param) : XPKI_AUTH_X509_CRT;
-
-    param                = certifier_get_property(certifier, CERTIFIER_OPT_PROFILE_NAME);
-    params->profile_name = param ? map_to_xpki_profile_name(param) : XFN_Matter_OP_Class_3_ICA;
 
     param                 = certifier_get_property(certifier, CERTIFIER_OPT_FORCE_REGISTRATION);
     params->overwrite_p12 = (bool) param; // bool value
@@ -174,6 +160,8 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
 
     param        = certifier_get_property(certifier, CERTIFIER_OPT_CERTIFICATE_LITE);
     params->lite = (bool) param; // bool value
+
+    params->keypair = NULL;
 
     return XPKI_CLIENT_SUCCESS;
 }
@@ -207,10 +195,14 @@ exit:
     return xc_error;
 }
 
-static XPKI_CLIENT_ERROR_CODE xc_register_certificate()
+static XPKI_CLIENT_ERROR_CODE xc_register_certificate(ECC_KEY * keypair)
 {
     Certifier * certifier = get_certifier_instance();
-    int return_code       = certifier_register(certifier);
+
+    CertifierError rc = CERTIFIER_ERROR_INITIALIZER;
+    certifier_set_keys_and_node_address_with_cn_prefix(certifier, keypair, "FFFFFFFF", rc);
+
+    int return_code = certifier_register(certifier);
 
     return return_code == 0 ? XPKI_CLIENT_SUCCESS : XPKI_CLIENT_ERROR_INTERNAL;
 }
@@ -228,11 +220,11 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH, params->output_p12_path));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD, params->output_p12_password));
 
-    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS, (const void *) (size_t) params->validity_days));
+    ReturnErrorOnFailure(
+        certifier_set_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS, (const void *) (size_t) params->validity_days));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFICATE_LITE, (void *) params->lite));
 
-    ReturnErrorOnFailure(
-        certifier_set_property(certifier, CERTIFIER_OPT_PROFILE_NAME, XPKI_PROFILE_NAME_STRING[params->profile_name]));
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_PROFILE_NAME, params->profile_name));
 
     if (params->node_id != 0)
     {
@@ -267,10 +259,10 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
                                                     certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH)));
     }
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) params->overwrite_p12));
-    ReturnErrorOnFailure(
-        certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD)));
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD,
+                                                certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD)));
 
-    return xc_register_certificate(certifier);
+    return xc_register_certificate(params->keypair);
 }
 
 static XPKI_CLIENT_ERROR_CODE _xc_renew_certificate()
@@ -340,7 +332,7 @@ static XPKI_CLIENT_CERT_STATUS _xc_get_cert_status()
     return_code = certifier_get_device_certificate_status(certifier);
     cert_status = xc_map_cert_status(return_code);
 
-    if (cert_status == XPKI_CLIENT_CERT_ABOUT_TO_EXPIRE || cert_status == XPKI_CLIENT_CERT_VALID)
+    if (cert_status == XPKI_CLIENT_CERT_VALID)
     {
         return_code = certifier_get_device_registration_status(certifier);
         cert_status |= xc_map_cert_status(return_code);
@@ -356,4 +348,23 @@ XPKI_CLIENT_CERT_STATUS xc_get_cert_status(const char * p12_path, const char * p
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, p12_path));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, password));
     return _xc_get_cert_status(certifier);
+}
+
+XPKI_CLIENT_ERROR_CODE xc_enable_logs(bool enable)
+{
+    Certifier * certifier = get_certifier_instance();
+
+    return certifier_set_property(certifier, CERTIFIER_OPT_LOG_LEVEL, enable ? (void *) (size_t) 0 : (void *) (size_t) 4);
+}
+
+XPKI_CLIENT_ERROR_CODE xc_print_cert_validity(const char * p12_path, const char * password)
+{
+    Certifier * certifier = get_certifier_instance();
+
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, p12_path));
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, password));
+
+    certifier_print_certificate_validity(certifier);
+
+    return XPKI_CLIENT_SUCCESS;
 }

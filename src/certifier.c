@@ -749,9 +749,9 @@ void certifier_print_certificate(Certifier *certifier, const char *pem, int pem_
 
 void certifier_print_certificate_validity(Certifier *certifier) {
     char time[64];
-    security_get_before_time_validity(certifier->tmp_map.x509_cert, time, sizeof(time));
+    security_get_before_time_validity(get_cert(certifier), time, sizeof(time));
     XFPRINTF(stdout, "Valid from: \t%s\n", time);
-    security_get_not_after_time_validity(certifier->tmp_map.x509_cert, time, sizeof(time));
+    security_get_not_after_time_validity(get_cert(certifier), time, sizeof(time));
     XFPRINTF(stdout, "Valid to: \t%s\n", time);
 }
 
@@ -1110,54 +1110,36 @@ int certifier_register(Certifier *certifier) {
     // then, we will rename the existing .p12 file.  If, for some reason, the renamed file existed, like
     // from a leftover incomplete registration, or the file permission was not set right, try to
     // delete that file.
-    if (util_file_exists(p12_filename) && force_registration) {
-        renamed_p12_filename = util_format_str("%s.bk", p12_filename);
+    if (util_file_exists(p12_filename)) {
+        if (force_registration) {
+            renamed_p12_filename = util_format_str("%s.bk", p12_filename);
 
-        if (util_file_exists(renamed_p12_filename)) {
-            if (util_delete_file(renamed_p12_filename)) {
-                return_code = CERTIFIER_ERR_REGISTER_DELETE_PKCS12_1;
+            if (util_file_exists(renamed_p12_filename)) {
+                if (util_delete_file(renamed_p12_filename)) {
+                    return_code = CERTIFIER_ERR_REGISTER_DELETE_PKCS12_1;
+                    char *err_json = util_format_error("certifier_register_device",
+                                                    "Error trying to delete a renamed PKCS12 file [1]", __FILE__,
+                                                    __LINE__);
+                    set_last_error(certifier, return_code, err_json);
+                    goto cleanup;
+                }
+            }
+
+            if (util_rename_file(p12_filename, renamed_p12_filename)) {
+                return_code = CERTIFIER_ERR_REGISTER_RENAME_PKCS12_1;
                 char *err_json = util_format_error("certifier_register_device",
-                                                   "Error trying to delete a renamed PKCS12 file [1]", __FILE__,
-                                                   __LINE__);
+                                                "Error trying to delete a renamed PKCS12 file [1].", __FILE__,
+                                                __LINE__);
                 set_last_error(certifier, return_code, err_json);
                 goto cleanup;
             }
-        }
 
-        if (util_rename_file(p12_filename, renamed_p12_filename)) {
-            return_code = CERTIFIER_ERR_REGISTER_RENAME_PKCS12_1;
-            char *err_json = util_format_error("certifier_register_device",
-                                               "Error trying to delete a renamed PKCS12 file [1].", __FILE__,
-                                               __LINE__);
-            set_last_error(certifier, return_code, err_json);
+            log_info("Renamed file: %s to %s", p12_filename, renamed_p12_filename);
+        } else {
+            log_info("\nCertificate already exists. Returning. No need to register again.\n");
             goto cleanup;
         }
-
-        log_info("Renamed file: %s to %s", p12_filename, renamed_p12_filename);
     }
-
-    return_code = certifier_get_device_registration_status(certifier);
-    switch (return_code) {
-        case 0:
-            log_info("\nCertificate has not yet expired and already exists.  Returning.  No need to register again.\n");
-            goto cleanup;
-
-        case CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1:
-            log_info("\nCertificate expired. Returning.\n");
-            goto cleanup;
-
-        case CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
-            log_info("\nCertificate already exists and it is about to expire. Returning. No need to register again.\n");
-            goto cleanup;
-
-        default:
-            log_info(
-                    "\nReceived return_code: %i from certifier_get_device_registration_status and registering again.\n",
-                    return_code);
-            break;
-    }
-    return_code = 0;
-    set_last_error(certifier, return_code, NULL);
 
     if (_certifier_get_privkey(certifier) == NULL ||
         certifier->tmp_map.der_public_key == NULL ||

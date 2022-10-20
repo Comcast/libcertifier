@@ -1208,6 +1208,16 @@ ECC_KEY *security_get_key_from_der(unsigned char *der_public_key, int der_public
     return key;
 }
 
+ECC_KEY* security_get_private_key_from_der(unsigned char *der_key, int der_key_len) {
+    BIO *bio = BIO_new_mem_buf(der_key, der_key_len);
+
+    ECC_KEY *key = d2i_ECPrivateKey_bio(bio, NULL);
+
+    BIO_free_all(bio);
+
+    return key;
+}
+
 int security_serialize_der_public_key(ECC_KEY *ec_key,
                                       unsigned char **der_public_key) {
     int der_len = 0;
@@ -1309,7 +1319,7 @@ CertifierError security_check_x509_valid_range(time_t current_time,
     return result;
 }
 
-int security_get_before_time_validity(X509_CERT *cert, char *time, size_t time_len) {
+int security_get_before_time_validity(const X509_CERT *cert, char *time, size_t time_len) {
     BIO *bio;
 
     bio = BIO_new(BIO_s_mem());
@@ -1326,7 +1336,7 @@ int security_get_before_time_validity(X509_CERT *cert, char *time, size_t time_l
     return 0;
 }
 
-int security_get_not_after_time_validity(X509_CERT *cert, char *time, size_t time_len) {
+int security_get_not_after_time_validity(const X509_CERT *cert, char *time, size_t time_len) {
     BIO *bio;
 
     bio = BIO_new(BIO_s_mem());
