@@ -924,7 +924,7 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
         property_set(propMap, CERTIFIER_OPT_AUTH_TYPE, auth_type_value);
     }
 
-    password_value = json_object_get_string(json_object(json), "libcertifier.password");
+    password_value = json_object_get_string(json_object(json), "libcertifier.input.p12.password");
     if (password_value) {
         print_warning("password");
         log_info("Loaded password from config file.");

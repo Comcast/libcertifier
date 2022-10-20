@@ -76,6 +76,7 @@ CertifierError security_verify_signature(ECC_KEY *key,
 
 ECC_KEY *security_get_key_from_der(unsigned char *der_public_key, int der_public_key_len);
 
+ECC_KEY* security_get_private_key_from_der(unsigned char *der_key, int der_key_len);
 
 /**
  * Serializes ec_key to der_public_key (caller must free when NULL is passed in *der_public_key)
@@ -172,9 +173,9 @@ CertifierError security_check_x509_valid_range(time_t current_time,
                                                const char *cert_before_time,
                                                const char *cert_after_time);
 
-int security_get_before_time_validity(X509_CERT *cert, char *time, size_t time_len);
+int security_get_before_time_validity(const X509_CERT *cert, char *time, size_t time_len);
 
-int security_get_not_after_time_validity(X509_CERT *cert, char *time, size_t time_len);
+int security_get_not_after_time_validity(const X509_CERT *cert, char *time, size_t time_len);
 
 CertifierError
 security_verify_x509(X509_CERT *cert, const char *signature_b64, const unsigned char *input, int input_len,

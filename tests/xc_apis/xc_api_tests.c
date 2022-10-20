@@ -27,25 +27,25 @@ static void test_get_cert()
 
     xc_get_default_cert_param(&params);
 
-    params.auth_type          = XPKI_AUTH_X509_CRT;
-    params.fabric_id          = 0xABCDABCDABCDABCD;
-    params.node_id            = 0x1234123412341234;
-    params.input_p12_password     = "changeit";
-    params.input_p12_path  = "seed.p12";
-    params.output_p12_password    = "newpass";
-    params.output_p12_path = "output-xc-test-renewable.p12";
-    params.overwrite_p12      = true;
-    params.product_id         = 0xABCD;
-    params.profile_name       = XFN_Matter_OP_Class_3_ICA;
-    params.validity_days      = 90;
-    params.lite               = true;
+    params.auth_type           = XPKI_AUTH_X509_CRT;
+    params.fabric_id           = 0xABCDABCDABCDABCD;
+    params.node_id             = 0x1234123412341234;
+    params.input_p12_password  = "changeit";
+    params.input_p12_path      = "seed.p12";
+    params.output_p12_password = "newpass";
+    params.output_p12_path     = "output-xc-test-renewable.p12";
+    params.overwrite_p12       = true;
+    params.product_id          = 0xABCD;
+    params.profile_name        = "XFN_Matter_OP_Class_3_ICA";
+    params.validity_days       = 90;
+    params.lite                = true;
 
     XPKI_CLIENT_ERROR_CODE error = xc_get_cert(&params);
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
 
-    params.validity_days      = 100;
+    params.validity_days   = 100;
     params.output_p12_path = "output-xc-test-not-renewable.p12";
-    error                     = xc_get_cert(&params);
+    error                  = xc_get_cert(&params);
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
 }
 
@@ -73,7 +73,7 @@ static void test_renew_cert()
     params.output_password    = "newpass";
     params.output_pkcs12_path = "stage-output-renewable.p12";
     params.overwrite_p12      = true;
-    params.profile_name       = Xfinity_Default_Issuing_ECC_ICA;
+    params.profile_name       = "Xfinity_Default_Issuing_ECC_ICA";
     params.validity_days      = 20;
     params.lite               = false;
 

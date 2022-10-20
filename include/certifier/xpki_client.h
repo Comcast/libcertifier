@@ -19,13 +19,14 @@
 #ifndef XPKI_CLIENT_H
 #define XPKI_CLIENT_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+#include <certifier/types.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum
 {
@@ -53,39 +54,6 @@ typedef enum
     XPKI_AUTH_TOKEN,
 } XPKI_AUTH_TYPE;
 
-#define FOREACH_PROFILE_NAME(PROFILE_NAME)                                                                                         \
-    PROFILE_NAME(Comcast_RDKDRI_Issuing_ECC_ICA)                                                                                   \
-    PROFILE_NAME(Comcast_RDK_Device_Issuing_ECC_ICA)                                                                               \
-    PROFILE_NAME(Comcast_RDK_Issuing_ECC_ICA)                                                                                      \
-    PROFILE_NAME(NSE_Platform_Services_Cassandra_RSA_ICA)                                                                          \
-    PROFILE_NAME(NSE_Platform_Services_Hadoop_RSA_ICA)                                                                             \
-    PROFILE_NAME(NSE_Platform_Services_Kafka_RSA_ICA)                                                                              \
-    PROFILE_NAME(NSE_Platform_Services_VSG_RSA_ICA)                                                                                \
-    PROFILE_NAME(OTT_Issuing_ECC_ICA)                                                                                              \
-    PROFILE_NAME(SAT_NG_Issuing_ECC_ICA)                                                                                           \
-    PROFILE_NAME(Sky_RDKDRI_Issuing_ECC_ICA)                                                                                       \
-    PROFILE_NAME(Sky_RDK_Device_Issuing_ECC_ICA)                                                                                   \
-    PROFILE_NAME(Sky_RDK_Issuing_ECC_ICA)                                                                                          \
-    PROFILE_NAME(TPX_Advanced_Voice_CPE_RSA_ICA)                                                                                   \
-    PROFILE_NAME(XFN_AS_PAI_1)                                                                                                     \
-    PROFILE_NAME(XFN_DL_PAI_1)                                                                                                     \
-    PROFILE_NAME(XFN_DL_PAI_1_Class_3)                                                                                             \
-    PROFILE_NAME(XFN_Matter_OP_Class_3_ICA)                                                                                        \
-    PROFILE_NAME(XFN_Matter_OP_ICA)                                                                                                \
-    PROFILE_NAME(Xfinity_Default_Issuing_ECC_ICA)                                                                                  \
-    PROFILE_NAME(Xfinity_Digital_Home_Issuing_RSA_ICA)                                                                             \
-    PROFILE_NAME(Xfinity_Remote_Device_Issuing_RSA_ICA)                                                                            \
-    PROFILE_NAME(Xfinity_Subscriber_Issuing_ECC_ICA)                                                                               \
-    PROFILE_NAME(Xfinity_Subscriber_Issuing_RSA_ICA)
-
-#define GENERATE_ENUM(ENUM) ENUM,
-#define GENERATE_STRING(STRING) #STRING,
-
-typedef enum
-{
-    FOREACH_PROFILE_NAME(GENERATE_ENUM) XPKI_PROFILE_MAX
-} XPKI_PROFILE_NAME;
-
 /** @struct get_cert_param_t
  *  @brief This structure contains all parameters that can be manipulated for a certificate generation.
  *  @var get_cert_param_t::input_p12_path
@@ -96,12 +64,11 @@ typedef enum
  *  Contains the path where the resulting certificate shall be written to.
  *  @var get_cert_param_t::output_p12_password
  *  Contains the password for resulting certificate.
+ *  @var get_cert_param_t::profile_name
+ *  Selects the Profle Name/Certificate Issuer for the certificate being requested from the Server.
  *  @var get_cert_param_t::auth_type
  *  Selects the Authentication type when requesting a certificate to the Server.
  *  See XPKI_AUTH_TYPE enum for more details.
- *  @var get_cert_param_t::profile_name
- *  Selects the Profle Name/Certificate Issuer for the certificate being requested from the Server.
- *  See XPKI_PROFILE_NAME enum for more details.
  *  @var get_cert_param_t::overwrite_p12
  *  Enables output file being overwritten if already existing.
  *  @var get_cert_param_t::validity_days
@@ -127,11 +94,12 @@ typedef struct
     const char * input_p12_password;
     const char * output_p12_path;
     const char * output_p12_password;
+    const char * profile_name;
     XPKI_AUTH_TYPE auth_type;
-    XPKI_PROFILE_NAME profile_name;
     bool overwrite_p12;
     size_t validity_days;
     bool lite;
+    ECC_KEY * keypair;
     // matter only parameters below
     uint16_t product_id;
     uint64_t node_id;
@@ -146,6 +114,12 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params);
 XPKI_CLIENT_ERROR_CODE xc_renew_cert(const char * p12_path, const char * password);
 
 XPKI_CLIENT_CERT_STATUS xc_get_cert_status(const char * p12_path, const char * password);
+
+XPKI_CLIENT_ERROR_CODE xc_enable_logs(bool enable);
+
+XPKI_AUTH_TYPE map_to_xpki_auth_type(const char * str);
+
+XPKI_CLIENT_ERROR_CODE xc_print_cert_validity(const char * p12_path, const char * password);
 
 #ifdef __cplusplus
 }
