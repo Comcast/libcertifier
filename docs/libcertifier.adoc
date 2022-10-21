@@ -10,7 +10,9 @@
 *Integration Methods*
 
 * xref:cli_usage.adoc[Command line executable (CLI)]
-* xref:api_usage.adoc[Shared Library (API]) 
+* xref:api_usage.adoc[Shared Library (API)]
+* xref:daemon_usage.adoc[Auto Renew Service (Daemon)]
+* xref:matter_plugin_usage.adoc[Matter Plugin Credentials Issuer]
 
 == *Overview*
 
@@ -40,6 +42,9 @@ The table below describes th files in this project -
 | xref:../README.adoc[README.adoc]
 | Readme file
 
+| daemon
+| Auto-Renew service files
+
 | include
 | *public* source header files
 
@@ -51,6 +56,9 @@ The table below describes th files in this project -
 
 | xref:configuration.adoc[libcertifier.cfg.sample]
 | Sample libcertifier configuration file
+
+| matter_plugin
+| Matter Certifier Tool
 
 | resources
 | Device Attestation Certificate
