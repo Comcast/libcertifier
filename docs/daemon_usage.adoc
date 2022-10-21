@@ -1,0 +1,55 @@
+xref:libcertifier.adoc[*Back to Manual*]
+
+============
+Example of Linux Auto-Renew Service (Daemon)
+=====
+
+*Build (systemd)*
+
+To build libcertifier along example of auto-renew service/daemon for systemd you have to type the following commands:
+
+----
+git clone git@github.com:Comcast/libcertifier.git
+cd libcertifier
+mkdir build
+cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=/ -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=OFF -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Debug -DENABLE_MATTER_EXAMPLES=OFF -DSYSTEMV_DAEMON=OFF
+make
+sudo make install
+----
+
+*Build (SysV)*
+
+To build libcertifier along example of auto-renew service/daemon for SystemV you have to type the following commands:
+
+----
+git clone git@github.com:Comcast/libcertifier.git
+cd libcertifier
+mkdir build
+cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=/ -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=OFF -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Debug -DENABLE_MATTER_EXAMPLES=OFF -DSYSTEMV_DAEMON=ON
+make
+sudo make install
+----
+
+*Usage (systemd)*
+
+When you use Linux distribution using systemd, then you can try start daemon using:
+
+----
+systemctl start certifierd
+systemctl status certifierd
+systemctl reload certifierd
+systemctl stop certifierd
+----
+
+*Usage (SysV)*
+
+If your distribution does not support systemd, it is recommended you start daemon using SystemV:
+
+----
+service daemon start
+service daemon status
+service daemon reload
+service daemon stop
+----
