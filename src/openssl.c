@@ -1050,14 +1050,6 @@ unsigned char *security_X509_to_DER(X509_CERT *cert, size_t *out_len) {
     return out;
 }
 
-int security_X509List_from_X509s(X509_LIST* ca_chain, X509_CERT *ca_cert, X509_CERT *root_cert)
-{
-    sk_X509_push(ca_chain, ca_cert);
-    sk_X509_push(ca_chain, root_cert);
-
-    return 0;
-}
-
 void security_print_subject_issuer(const X509_CERT *cert) {
     X509_NAME *subject = NULL;
     X509_NAME *issuer = NULL;

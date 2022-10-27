@@ -153,7 +153,7 @@ if (NOT GENERATOR_IS_MULTI_CONFIG)
     message(STATUS "buildType: ${CMAKE_BUILD_TYPE}")
 endif ()
 
-        message(STATUS "C compiler version " ${CMAKE_C_COMPILER_VERSION})
+message(STATUS "C compiler version ${CMAKE_C_COMPILER_VERSION}")
 
 SET(C_COMPILER_ASAN_OPTION "-fsanitize=address")
 SET(C_COMPILER_LSAN_OPTION "-fsanitize=leak")
