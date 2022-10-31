@@ -38,7 +38,7 @@ certifierclient_init() {
     key_t s_key;
     bool sem_exists = false;
 
-    if (open(SEM_MUTEX_KEY, O_EXCL | O_CREAT) == -1) {
+    if (open(SEM_MUTEX_KEY, O_EXCL | O_CREAT, 0600) == -1) {
         if (errno == EEXIST) {
             sem_exists = true;
         } else {

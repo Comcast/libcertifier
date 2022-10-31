@@ -42,13 +42,15 @@
 #define NODE_ID_LENGTH    16ul
 #define FABRIC_ID_LENGTH  16ul
 
+#define MAX_PKCS12_PASSWORD_LENGTH 32
+
 #define NULL_CHECK(p)                                                   \
 if (p == NULL)                                                          \
     return CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1
 
 #define safe_exit(le, rc) finish_operation(le, rc, NULL)
 
-#define BASE_SHORT_OPTIONS "hp:L:k:v"
+#define BASE_SHORT_OPTIONS "hp:L:k:vm"
 #define GET_CRT_TOKEN_SHORT_OPTIONS "X:S:"
 #define GET_CERT_SHORT_OPTIONS "fT:P:o:i:n:F:a:w:"
 #define VALIDITY_DAYS_SHORT_OPTION "t:"
@@ -57,6 +59,7 @@ if (p == NULL)                                                          \
     {"help",              no_argument,       NULL, 'h'}, \
     {"input-p12-path",    required_argument, NULL, 'k'}, \
     {"input-p12-password",required_argument, NULL, 'p'}, \
+    {"key-xchange-mode",  no_argument,       NULL, 'm'}, \
     {"config",            required_argument, NULL, 'L'}, \
     {"verbose",           no_argument,       NULL, 'v'}
 
@@ -94,6 +97,7 @@ struct CERTIFIER {
     int argc;
     char **argv;
     CERTIFIERInfo last_info;
+    key_exchange_t key_exchange;
 };
 
 typedef struct {
@@ -117,6 +121,7 @@ static const char * get_command_opt_helper(CERTIFIER_MODE mode) {
     "--help (-h)\n"                            \
     "--input-p12-path [PKCS12 Path] (-k)\n"    \
     "--input-p12-password (-p)\n"              \
+    "--key-xchange-mode (-m)\n"                \
     "--config [value] (-L)\n"                  \
     "--verbose (-v)\n"
 
@@ -180,7 +185,13 @@ CERTIFIER *certifier_api_easy_new(void) {
     }
     easy->certifier = certifier;
     easy->mode = CERTIFIER_MODE_REGISTER;
+    easy->key_exchange = NULL;
     return easy;
+}
+
+void certifier_set_key_exchange_method(CERTIFIER *easy, key_exchange_t key_exchange)
+{
+    easy->key_exchange = key_exchange;
 }
 
 /**
@@ -911,6 +922,9 @@ static int process_command_line(CERTIFIER *easy) {
                 }
 
                 break;
+            case 'm':
+                easy->mode |= CERTIFIER_MODE_KEY_EXCHANGE;
+                break;
             case 'v':
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_LOG_LEVEL, (void *) (size_t) 0);
                 break;
@@ -1001,6 +1015,35 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
         log_error("Received return_code: <%i> while calling process_command_line.  Exiting.", return_code);
         safe_exit(easy, return_code);
         goto cleanup;
+    }
+
+    if (easy->key_exchange && ((easy->mode & CERTIFIER_MODE_KEY_EXCHANGE) == CERTIFIER_MODE_KEY_EXCHANGE)) {
+        uint8_t pw_in[MAX_PKCS12_PASSWORD_LENGTH];
+        uint8_t pw_out[MAX_PKCS12_PASSWORD_LENGTH];
+
+        // revert cast done during certifier_set_property - int storing in property.c needs to be refactored.
+        int log_level = (int) (size_t) certifier_get_property(easy->certifier, CERTIFIER_OPT_LOG_LEVEL);
+
+        int error = easy->key_exchange(pw_in, sizeof(pw_in), pw_out, sizeof(pw_out), log_level == 0);
+
+        if (error != 0) {
+            easy->last_info.error_code = error;
+            goto cleanup;
+        }
+
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, pw_in);
+        if (XSTRLEN((const char * )pw_out) > 0 && pw_out[0] != '\0') {
+            return_code |= certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD, pw_out);
+        }
+
+        if (return_code != 0) {
+            log_error("Received return_code: <%i> while setting CERTIFIER_OPT_INPUT_P12_PASSWORD from KeyBarrier. Exiting.",
+                      return_code);
+            safe_exit(easy, return_code);
+            goto cleanup;
+        }
+
+        easy->mode &= ~CERTIFIER_MODE_KEY_EXCHANGE;
     }
 
     if (easy->mode == CERTIFIER_MODE_REGISTER &&

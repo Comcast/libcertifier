@@ -20,6 +20,8 @@
 #define CERTIFIER_API_EASY_H
 
 #include "certifier/property.h"
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -73,7 +75,9 @@ typedef enum {
 
     CERTIFIER_MODE_COMBO_REGISTER = 512,
 
-    // 1024 & 2048 are unused
+    CERTIFIER_MODE_KEY_EXCHANGE = 1024,
+
+    // 2048 is unused
 
     /**
      * Request the current certificate status
@@ -100,6 +104,8 @@ typedef enum {
     // 131072 is unused
 } CERTIFIER_MODE;
 
+typedef int (*key_exchange_t)(uint8_t *, size_t, uint8_t *, size_t, int);
+
 /**
  * Create a new easy API context. This context may be freely used with the certifier.h interface.
  * @note Free it with certifier_api_easy_destroy() after performing all desired operations.
@@ -114,6 +120,8 @@ CERTIFIER *certifier_api_easy_new(void);
  */
 
 CERTIFIER *certifier_api_easy_new_cfg(char *libcertifier_cfg);
+
+void certifier_set_key_exchange_method(CERTIFIER *easy, key_exchange_t key_exchange);
 
 /**
  * Free an easy API context
