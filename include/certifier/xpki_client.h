@@ -57,7 +57,7 @@ typedef enum
 /** @struct get_cert_param_t
  *  @brief This structure contains all parameters that can be manipulated for a certificate generation.
  *  @var get_cert_param_t::crt
- *  Contains the value of a pre-generated CRT
+ *  Contains the value of a CRT. Optional. 
  *  @var get_cert_param_t::input_p12_path
  *  Contains the path to the PKCS12 Seed.
  *  @var get_cert_param_t::input_p12_password
