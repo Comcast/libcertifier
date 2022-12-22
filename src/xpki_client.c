@@ -163,6 +163,8 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
 
     params->keypair = NULL;
 
+    params->crt = NULL;
+
     return XPKI_CLIENT_SUCCESS;
 }
 
@@ -250,9 +252,10 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
         snprintf(case_auth_tag, sizeof(case_auth_tag), "%" PRIx32, params->case_auth_tag);
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_AUTH_TAG_1, (void *) (size_t) case_auth_tag));
     }
-
-    ReturnErrorOnFailure(xc_create_x509_crt(certifier));
-
+    if ((params->crt = NULL))
+    {
+        ReturnErrorOnFailure(xc_create_x509_crt(certifier));
+    }
     if (certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH) != NULL)
     {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH,
