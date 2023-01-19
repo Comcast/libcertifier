@@ -23,6 +23,7 @@
 
 static void test_get_cert()
 {
+    XPKI_CLIENT_ERROR_CODE error;
     get_cert_param_t params = { 0 };
 
     xc_get_default_cert_param(&params);
@@ -39,28 +40,65 @@ static void test_get_cert()
     params.profile_name        = "XFN_Matter_OP_Class_3_ICA";
     params.validity_days       = 90;
     params.lite                = true;
+    params.common_name         = "TEST_CERT";
+    params.source_id           = "libcertifier-opensource";
 
-    XPKI_CLIENT_ERROR_CODE error = xc_get_cert(&params);
+#ifdef RDK_BUILD
+    error = xc_get_cert(&params);
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_INVALID_ARGUMENT, error);
+#endif // RDK_BUILD
+
+    params.mac_address = "00:B0:D0:63:C2:26";
+
+    error = xc_get_cert(&params);
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
 
     params.validity_days   = 100;
     params.output_p12_path = "output-xc-test-not-renewable.p12";
     error                  = xc_get_cert(&params);
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
+
+    params.output_p12_path = "output-xc-test-san.p12";
+    params.profile_name    = "XFN_DL_PAI_1_Class_3";
+    params.serial_number   = "ABCD22";
+    params.lite            = false;
+    error                  = xc_get_cert(&params);
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
 }
 
 static void test_get_cert_status()
 {
-    XPKI_CLIENT_ERROR_CODE error = xc_get_cert_status("output-xc-test-renewable.p12", "newpass");
-    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_CERT_ABOUT_TO_EXPIRE, error);
+    XPKI_CLIENT_ERROR_CODE error;
+    XPKI_CLIENT_CERT_STATUS status;
+    get_cert_status_param_t params = { 0 };
 
-    error = xc_get_cert_status("output-xc-test-not-renewable.p12", "newpass");
-    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_CERT_VALID, error);
+    xc_get_default_cert_status_param(&params);
+
+    params.p12_password = "newpass";
+    params.p12_path     = "output-xc-test-renewable.p12";
+
+    error = xc_get_cert_status(&params, &status);
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_CERT_ABOUT_TO_EXPIRE, status);
+
+    params.p12_password = "newpass";
+    params.p12_path     = "output-xc-test-not-renewable.p12";
+
+    error = xc_get_cert_status(&params, &status);
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_CERT_VALID, status);
 }
 
 static void test_renew_cert()
 {
-    XPKI_CLIENT_ERROR_CODE error = xc_renew_cert("output-xc-test-not-renewable.p12", "newpass");
+    get_cert_status_param_t params = { 0 };
+
+    xc_get_default_cert_status_param(&params);
+
+    params.p12_password = "newpass";
+    params.p12_path     = "output-xc-test-not-renewable.p12";
+
+    XPKI_CLIENT_ERROR_CODE error = xc_renew_cert(&params);
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_CERT_ALREADY_VALID, error);
 #if 0 // disable test below because we're not allowed to mess with the certifier url during run-time.
     get_cert_param_t params = { 0 };

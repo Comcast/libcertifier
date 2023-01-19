@@ -46,6 +46,7 @@ typedef enum
     XPKI_CLIENT_CERT_NOT_YET_VALID   = 1 << 2,
     XPKI_CLIENT_CERT_REVOKED         = 1 << 3,
     XPKI_CLIENT_CERT_UNKNOWN         = 1 << 4,
+    XPKI_CLIENT_CERT_INVALID         = 1 << 5,
 } XPKI_CLIENT_CERT_STATUS;
 
 typedef enum
@@ -57,7 +58,7 @@ typedef enum
 /** @struct get_cert_param_t
  *  @brief This structure contains all parameters that can be manipulated for a certificate generation.
  *  @var get_cert_param_t::crt
- *  Contains the value of a CRT. Optional. 
+ *  Contains the value of a CRT. Optional.
  *  @var get_cert_param_t::input_p12_path
  *  Contains the path to the PKCS12 Seed.
  *  @var get_cert_param_t::input_p12_password
@@ -68,6 +69,8 @@ typedef enum
  *  Contains the password for resulting certificate.
  *  @var get_cert_param_t::profile_name
  *  Selects the Profle Name/Certificate Issuer for the certificate being requested from the Server.
+ *  @var get_cert_param_t::source_id
+ *  Contains the value of the Request Source ID. Optional.
  *  @var get_cert_param_t::auth_type
  *  Selects the Authentication type when requesting a certificate to the Server.
  *  See XPKI_AUTH_TYPE enum for more details.
@@ -89,6 +92,14 @@ typedef enum
  *  @var get_cert_param_t::case_auth_tag
  *  Choose the Case Authentaiction Tag to be registered in the certificate being requested.
  *  Matter Only Cerificate Parameter
+ *  @var get_cert_param_t::mac_address
+ *  Mac Address (Mandatory only on RDK Devices).
+ *  @var get_cert_param_t::serial_number
+ *  Serial Number (Optional).
+ *  @var get_cert_param_t::san
+ *  SAN (Optional).
+ *  @var get_cert_param_t::common_name
+ *  Contains the CN value field of the Certificate Subject. (Optional)
  */
 typedef struct
 {
@@ -98,6 +109,7 @@ typedef struct
     const char * output_p12_path;
     const char * output_p12_password;
     const char * profile_name;
+    const char * source_id;
     XPKI_AUTH_TYPE auth_type;
     bool overwrite_p12;
     size_t validity_days;
@@ -108,15 +120,42 @@ typedef struct
     uint64_t node_id;
     uint64_t fabric_id;
     uint32_t case_auth_tag;
+    // additonal parameters
+    const char * mac_address;
+    const char * serial_number;
+    const char * san;
+    const char * common_name;
 } get_cert_param_t;
+
+/** @struct get_cert_status_param_t
+ *  @brief This structure contains all parameters that can be manipulated for getting certificate status or renew it.
+ *  @var get_cert_status_param_t::p12_path
+ *  Contains the path to the PKCS12 File.
+ *  @var get_cert_status_param_t::p12_password
+ *  Contains the password for the PKCS12 File.
+ *  @var get_cert_status_param_t::source_id
+ *  Contains the value of the Request Source ID. Optional.
+ */
+typedef struct
+{
+    const char * p12_path;
+    const char * p12_password;
+    const char * source_id;
+} get_cert_status_param_t;
+
+typedef get_cert_status_param_t renew_cert_param_t;
 
 XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params);
 
+XPKI_CLIENT_ERROR_CODE xc_get_default_cert_status_param(get_cert_status_param_t * params);
+
+XPKI_CLIENT_ERROR_CODE xc_get_default_renew_cert_param(renew_cert_param_t * params);
+
 XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params);
 
-XPKI_CLIENT_ERROR_CODE xc_renew_cert(const char * p12_path, const char * password);
+XPKI_CLIENT_ERROR_CODE xc_renew_cert(renew_cert_param_t * params);
 
-XPKI_CLIENT_CERT_STATUS xc_get_cert_status(const char * p12_path, const char * password);
+XPKI_CLIENT_ERROR_CODE xc_get_cert_status(get_cert_status_param_t * params, XPKI_CLIENT_CERT_STATUS * status);
 
 XPKI_CLIENT_ERROR_CODE xc_enable_logs(bool enable);
 

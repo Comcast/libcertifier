@@ -11,6 +11,7 @@
 
 * xref:cli_usage.adoc[Command line executable (CLI)]
 * xref:api_usage.adoc[Shared Library (API)]
+* xref:xpki_api_usage.adoc[XPKI Usage (API)]
 * xref:daemon_usage.adoc[Auto Renew Service (Daemon)]
 * xref:matter_plugin_usage.adoc[Matter Plugin Credentials Issuer]
 

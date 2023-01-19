@@ -111,6 +111,7 @@ certifierclient_request_x509_certificate(CertifierPropMap *props,
     const char *source = property_get(props, CERTIFIER_OPT_SOURCE);
     const char *certifier_url = property_get(props, CERTIFIER_OPT_CERTIFIER_URL);
     log_debug("Tracking ID is: %s", tracking_id);
+    log_debug("Source ID is: %s", source);
 
     char certifier_certificate_url[256];
     char certificate_url[] = "/certificate";
@@ -142,6 +143,8 @@ certifierclient_request_x509_certificate(CertifierPropMap *props,
 
     // Take Mutex
     asem[0].sem_op = -1;
+    // undo mutex-take if app crashes during http_post
+    asem[0].sem_flg = SEM_UNDO;
     if (semop(mutex_sem, asem, 1) == -1) {
         rc.application_error_code = 1;
         goto cleanup;
@@ -304,6 +307,8 @@ certifierclient_revoke_x509_certificate(CertifierPropMap *props,
 
     // Take Mutex
     asem[0].sem_op = -1;
+    // undo mutex-take if app crashes during http_post
+    asem[0].sem_flg = SEM_UNDO;
     if (semop(mutex_sem, asem, 1) == -1) {
         rc.application_error_code = 1;
         goto cleanup;
@@ -442,6 +447,8 @@ certifierclient_renew_x509_certificate(CertifierPropMap *props,
 
     // Take Mutex
     asem[0].sem_op = -1;
+    // undo mutex-take if app crashes during http_post
+    asem[0].sem_flg = SEM_UNDO;
     if (semop(mutex_sem, asem, 1) == -1) {
         rc.application_error_code = 1;
         goto cleanup;
@@ -562,6 +569,8 @@ certifierclient_check_certificate_status(CertifierPropMap *props,
 
     // Take Mutex
     asem[0].sem_op = -1;
+    // undo mutex-take if app crashes during http_post
+    asem[0].sem_flg = SEM_UNDO;
     if (semop(mutex_sem, asem, 1) == -1) {
         rc.application_error_code = 1;
         goto cleanup;

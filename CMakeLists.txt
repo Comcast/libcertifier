@@ -27,12 +27,17 @@ option(ENABLE_COVERAGE "Collect code coverage report with unit tests" OFF)
 option(ENABLE_MBEDTLS "Build with mBedTLS support instead of OpenSSL" OFF)
 option(ENABLE_MATTER_EXAMPLES "Build Matter SDK libCertifier Examples" OFF)
 option(SYSTEMV_DAEMON "Install libCertifier Daemon with SysV Support" OFF)
+option(ENABLE_RDK_BUILD "Build for RDK-Enabled devices" OFF)
 
 option(ENABLE_CMAKE_VERBOSE_MAKEFILE OFF)
 
 if (${ENABLE_CMAKE_VERBOSE_MAKEFILE})
     message(STATUS "Building with ENABLE_CMAKE_VERBOSE_MAKEFILE support")
     set(CMAKE_VERBOSE_MAKEFILE ON)
+endif ()
+
+if (${ENABLE_RDK_BUILD})
+    add_definitions(-DRDK_BUILD)
 endif ()
 
 if (${ENABLE_MBEDTLS})
