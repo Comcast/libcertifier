@@ -1,0 +1,92 @@
+xref:libcertifier.adoc[*Back to Manual*]
+
+== Include the Header file
+
+----
+#include <certifier/xpki_client.h>
+----
+
+== Instantiate a get_cert_param_t Structure
+
+This will be needed for registering/fetching a certificate. This structure allows parameterization of multiple certificate entries.
+
+----
+get_cert_param_t params = { 0 };
+
+xc_get_default_cert_param(&params);
+----
+
+== Setup Get-Cert Parameters
+
+----
+params.auth_type           = XPKI_AUTH_X509_CRT;
+params.fabric_id           = 0xABCDABCDABCDABCD;
+params.node_id             = 0x1234123412341234;
+params.input_p12_password  = "changeit";
+params.input_p12_path      = "seed.p12";
+params.output_p12_password = "newpass";
+params.output_p12_path     = "example-certificate";
+params.overwrite_p12       = true;
+params.product_id          = 0xABCD;
+params.profile_name        = "XFN_Matter_OP_Class_3_ICA";
+params.validity_days       = 90;
+params.lite                = true;
+params.common_name         = "TEST_CERT";
+params.mac_address         = "00:B0:D0:63:C2:26";
+----
+
+== Fetch a Certificate from the XPKI Server
+
+`params` should have been properly set (as shown above) in order for the following snippet of code to work:
+
+----
+XPKI_CLIENT_ERROR_CODE error = xc_get_cert(&params);
+----
+
+== Instantiate a get_cert_param_t Structure
+
+This will be needed for getting the status of a certificate.
+
+----
+get_cert_status_param_t params = { 0 };
+
+xc_get_default_cert_status_param(&params);
+----
+
+== Setup Get-Cert-Status Parameters
+
+----
+params.p12_password = "newpass";
+params.p12_path     = "example-certificate.p12";
+params.source_id    = "libcertifier-opensource" // Optional
+----
+
+== Get Certificate Status
+
+`params` should have been properly set (as shown above) in order for the following snippet of code to work:
+
+----
+XPKI_CLIENT_CERT_STATUS status;
+XPKI_CLIENT_CERT_STATUS error = xc_get_cert_status(&params, &status);
+----
+
+== Setup Renew-Cert Parameters
+
+----
+params.p12_password = "newpass";
+params.p12_path     = "example-certificate.p12";
+params.source_id    = "libcertifier-opensource" // Optional
+----
+
+== Renew Certificate
+
+`params` should have been properly set (as shown above) in order for the following snippet of code to work:
+
+----
+XPKI_CLIENT_ERROR_CODE error;
+error = xc_renew_cert(&params);
+----
+
+== Additional Documentation
+
+For additional documentation please refer to `tests/xc_apis/xc_api_tests.c` source file. This contains several examples on how to use the XPKI APIs.

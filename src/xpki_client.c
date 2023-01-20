@@ -26,7 +26,7 @@
 #define ReturnErrorOnFailure(expr)                                                                                                 \
     do                                                                                                                             \
     {                                                                                                                              \
-        XPKI_CLIENT_ERROR_CODE __err = (expr);                                                                                     \
+        int __err = (expr);                                                                                                        \
         if (__err != 0)                                                                                                            \
         {                                                                                                                          \
             return __err;                                                                                                          \
@@ -51,6 +51,8 @@
             goto exit;                                                                                                             \
         }                                                                                                                          \
     } while (0)
+
+#define SYSTEM_ID_SIZE 40
 
 static inline Certifier * get_certifier_instance()
 {
@@ -114,6 +116,29 @@ static uint32_t get_auth_tag(const char * str)
     return 0;
 }
 
+static bool is_mac_valid(const char * mac, size_t mac_len)
+{
+    uint32_t bytes[6] = { 0 };
+
+    if (mac == NULL)
+        return false;
+    if (mac_len != 17)
+        return false;
+
+    // FIXME: this is unsafe. sscanf is evil.
+    return (6 == sscanf(mac, "%02X:%02X:%02X:%02X:%02X:%02X", &bytes[5], &bytes[4], &bytes[3], &bytes[2], &bytes[1], &bytes[0]));
+}
+
+XPKI_CLIENT_ERROR_CODE xc_set_source_id(const char * source_id)
+{
+    if (source_id)
+    {
+        Certifier * certifier = get_certifier_instance();
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_SOURCE, source_id));
+    }
+    return XPKI_CLIENT_SUCCESS;
+}
+
 XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
 {
     Certifier * certifier = get_certifier_instance();
@@ -161,11 +186,41 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
     param        = certifier_get_property(certifier, CERTIFIER_OPT_CERTIFICATE_LITE);
     params->lite = (bool) param; // bool value
 
-    params->keypair = NULL;
+    param               = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
+    params->common_name = param ? (const char *) param : NULL;
 
-    params->crt = NULL;
+    params->keypair       = NULL;
+    params->mac_address   = NULL;
+    params->serial_number = NULL;
+    params->crt           = NULL;
+    params->source_id     = NULL;
 
     return XPKI_CLIENT_SUCCESS;
+}
+
+XPKI_CLIENT_ERROR_CODE xc_get_default_cert_status_param(get_cert_status_param_t * params)
+{
+    Certifier * certifier = get_certifier_instance();
+
+    memset(params, 0, sizeof(get_cert_status_param_t));
+
+    void * param = NULL;
+
+    param            = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH);
+    params->p12_path = param ? (const char *) param : NULL;
+
+    param                = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
+    params->p12_password = param ? (const char *) param : NULL;
+
+    param             = certifier_get_property(certifier, CERTIFIER_OPT_SOURCE);
+    params->source_id = param ? (const char *) param : NULL;
+
+    return XPKI_CLIENT_SUCCESS;
+}
+
+XPKI_CLIENT_ERROR_CODE xc_get_default_renew_cert_param(renew_cert_param_t * params)
+{
+    return xc_get_default_cert_status_param(params);
 }
 
 static XPKI_CLIENT_ERROR_CODE xc_create_x509_crt()
@@ -201,8 +256,11 @@ static XPKI_CLIENT_ERROR_CODE xc_register_certificate(ECC_KEY * keypair)
 {
     Certifier * certifier = get_certifier_instance();
 
+    char * cn_prefix = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
+    VerifyOrReturnError(cn_prefix != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
+
     CertifierError rc = CERTIFIER_ERROR_INITIALIZER;
-    certifier_set_keys_and_node_address_with_cn_prefix(certifier, keypair, "FFFFFFFF", rc);
+    certifier_set_keys_and_node_address_with_cn_prefix(certifier, keypair, cn_prefix, rc);
 
     int return_code = certifier_register(certifier);
 
@@ -211,6 +269,13 @@ static XPKI_CLIENT_ERROR_CODE xc_register_certificate(ECC_KEY * keypair)
 
 XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
 {
+#ifdef RDK_BUILD
+    VerifyOrReturnError(params->mac_address != NULL && is_mac_valid(params->mac_address, strlen(params->mac_address)) == true,
+                        XPKI_CLIENT_INVALID_ARGUMENT);
+#endif // RDK_BUILD
+
+    char system_id[SYSTEM_ID_SIZE] = { 0 };
+
     // TODO: Implement Auth Token CRT
     // TODO: Check boundaries on enums
     VerifyOrReturnError(params->auth_type == XPKI_AUTH_X509_CRT, XPKI_CLIENT_NOT_IMPLEMENTED);
@@ -227,6 +292,8 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFICATE_LITE, (void *) params->lite));
 
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_PROFILE_NAME, params->profile_name));
+
+    ReturnErrorOnFailure(xc_set_source_id(params->source_id));
 
     if (params->node_id != 0)
     {
@@ -252,10 +319,28 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
         snprintf(case_auth_tag, sizeof(case_auth_tag), "%" PRIx32, params->case_auth_tag);
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_AUTH_TAG_1, (void *) (size_t) case_auth_tag));
     }
-    if ((params->crt = NULL))
+    if (params->common_name != NULL)
     {
-        ReturnErrorOnFailure(xc_create_x509_crt(certifier));
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CN_PREFIX, params->common_name));
     }
+    if (params->mac_address != NULL)
+    {
+        VerifyOrReturnError(is_mac_valid(params->mac_address, strlen(params->mac_address)) == true, XPKI_CLIENT_INVALID_ARGUMENT);
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_MAC_ADDRESS, params->mac_address));
+    }
+    if (params->mac_address != NULL && is_mac_valid(params->mac_address, strlen(params->mac_address)) &&
+        params->serial_number != NULL)
+    {
+        // FIXME: check for truncation (or use dynamic allocation)
+        snprintf(system_id, SYSTEM_ID_SIZE, "%s:%s", params->mac_address, params->serial_number);
+        system_id[SYSTEM_ID_SIZE - 1] = '\0';
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_SYSTEM_ID, system_id));
+    }
+    if (params->crt == NULL)
+    {
+        ReturnErrorOnFailure(xc_create_x509_crt());
+    } // TODO: else
+
     if (certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH) != NULL)
     {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH,
@@ -276,7 +361,7 @@ static XPKI_CLIENT_ERROR_CODE _xc_renew_certificate()
     if (return_code == CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE ||
         return_code == CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1)
     {
-        ReturnErrorOnFailure(xc_create_x509_crt(certifier));
+        ReturnErrorOnFailure(xc_create_x509_crt());
         return certifier_renew_certificate(certifier) == 0 ? XPKI_CLIENT_SUCCESS : XPKI_CLIENT_ERROR_INTERNAL;
     }
     else
@@ -285,13 +370,18 @@ static XPKI_CLIENT_ERROR_CODE _xc_renew_certificate()
     }
 }
 
-XPKI_CLIENT_ERROR_CODE xc_renew_cert(const char * p12_path, const char * password)
+XPKI_CLIENT_ERROR_CODE xc_renew_cert(renew_cert_param_t * params)
 {
+    VerifyOrReturnError(params != NULL && params->p12_path != NULL && params->p12_password != NULL && params->source_id != NULL,
+                        XPKI_CLIENT_INVALID_ARGUMENT);
+
     Certifier * certifier = get_certifier_instance();
 
-    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, p12_path));
-    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, password));
-    return _xc_renew_certificate(certifier);
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, params->p12_path));
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->p12_password));
+    ReturnErrorOnFailure(xc_set_source_id(params->source_id));
+
+    return _xc_renew_certificate();
 }
 
 static XPKI_CLIENT_CERT_STATUS xc_map_cert_status(int value)
@@ -326,31 +416,36 @@ static XPKI_CLIENT_CERT_STATUS xc_map_cert_status(int value)
     return cert_status;
 }
 
-static XPKI_CLIENT_CERT_STATUS _xc_get_cert_status()
-{
-    Certifier * certifier               = get_certifier_instance();
-    int return_code                     = 0;
-    XPKI_CLIENT_CERT_STATUS cert_status = XPKI_CLIENT_CERT_VALID;
-
-    return_code = certifier_get_device_certificate_status(certifier);
-    cert_status = xc_map_cert_status(return_code);
-
-    if (cert_status == XPKI_CLIENT_CERT_VALID)
-    {
-        return_code = certifier_get_device_registration_status(certifier);
-        cert_status |= xc_map_cert_status(return_code);
-    }
-
-    return cert_status;
-}
-
-XPKI_CLIENT_CERT_STATUS xc_get_cert_status(const char * p12_path, const char * password)
+static XPKI_CLIENT_ERROR_CODE _xc_get_cert_status(XPKI_CLIENT_CERT_STATUS * status)
 {
     Certifier * certifier = get_certifier_instance();
+    int return_code       = 0;
+    *status               = XPKI_CLIENT_CERT_INVALID;
 
-    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, p12_path));
-    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, password));
-    return _xc_get_cert_status(certifier);
+    return_code = certifier_get_device_certificate_status(certifier);
+    *status     = xc_map_cert_status(return_code);
+
+    if (*status == XPKI_CLIENT_CERT_VALID)
+    {
+        return_code = certifier_get_device_registration_status(certifier);
+        *status |= xc_map_cert_status(return_code);
+    }
+
+    return XPKI_CLIENT_SUCCESS;
+}
+
+XPKI_CLIENT_ERROR_CODE xc_get_cert_status(get_cert_status_param_t * params, XPKI_CLIENT_CERT_STATUS * status)
+{
+    VerifyOrReturnError(params != NULL && params->p12_path != NULL && params->p12_password != NULL && params->source_id != NULL,
+                        XPKI_CLIENT_INVALID_ARGUMENT);
+
+    Certifier * certifier = get_certifier_instance();
+
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, params->p12_path));
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->p12_password));
+    ReturnErrorOnFailure(xc_set_source_id(params->source_id));
+
+    return _xc_get_cert_status(status);
 }
 
 XPKI_CLIENT_ERROR_CODE xc_enable_logs(bool enable)
