@@ -338,7 +338,7 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     }
     if (params->crt == NULL)
     {
-        ReturnErrorOnFailure(xc_create_x509_crt());
+        ReturnErrorOnFailure(xc_create_x509_crt(certifier));
     } // TODO: else
 
     if (certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH) != NULL)
@@ -361,7 +361,7 @@ static XPKI_CLIENT_ERROR_CODE _xc_renew_certificate()
     if (return_code == CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE ||
         return_code == CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1)
     {
-        ReturnErrorOnFailure(xc_create_x509_crt());
+        ReturnErrorOnFailure(xc_create_x509_crt(certifier));
         return certifier_renew_certificate(certifier) == 0 ? XPKI_CLIENT_SUCCESS : XPKI_CLIENT_ERROR_INTERNAL;
     }
     else
