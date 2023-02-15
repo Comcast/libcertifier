@@ -30,7 +30,7 @@ The default build type is `Debug`.
 
 === Examples
 
-Cmake can be run from any directory, it requires only path (relative or absolute) to the source directory and makes a build directory with all executables where it runs.
+Cmake can be run from any directory, it requires only a path (relative or absolute) to the source directory and makes a build directory with all executables where it runs.
 
 With `OpenSSL` & Tests & Valgrind ready & Debug configuration
 
@@ -54,10 +54,10 @@ From the build directory (if -DENABLE_TESTS=ON)
 . Type in `cmake --build .` or `make`
 . Type in `./certifierTests` to run the unit tests
 
-Now, run the functional test.  This attempts to read in the device attestation certificate, creates an X509 token from it (for authentication) and makes an HTTPS call to certifier and creates a PKCS12 file with a public/private keypair and an X509 certificate.
+Now, run the functional test below.  This script will attempt to read the device attestation certificate (seed.p12), create an X509 token from it (for authentication), and make an HTTPS call to certifier to creates a PKCS12 file. The resulting PKCS12 file will contain a public/private keypair and X509 certificate chain.
 
-`./test-fetch-cert-e2e.sh ./device-attestation-certificate.p12 changeit`
-. There should be an `lrg` file in the build directory.  This is the created PKCS12 file.
+`./test-fetch-cert.sh seed.p12 changeit`
+. If successful, there should be an `output.p12` file in your current directory.
 
 
 === Build Options
@@ -86,19 +86,17 @@ Valgrind checks can be run on any tests added to `CMakeLists.txt` and runnable w
 ctest -T memcheck
 ```
 
-=== OSX
+=== MacOS
 
-Building/running on OSX is a bit tricky.
+Building/running on MacOS is a bit tricky.
 
-==== Open SSL 1.1.1f
+==== OpenSSL 1.1.1f
 
 If you already have `openssl` version 1.1.1 or higher, you can skip this section.
 
-In the Linux Ubuntu world, `openssl` is not the same as `libssl-dev`.  The first one is for direct use, the second is for linking.  On OSX, they are bundled in one package, if you use `brew install openssl` and there are some things you have to do to get it to work.  Also, OSX comes with their own version of OpenSSL, which makes things even more complicated, i.e., DLL hell (Windows joke!).
+It's recommended to manually compile and install OpenSSL on MacOS. Here's example instructions:
 
-I prefer to compile and install OpenSSL on OSX myself.  Here is what I did, and may have be tuned for your particular env -
-
-Step 1 - Get the source code for Open SSL 1.1.1f -
+Step 1 - Get the source code for OpenSSL 1.1.1f -
 
 ----
 cd ~
@@ -114,7 +112,6 @@ cd openssl-1.1.1f
 
 Step 3 - Configure, compile and install into `/usr/local/mac-dev-env/openssl-1.1.1f`
 
-The command below assumes you are using `64-Bit` OSX.
 
 ----
 ./Configure darwin64-x86_64-cc shared enable-deprecated enable-ec_nistp_64_gcc_128 no-ssl2 no-ssl3 no-comp --prefix=/usr/local/mac-dev-env/openssl-1.1.1f --openssldir=/usr/local/mac-dev-env/openssl-1.1.1f --api=1.0.0
@@ -123,17 +120,8 @@ make
 sudo make install
 ----
 
-If you are using `32-Bit` OSX -
-
-----
-./Configure darwin-i386-cc shared enable-deprecated no-ssl2 no-ssl3 no-comp --prefix=/usr/local/mac-dev-env/openssl-1.1.1f --openssldir=/usr/local/mac-dev-env/openssl-1.1.1f --api=1.0.0
-make depend
-make
-sudo make install
-----
-
 Notice that the `enable-deprecated` flag is enabled.  There are still places in our code,
-openssl.c, where older APIs in 1.0.x were used.  They have been deprecated in OpenSSL 1.1.1.  In the future, there should be a TODO to disable support for Open SSL 1.0.x and move to the supported APIs.
+openssl.c, where older APIs in 1.0.x were used.  These have been deprecated in OpenSSL 1.1.1.
 
 Step 5 - OpenSSL should be installed.
 
@@ -141,7 +129,7 @@ Step 5 - OpenSSL should be installed.
 
 If you already have `curl` version 7.69.1 or higher, you can skip this section.
 
-Just like OpenSSL, I prefer to compile and install cURL on OSX myself.  Here is what I did, and may have be tuned for your particular env -
+Just like OpenSSL, it's recommended to manually compile and install cURL on MacOS. 
 
 Step 1 - Get the source code for cURL 7.69.1 -
 
@@ -165,7 +153,7 @@ make
 sudo make install
 ----
 
-Notice the `--with-darwinssl` flag.  This uses OSX's built-in OpenSSL version and not the one we just built.  I prefer doing this, because it's easier.
+Notice the `--with-darwinssl` flag.  This uses MacOS's built-in OpenSSL version and not the one we just built. 
 
 If you have OpenSSL installed somewhere else (for example, /opt/OpenSSL) and you have pkg-config installed, set the pkg-config path first, like this:
 
@@ -181,7 +169,7 @@ Without pkg-config installed, use this:
 
 Step 5 - Now cURL should be installed.
 
-Step 6 - Type the following command to see build output as shown below. Make sure output successfully finds openssl, curl and zlib
+Step 6 - Type the following command to see build output as shown below. Make sure the output successfully finds openssl, curl and zlib.
 
 [source,console]
 ----
@@ -235,7 +223,7 @@ followed by -
 make
 ```
 
-If you get symbols that cannot be referenced, it's most likely because something else is defined as in implicit include directory (like an older version of OpenSSL), such as ```/opt/local/include/openssl/``` so please be sure that older Open SSL include files do not exist.
+If you get symbols that cannot be referenced, it's most likely because something else is defined as in implicit include directory (like an older version of OpenSSL), such as ```/opt/local/include/openssl/``` so please be sure that the older OpenSSL include files do not exist.
 
 #### cURL (alternative)
 An alternative to building cURL is running the following -

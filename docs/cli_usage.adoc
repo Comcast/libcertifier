@@ -39,7 +39,7 @@ cd ./tests/functional
 The command below combines both examples above into a single call.
 
 ----
-./certifierUtil get-cert -f -k ./seed.p12 -p changeit
+./certifierUtil get-cert -f -k ./seed.p12 -p changeit -o matter_dac.p12 -w changeit
 ----
 
 *Fetch a Matter Device Attestation Certificate*
@@ -47,7 +47,7 @@ The command below combines both examples above into a single call.
 The command below fetches a Device Attestation Certificate with a desired Product-ID (16-bit hex). VendorID will always be fixed to 0xFFF4
 
 ----
-./certifierUtil get-cert -k ./seed.p12 -p changeit -o matter_dac.p12 --product-id 1101 -P XFN_DL_PAI_1_Class_3
+./certifierUtil get-cert -k ./seed.p12 -p changeit -o matter_dac.p12 -w changeit --product-id 1101 -P XFN_DL_PAI_1_Class_3
 ----
 
 *Fetch a Matter Operational Certificate*
@@ -55,7 +55,7 @@ The command below fetches a Device Attestation Certificate with a desired Produc
 The command below fetches a Matter-compliant Operational Certificate with a desired NodeID (64-bit hex).
 
 ----
-./certifierUtil get-cert -k ./seed.p12 -p changeit -o matter_opcert.p12 --node-id AAAABBBBCCCCDDDD -P XFN_Matter_OP_Class_3_ICA
+./certifierUtil get-cert -k ./seed.p12 -p changeit -o matter_opcert.p12 -w changeit --node-id AAAABBBBCCCCDDDD -P XFN_Matter_OP_Class_3_ICA
 ----
 
 == *Other Examples*
@@ -63,25 +63,25 @@ The command below fetches a Matter-compliant Operational Certificate with a desi
 *Get Certificate Status*
 
 ----
-./certifierUtil get-cert-status -k <pkcs12-file-path>
+./certifierUtil get-cert-status -k <pkcs12-file-path> -p <password>
 ----
 
 *Revoke Certificate*
 
 ----
-./certifierUtil revoke [-k <pkcs12-file-path>]
+./certifierUtil revoke -k <pkcs12-file-path> -p <password>
 ----
 
 *Renew Certificate*
 
 ----
-./certifierUtil renew-cert [-k <pkcs12-file-path>]
+./certifierUtil renew-cert -k <pkcs12-file-path> -p <password>
 ----
 
 *Print Certificate*
 
 ----
-./certifierUtil print-cert -k <pkcs12-file-path>
+./certifierUtil print-cert -k <pkcs12-file-path> -p <password>
 ----
 
 == *certifierUtil commands*
