@@ -148,6 +148,8 @@ security_generate_csr(ECC_KEY *eckey, size_t *retlen)
     EVP_PKEY *pk = NULL;
     int der_len = 0;
     STACK_OF(X509_EXTENSION) *exts = NULL;
+    CertifierPropMap *properties = NULL;
+    char *usage_values = NULL;
 
     if ((pk = EVP_PKEY_new()) == NULL) {
         log_error("EVP_PKEY_new failed.");
@@ -169,8 +171,8 @@ security_generate_csr(ECC_KEY *eckey, size_t *retlen)
 
     // Set extended key usage values from cfg
     exts = sk_X509_EXTENSION_new_null();
-    CertifierPropMap *properties = property_ext();
-    char *usage_values = property_get(properties, CERTIFIER_OPT_EXT_KEY_USAGE);
+    properties = property_ext();
+    usage_values = property_get(properties, CERTIFIER_OPT_EXT_KEY_USAGE);
     log_debug("Ext Key Usage is: %s", usage_values);
     add_ext(exts, NID_ext_key_usage, usage_values);
     X509_REQ_add_extensions(x, exts);
@@ -464,6 +466,7 @@ CertifierError security_verify_signature(ECC_KEY *key,
                                       const unsigned char *input, int input_len) {
     CertifierError rc = CERTIFIER_ERROR_INITIALIZER;
     unsigned char *sig = NULL;
+    int sig_len = 0;
     unsigned char digest[32];
 
     if (key == NULL || signature_b64 == NULL || input == NULL) {
@@ -472,7 +475,7 @@ CertifierError security_verify_signature(ECC_KEY *key,
         goto cleanup;
     }
 
-    int sig_len = base64_decode_len(signature_b64);
+    sig_len = base64_decode_len(signature_b64);
 
     sig = (unsigned char *) XMALLOC(sig_len);
     if (sig == NULL) {

@@ -421,7 +421,7 @@ static int do_create_crt(CERTIFIER *easy) {
 
     if (util_is_empty(crt_type)) {
         return_code = CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
-        log_error("certifier opt type parameter was not set.",
+        log_error("certifier opt type parameter was not set. Received error code: <%i>",
                   return_code);
         safe_exit(easy, return_code);
         goto cleanup;
@@ -1003,6 +1003,7 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
     free_easy_info(&easy->last_info);
     int return_code;
     bool force_registration;
+    const char *password = NULL;
 
     if (easy->mode == CERTIFIER_MODE_NONE ||
         easy->mode == CERTIFIER_MODE_PRINT_VER ||
@@ -1053,7 +1054,7 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
 
     force_registration = certifier_is_option_set(easy->certifier, CERTIFIER_OPTION_FORCE_REGISTRATION);
 
-    const char *password = certifier_get_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
+    password = certifier_get_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
     if (util_is_empty(password)) {
         return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, DEFAULT_PASSWORD);
         if (return_code != 0) {
@@ -1079,16 +1080,23 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
         case CERTIFIER_MODE_NONE:
             break;
 
-        case CERTIFIER_MODE_REGISTER:
+        case CERTIFIER_MODE_REGISTER: {
+            return_code = 0;
             if (certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH) != NULL) {
-                certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PATH,
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PATH,
                                        certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH));
             }
-            certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD));
+            return_code |= certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD));
+            if (return_code != 0) {
+                log_error("Received return_code: <%i> while setting CERTIFIER_OPT_INPUT_P12_PASSWORD and CERTIFIER_OPT_INPUT_P12_PATH.  Exiting.",
+                        return_code);
+                safe_exit(easy, return_code);
+                goto cleanup;
+            }
 
             do_registration(easy);
             break;
-
+        }
         case CERTIFIER_MODE_REVOKE_CERT:
             do_create_crt(easy);
             do_revoke(easy);
@@ -1098,29 +1106,43 @@ int certifier_api_easy_perform(CERTIFIER *easy) {
             do_create_node_address(easy);
             break;
 
-        case CERTIFIER_MODE_CREATE_CRT:
+        case CERTIFIER_MODE_CREATE_CRT: {
             do_create_crt(easy);
             const char *generated_crt = certifier_get_property(easy->certifier, CERTIFIER_OPT_CRT);
             XFPRINTF(stdout, "%s\n", generated_crt);
             break;
+        }
+        case CERTIFIER_MODE_COMBO_REGISTER: {
+            return_code = 0;
 
-        case CERTIFIER_MODE_COMBO_REGISTER:
             if (force_registration) {
-                certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) false);
+                return_code |= certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) false);
+                if (return_code != 0) {
+                    log_error("Received return_code: <%i> while setting CERTIFIER_OPT_FORCE_REGISTRATION.  Exiting.",
+                            return_code);
+                    safe_exit(easy, return_code);
+                    goto cleanup;
+                }
             }
 
             do_create_crt(easy);
 
             if (certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH) != NULL) {
-                certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PATH,
+                return_code |= certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PATH,
                                        certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH));
             }
-            certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) force_registration);
-            certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD));
+            return_code |= certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) force_registration);
+            return_code |= certifier_set_property(easy->certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, certifier_get_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD));
+            if (return_code != 0) {
+                log_error("Received return_code: <%i> while setting CERTIFIER_OPT_INPUT_P12_PASSWORD, CERTIFIER_OPT_INPUT_P12_PATH and CERTIFIER_OPT_FORCE_REGISTRATION.  Exiting.",
+                        return_code);
+                safe_exit(easy, return_code);
+                goto cleanup;
+            }
 
             do_registration(easy);
             break;
-
+        }
         case CERTIFIER_MODE_GET_CERT_STATUS:
             do_get_cert_status(easy);
             break;

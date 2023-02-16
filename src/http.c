@@ -143,6 +143,7 @@ static http_response *do_http(const CertifierPropMap *props,
     if (cf->payload == NULL) {
         return http_error_response("do_http malloc failed", 0, 0);
     }
+    cf->payload[0] = 0;
     cf->size = 0;
     cf->return_code = 0;
 
@@ -189,26 +190,19 @@ static http_response *do_http(const CertifierPropMap *props,
 
         log_error("curl_easy_perform() failed with curl error: %s and http return code: %ld\n",
                   curl_easy_strerror(res), http_code);
-        
-        // do these two functions return an error and check for it?
-        curl_easy_cleanup(curl);
-        curl_slist_free_all(chunk);
-        
-        if (res != CURLE_OK) { // could the two functions above ever get an error, and if so, should this be checked
-            error_message = curl_easy_strerror(res);
-            if (error_message != NULL) {
-                free(cf->payload);
-                return http_error_response(error_message, res, http_code);
-            }
-        }
     }
 
     curl_easy_cleanup(curl);
     curl_slist_free_all(chunk);
 
-    log_debug("do_http returned: %s", cf->payload);
-
-    return http_success_response(cf->payload, http_code, errbuf, res);
+    if (res != CURLE_OK) {
+        error_message = curl_easy_strerror(res);
+        free(cf->payload);
+        return http_error_response(error_message != NULL ? error_message : "error", res, http_code);
+    } else {
+        log_debug("do_http returned: %s", cf->payload);
+        return http_success_response(cf->payload, http_code, errbuf, res);
+    }
 }
 
 int

@@ -825,11 +825,12 @@ int property_set_ext(CertifierPropMap *prop_map) {
     }
     else
     {
+        file_contents[file_contents_len] = '\0';
         json = json_parse_string_with_comments(file_contents);
         XFREE(file_contents);
         if (json == NULL)
         {
-            log_error("json_parse_string_with_comments returned a NULL value.  Perhaps JSON malformed?", ret);
+            log_error("json_parse_string_with_comments returned a NULL value.  Perhaps JSON malformed?  Received error code: <%i>", ret);
             return 1;
         }
     }
@@ -898,10 +899,11 @@ property_set_defaults_from_cfg_file(CertifierPropMap *propMap) {
         }
         return 1;
     } else {
+        file_contents[file_contents_len] = '\0';
         json = json_parse_string_with_comments(file_contents);
         XFREE(file_contents);
         if (json == NULL) {
-            log_error("json_parse_string_with_comments returned a NULL value.  Perhaps JSON malformed?", ret);
+            log_error("json_parse_string_with_comments returned a NULL value.  Perhaps JSON malformed? Received error code: <%i>", ret);
             return 1;
         }
     }
