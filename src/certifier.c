@@ -120,11 +120,7 @@ int certifier_set_keys_and_node_address_with_cn_prefix(Certifier *certifier, ECC
         goto cleanup;
     }
 
-    load_cert(certifier);
-    if (return_code != 0) {
-        /* load_cert() will set_last_error on failure */
-        goto cleanup;
-    }
+    (void)load_cert(certifier);
 
     // Save public key
     XFREE(certifier->tmp_map.der_public_key);
@@ -182,6 +178,8 @@ int
 certifier_setup_keys(Certifier *certifier) {
     NULL_CHECK(certifier);
 
+    CertifierError rc = CERTIFIER_ERROR_INITIALIZER;
+
     int return_code = 0;
     char *tmp_node_address = NULL;
 
@@ -189,6 +187,8 @@ certifier_setup_keys(Certifier *certifier) {
     const char *password = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
     const char *ecc_curve_id = certifier_get_property(certifier, CERTIFIER_OPT_ECC_CURVE_ID);
     char *cn_prefix = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
+
+    ECC_KEY *new_key = NULL;
 
     if (util_is_empty(p12_filename)) {
         return_code = CERTIFIER_ERR_SETUP_EMPTY_FILENAME;
@@ -206,13 +206,12 @@ certifier_setup_keys(Certifier *certifier) {
     }
 
     // Get or Create the Elliptical Curve Keys
-    ECC_KEY *new_key = NULL;
-    CertifierError rc = security_find_or_create_keys(certifier->prop_map,
-                                                     p12_filename,
-                                                     password,
-                                                     NULL,
-                                                     ecc_curve_id,
-                                                     &new_key);
+    rc = security_find_or_create_keys(certifier->prop_map,
+                                     p12_filename,
+                                     password,
+                                     NULL,
+                                     ecc_curve_id,
+                                     &new_key);
 
     return_code = certifier_set_keys_and_node_address_with_cn_prefix(certifier, new_key, cn_prefix, rc);
 
@@ -266,6 +265,9 @@ certifier_get_device_registration_status(Certifier *certifier) {
     CertifierError time_range_valid = CERTIFIER_ERROR_INITIALIZER;
     time_t raw_time = 0;
 
+    const char *simulated_cert_expiration_date_before = NULL;
+    const char *simulated_cert_expiration_date_after = NULL;
+
     // Check certificate expiration against current time
     time(&raw_time);
 
@@ -289,10 +291,10 @@ certifier_get_device_registration_status(Certifier *certifier) {
         goto cleanup;
     }
 
-    const char *simulated_cert_expiration_date_before = certifier_get_property(certifier,
-                                                                               CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE);
-    const char *simulated_cert_expiration_date_after = certifier_get_property(certifier,
-                                                                              CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_AFTER);
+    simulated_cert_expiration_date_before = certifier_get_property(certifier,
+                                                                   CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE);
+    simulated_cert_expiration_date_after = certifier_get_property(certifier,
+                                                                  CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_AFTER);
 
     // Check to see if it is about to expire
     time_range_valid = security_check_x509_valid_range(raw_time,
@@ -377,6 +379,7 @@ static int save_x509certs_to_filesystem(Certifier *certifier, char *x509_certs,
     int rc = 0;
     CertifierError certifier_err_info = CERTIFIER_ERROR_INITIALIZER;
     X509_LIST *certs = NULL;
+    const char *password = NULL;
 
     log_info("\nTrimming x509 certificates...\n");
     util_trim(x509_certs);
@@ -402,7 +405,7 @@ static int save_x509certs_to_filesystem(Certifier *certifier, char *x509_certs,
         goto cleanup;
     }
 
-    const char *password = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
+    password = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
 
     //FIXME: This decision is done too late. Overwrite policy should be explicit
     // and checked before trying to register (e.g., CERTIFIER_OPT_FORCE_REGISTRATION).
@@ -598,6 +601,9 @@ int certifier_create_x509_crt(Certifier *certifier, char **out_crt) {
     int return_code = 0;
     char *generated_crt = NULL;
 
+    const X509_CERT *cert = NULL;
+    const ECC_KEY *private_key = NULL;
+
     if (out_crt == NULL) {
         return_code = CERTIFIER_ERR_CREATE_X509_CERT_3;
         goto cleanup;
@@ -605,19 +611,19 @@ int certifier_create_x509_crt(Certifier *certifier, char **out_crt) {
 
     log_info("Calling get_cert()");
 
-    const X509_CERT *cert = get_cert(certifier);
+    cert = get_cert(certifier);
     if (cert == NULL) {
         return_code = CERTIFIER_ERR_CREATE_X509_CERT_6;
-        log_error("Could not lazily obtain the cert as it was NULL.",
+        log_error("Could not lazily obtain the cert as it was NULL. Received error code: <%i>",
                   return_code);
         goto cleanup;
     }
 
 
-    const ECC_KEY *private_key = _certifier_get_privkey(certifier);
+    private_key = _certifier_get_privkey(certifier);
     if (private_key == NULL) {
         return_code = CERTIFIER_ERR_CREATE_X509_CERT_7;
-        log_error("Could not lazily obtain the private key as it was NULL.",
+        log_error("Could not lazily obtain the private key as it was NULL. Received error code: <%i>",
                   return_code);
         goto cleanup;
     }
@@ -813,6 +819,7 @@ Certifier *
 certifier_new(void) {
     int error_code = 0;
     CertifierError result = CERTIFIER_ERROR_INITIALIZER;
+    const char *cfgfile = NULL;
 
     // set initial logging properties
     log_set_stripped(0);
@@ -847,7 +854,7 @@ certifier_new(void) {
     }
 
     /* A default cfgfile may be set, but it is optional. Only attempt to load if set and exists */
-    const char *cfgfile = certifier_get_property(certifier, CERTIFIER_OPT_CFG_FILENAME);
+    cfgfile = certifier_get_property(certifier, CERTIFIER_OPT_CFG_FILENAME);
     if (!util_is_empty(cfgfile) && access(cfgfile, F_OK) == 0) {
         /* This will reconfigure() automatically. */
         error_code = certifier_load_cfg_file(certifier);
@@ -1335,7 +1342,7 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
     }
 
     if (num_days > 0) {
-        log_debug("\nvalidityDays  :\n%d\n", num_days);
+        log_debug("\nvalidityDays  :\n%lu\n", num_days);
         json_object_set_number(root_object, "validityDays", num_days);
     }
 

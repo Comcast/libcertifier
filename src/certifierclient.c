@@ -31,6 +31,7 @@
 #define SEM_MUTEX_KEY "/tmp/sem-mutex-key"
 
 static int mutex_sem;
+static int fd = -1;
 
 // Functions
 int
@@ -38,7 +39,8 @@ certifierclient_init() {
     key_t s_key;
     bool sem_exists = false;
 
-    if (open(SEM_MUTEX_KEY, O_EXCL | O_CREAT, 0600) == -1) {
+    fd = open(SEM_MUTEX_KEY, O_EXCL | O_CREAT, 0600);
+    if (fd == -1) {
         if (errno == EEXIST) {
             sem_exists = true;
         } else {
@@ -77,6 +79,10 @@ certifierclient_init() {
 
 int
 certifierclient_destroy() {
+    if (fd != -1) {
+        close(fd);
+    }
+
     semctl(mutex_sem, 0, IPC_RMID);
     unlink(SEM_MUTEX_KEY);
 
@@ -115,8 +121,17 @@ certifierclient_request_x509_certificate(CertifierPropMap *props,
 
     char certifier_certificate_url[256];
     char certificate_url[] = "/certificate";
-    strncpy(certifier_certificate_url, certifier_url, sizeof(certifier_certificate_url));
-    strncpy(certifier_certificate_url + strlen(certifier_url), certificate_url, sizeof(certifier_certificate_url) - strlen(certifier_url));
+    strncpy(certifier_certificate_url, certifier_url, sizeof(certifier_certificate_url) - 1);
+    strncpy(certifier_certificate_url + strlen(certifier_url), certificate_url, sizeof(certifier_certificate_url) - 1 - strlen(certifier_url));
+
+    const char *headers[] = {
+            "Accept: application/json",
+            "Content-Type: application/json; charset=utf-8",
+            auth_header,
+            tracking_header,
+            source_header,
+            NULL
+    };
 
     if (util_is_empty(source)) {
         rc.application_error_code = CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
@@ -129,15 +144,6 @@ certifierclient_request_x509_certificate(CertifierPropMap *props,
     }
     snprintf(tracking_header, SMALL_STRING_SIZE, "x-xpki-tracking-id: %s", tracking_id);
     snprintf(source_header, SMALL_STRING_SIZE, "x-xpki-source: %s", source);
-
-    const char *headers[] = {
-            "Accept: application/json",
-            "Content-Type: application/json; charset=utf-8",
-            auth_header,
-            tracking_header,
-            source_header,
-            NULL
-    };
 
     serialized_string = certifier_create_csr_post_data(props, csr, node_address, certifier_id);
 
@@ -254,6 +260,8 @@ certifierclient_revoke_x509_certificate(CertifierPropMap *props,
     char source_header[SMALL_STRING_SIZE] = "";
     JSON_Object *parsed_json_object_value = NULL;
     JSON_Value *parsed_json_root_value = NULL;
+    JSON_Value *root_value = NULL;
+    JSON_Object *root_object = NULL;
     char *serialized_string = NULL;
     http_response *resp = NULL;
     const char *tracking_id = property_get(props, CERTIFIER_OPT_TRACKING_ID);
@@ -265,8 +273,17 @@ certifierclient_revoke_x509_certificate(CertifierPropMap *props,
     char array_digest[CERTIFIER_SHA1_DIGEST_LENGTH * 2 + 1];
     char certifier_revoke_url[256];
     char revoke_url[] = "/revoke";
-    strncpy(certifier_revoke_url, certifier_url, sizeof(certifier_revoke_url));
-    strncpy(certifier_revoke_url + strlen(certifier_url), revoke_url, sizeof(certifier_revoke_url) - strlen(certifier_url));
+    strncpy(certifier_revoke_url, certifier_url, sizeof(certifier_revoke_url) - 1);
+    strncpy(certifier_revoke_url + strlen(certifier_url), revoke_url, sizeof(certifier_revoke_url) - 1 - strlen(certifier_url));
+
+    const char *headers[] = {
+            "Accept: application/json",
+            "Content-Type: application/json",
+            auth_header,
+            tracking_header,
+            source_header,
+            NULL
+    };
 
     if (util_is_empty(source)) {
         rc.application_error_code = CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
@@ -280,23 +297,14 @@ certifierclient_revoke_x509_certificate(CertifierPropMap *props,
     snprintf(tracking_header, SMALL_STRING_SIZE, "x-xpki-tracking-id: %s", tracking_id);
     snprintf(source_header, SMALL_STRING_SIZE, "x-xpki-source: %s", source);
 
-    const char *headers[] = {
-            "Accept: application/json",
-            "Content-Type: application/json",
-            auth_header,
-            tracking_header,
-            source_header,
-            NULL
-    };
-
     if (dtoa(digest, digest_len, array_digest, sizeof(array_digest)) != 0) {
         rc.application_error_code = CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
         rc.application_error_msg = util_format_error_here("digest length invalid");
         return rc;
     }
 
-    JSON_Value *root_value = json_value_init_object();
-    JSON_Object *root_object = json_value_get_object(root_value);
+    root_value = json_value_init_object();
+    root_object = json_value_get_object(root_value);
 
     json_object_set_string(root_object, "revokeReason", "UNSPECIFIED");
     json_object_set_string(root_object, "certificateId", array_digest);
@@ -394,6 +402,8 @@ certifierclient_renew_x509_certificate(CertifierPropMap *props,
     char source_header[SMALL_STRING_SIZE] = "";
     JSON_Object *parsed_json_object_value = NULL;
     JSON_Value *parsed_json_root_value = NULL;
+    JSON_Value *root_value = NULL;
+    JSON_Object *root_object = NULL;
     char *serialized_string = NULL;
     const char *certificate_chain = NULL;
     http_response *resp = NULL;
@@ -406,8 +416,17 @@ certifierclient_renew_x509_certificate(CertifierPropMap *props,
     char array_digest[CERTIFIER_SHA1_DIGEST_LENGTH * 2 + 1];
     char certifier_renew_url[256];
     char renew_url[] = "/renew";
-    strncpy(certifier_renew_url, certifier_url, sizeof(certifier_renew_url));
-    strncpy(certifier_renew_url + strlen(certifier_url), renew_url, sizeof(certifier_renew_url) - strlen(certifier_url));
+    strncpy(certifier_renew_url, certifier_url, sizeof(certifier_renew_url) - 1);
+    strncpy(certifier_renew_url + strlen(certifier_url), renew_url, sizeof(certifier_renew_url) - 1 - strlen(certifier_url));
+
+    const char *headers[] = {
+            "Accept: application/json",
+            "Content-Type: application/json",
+            auth_header,
+            tracking_header,
+            source_header,
+            NULL
+    };
 
     if (util_is_empty(source)) {
         rc.application_error_code = CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
@@ -421,23 +440,14 @@ certifierclient_renew_x509_certificate(CertifierPropMap *props,
     snprintf(tracking_header, SMALL_STRING_SIZE, "x-xpki-tracking-id: %s", tracking_id);
     snprintf(source_header, SMALL_STRING_SIZE, "x-xpki-source: %s", source);
 
-    const char *headers[] = {
-            "Accept: application/json",
-            "Content-Type: application/json",
-            auth_header,
-            tracking_header,
-            source_header,
-            NULL
-    };
-
     if (dtoa(digest, digest_len, array_digest, sizeof(array_digest)) != 0) {
         rc.application_error_code = CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
         rc.application_error_msg = util_format_error_here("digest length invalid");
         return rc;
     }
 
-    JSON_Value *root_value = json_value_init_object();
-    JSON_Object *root_object = json_value_get_object(root_value);
+    root_value = json_value_init_object();
+    root_object = json_value_get_object(root_value);
 
     json_object_set_string(root_object, "certificateId", array_digest);
 
@@ -555,8 +565,8 @@ certifierclient_check_certificate_status(CertifierPropMap *props,
     char certifier_status_url[256];
     char status_url[] = "/certificate/status/";
     char array_digest[CERTIFIER_SHA1_DIGEST_LENGTH * 2 + 1];
-    strncpy(certifier_status_url, certifier_url, sizeof(certifier_status_url));
-    strncpy(certifier_status_url + strlen(certifier_url), status_url, sizeof(certifier_status_url) - strlen(certifier_url));
+    strncpy(certifier_status_url, certifier_url, sizeof(certifier_status_url) - 1);
+    strncpy(certifier_status_url + strlen(certifier_url), status_url, sizeof(certifier_status_url) - 1 - strlen(certifier_url));
 
     if (dtoa(digest, digest_len, array_digest, sizeof(array_digest)) != 0) {
         rc.application_error_code = CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;

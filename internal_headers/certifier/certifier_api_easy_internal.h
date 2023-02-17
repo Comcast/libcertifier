@@ -20,14 +20,11 @@
 #define CERTIFIER_API_EASY_INTERNAL_H
 
 #include "certifier/types.h"
+#include "certifier/http.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct CERTIFIER CERTIFIER;
-
-typedef struct http_response http_response;
 
 /**
  * Send a CSR to HTTP server
