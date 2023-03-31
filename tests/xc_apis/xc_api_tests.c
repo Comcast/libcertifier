@@ -60,6 +60,9 @@ static void test_get_cert()
 
     params.output_p12_path = "output-xc-test-san.p12";
     params.profile_name    = "XFN_DL_PAI_1_Class_3";
+    params.dns_san         = "[\"dns-test.matter.opensource.com\"]";
+    params.ip_san          = "[\"1.2.3.4\"]";
+    params.email_san       = "[\"testemail@test.com\"]";
     params.serial_number   = "ABCD22";
     params.lite            = false;
     error                  = xc_get_cert(&params);

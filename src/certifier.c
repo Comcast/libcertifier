@@ -1293,6 +1293,9 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
     const char *system_id = property_get(props, CERTIFIER_OPT_SYSTEM_ID);
     const char *fabric_id = property_get(props, CERTIFIER_OPT_FABRIC_ID);
     const char *mac_address = property_get(props, CERTIFIER_OPT_MAC_ADDRESS);
+    const char *dns_san = property_get(props, CERTIFIER_OPT_DNS_SAN);
+    const char *ip_san = property_get(props, CERTIFIER_OPT_IP_SAN);
+    const char *email_san = property_get(props, CERTIFIER_OPT_EMAIL_SAN);
     const char *profile_name = property_get(props, CERTIFIER_OPT_PROFILE_NAME);
     const char *product_id = property_get(props, CERTIFIER_OPT_PRODUCT_ID);
     const char *authenticated_tag_1 = property_get(props, CERTIFIER_OPT_AUTH_TAG_1);
@@ -1339,6 +1342,24 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
     if (util_is_not_empty(mac_address)) {
         log_debug("\nmacAddress Id :\n%s\n", mac_address);
         json_object_set_string(root_object, "macAddress", mac_address);
+    }
+
+    if (util_is_not_empty(dns_san)) {
+        log_debug("\ndnsNames Id :\n%s\n", dns_san);
+        json_object_dotset_value(root_object, "dnsNames",
+                         json_parse_string(dns_san));
+    }
+
+    if (util_is_not_empty(ip_san)) {
+        log_debug("\nipAddress Id :\n%s\n", ip_san);
+        json_object_dotset_value(root_object, "ipAddresses",
+                         json_parse_string(ip_san));
+    }
+
+    if (util_is_not_empty(email_san)) {
+        log_debug("\nemails Id :\n%s\n", email_san);
+        json_object_dotset_value(root_object, "emails",
+                         json_parse_string(email_san));
     }
 
     if (num_days > 0) {
