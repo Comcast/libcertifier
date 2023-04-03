@@ -191,6 +191,9 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
 
     params->keypair       = NULL;
     params->mac_address   = NULL;
+    params->dns_san       = NULL;
+    params->ip_san        = NULL;
+    params->email_san     = NULL;
     params->serial_number = NULL;
     params->crt           = NULL;
     params->source_id     = NULL;
@@ -336,6 +339,18 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
         snprintf(system_id, SYSTEM_ID_SIZE, "%s:%s", params->mac_address, params->serial_number);
         system_id[SYSTEM_ID_SIZE - 1] = '\0';
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_SYSTEM_ID, system_id));
+    }
+    if (params->dns_san != NULL)
+    {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_DNS_SAN, params->dns_san));
+    }
+    if (params->ip_san != NULL)
+    {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_IP_SAN, params->ip_san));
+    }
+    if (params->email_san != NULL)
+    {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_EMAIL_SAN, params->email_san));
     }
     if (params->crt == NULL)
     {

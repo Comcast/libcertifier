@@ -96,8 +96,12 @@ typedef enum
  *  Mac Address (Mandatory only on RDK Devices).
  *  @var get_cert_param_t::serial_number
  *  Serial Number (Optional).
- *  @var get_cert_param_t::san
- *  SAN (Optional).
+ *  @var get_cert_param_t::dns_san
+ *  DNS Name added to Subject Alternate Name (SAN) field (Optional).
+ *  @var get_cert_param_t::ip_san
+ *  IP Address added to Subject Alternate Name (SAN) field (Optional).
+ *  @var get_cert_param_t::email_san
+ *  Email Address added to Subject Alternate Name (SAN) field (Optional).
  *  @var get_cert_param_t::common_name
  *  Contains the CN value field of the Certificate Subject. (Optional)
  */
@@ -120,10 +124,12 @@ typedef struct
     uint64_t node_id;
     uint64_t fabric_id;
     uint32_t case_auth_tag;
-    // additonal parameters
+    // optional parameters below
     const char * mac_address;
     const char * serial_number;
-    const char * san;
+    const char * dns_san;
+    const char * ip_san;
+    const char * email_san;
     const char * common_name;
 } get_cert_param_t;
 

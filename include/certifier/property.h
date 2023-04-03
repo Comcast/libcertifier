@@ -58,11 +58,6 @@ typedef enum CERTIFIER_OPT
      */
         CERTIFIER_OPT_OPTIONS = 14,
         CERTIFIER_OPT_ECC_CURVE_ID = 15,
-
-        /**
-     * Set this to request certificates with an X.509 subjectAltName (otherName type).
-     * @note value type: string
-     */
         CERTIFIER_OPT_SYSTEM_ID = 16,
         CERTIFIER_OPT_FABRIC_ID = 17,
         CERTIFIER_OPT_PRODUCT_ID = 18,
@@ -77,7 +72,14 @@ typedef enum CERTIFIER_OPT
         CERTIFIER_OPT_INPUT_NODE = 27,
         CERTIFIER_OPT_NODE_ID = 28,
         CERTIFIER_OPT_AUTH_TAG_1 = 29,
-        // 30 - 36 are unused
+        /**
+     * Set these enums (30-32) to request certificates with X.509 subjectAltNames (otherName types).
+     * @note value type: string
+     */
+        CERTIFIER_OPT_DNS_SAN = 30,
+        CERTIFIER_OPT_IP_SAN = 31,
+        CERTIFIER_OPT_EMAIL_SAN = 32,
+        // 33 - 36 are unused
         CERTIFIER_OPT_LOG_MAX_SIZE = 37,
         // 38,39 are unused
         // 40 - 43 are unused

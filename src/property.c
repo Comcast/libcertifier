@@ -145,6 +145,9 @@ struct _PropMap {
     char *product_id;
     char *auth_tag_1;
     char *mac_address;
+    char *dns_san;
+    char *ip_san;
+    char *email_san;
     char *crt;
     char *profile_name;
     char *source;
@@ -371,6 +374,18 @@ property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value) 
         SV(prop_map->mac_address, value);
             break;
 
+        case CERTIFIER_OPT_DNS_SAN:
+        SV(prop_map->dns_san, value);
+            break;
+
+        case CERTIFIER_OPT_IP_SAN:
+        SV(prop_map->ip_san, value);
+            break;
+
+        case CERTIFIER_OPT_EMAIL_SAN:
+        SV(prop_map->email_san, value);
+            break;
+
         case CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE:
         SV(prop_map->simulated_cert_expiration_date_before, value);
             break;
@@ -558,6 +573,18 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name) {
 
         case CERTIFIER_OPT_MAC_ADDRESS:
             retval = prop_map->mac_address;
+            break;
+
+        case CERTIFIER_OPT_DNS_SAN:
+            retval = prop_map->dns_san;
+            break;
+
+        case CERTIFIER_OPT_IP_SAN:
+            retval = prop_map->ip_san;
+            break;
+
+        case CERTIFIER_OPT_EMAIL_SAN:
+            retval = prop_map->email_san;
             break;
 
         case CERTIFIER_OPT_SIMULATION_CERT_EXP_DATE_BEFORE:
@@ -1105,6 +1132,9 @@ static void free_prop_map_values(CertifierPropMap *prop_map) {
     FV(prop_map->product_id);
     FV(prop_map->auth_tag_1);
     FV(prop_map->mac_address);
+    FV(prop_map->dns_san);
+    FV(prop_map->ip_san);
+    FV(prop_map->email_san);
     FV(prop_map->crt);
     FV(prop_map->profile_name);
     FV(prop_map->ecc_curve_id);
