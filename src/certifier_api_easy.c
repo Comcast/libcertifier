@@ -1191,7 +1191,7 @@ int certifier_api_easy_create_json_csr(CERTIFIER *easy, unsigned char *csr, char
     }
     if (!node_address)
     {
-        node_address = XMALLOC(XTRA_SMALL_STRING_SIZE);
+        node_address = XMALLOC(VERY_SMALL_STRING_SIZE);
         certifier_easy_api_get_node_address(certifier_get_certifier_instance(easy), node_address);
         free_node_address = 1;
     }

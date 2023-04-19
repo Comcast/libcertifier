@@ -94,6 +94,7 @@ typedef enum CERTIFIER_OPT
         CERTIFIER_OPT_CN_PREFIX = 46,
         CERTIFIER_OPT_VALIDITY_DAYS = 47,
         CERTIFIER_OPT_EXT_KEY_USAGE = 48,
+        CERTIFIER_OPT_DOMAIN = 49,
 
             /**
      * Set a log callback function

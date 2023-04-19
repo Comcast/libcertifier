@@ -152,6 +152,7 @@ struct _PropMap {
     char *profile_name;
     char *source;
     char *cn_prefix;
+    char *domain;
     char *ext_key_usage_value;
     char *tracking_id;
     char *ecc_curve_id;
@@ -438,6 +439,10 @@ property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value) 
         SV(prop_map->cn_prefix, value);
             break;
 
+        case CERTIFIER_OPT_DOMAIN:
+        SV(prop_map->domain, value);
+            break;
+
         case CERTIFIER_OPT_TRACKING_ID:
         SV(prop_map->tracking_id, value);
             break;
@@ -638,6 +643,11 @@ property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name) {
         case CERTIFIER_OPT_CN_PREFIX:
             retval = prop_map->cn_prefix;
             break;
+
+        case CERTIFIER_OPT_DOMAIN:
+            retval = prop_map->domain;
+            break;
+
         case CERTIFIER_OPT_VALIDITY_DAYS:
             retval = (void *) (size_t) prop_map->validity_days; // TODO - need to revisit these casts
             break;
@@ -1149,5 +1159,6 @@ static void free_prop_map_values(CertifierPropMap *prop_map) {
     FV(prop_map->tracking_id);
     FV(prop_map->source);
     FV(prop_map->cn_prefix);
+    FV(prop_map->domain);
     FV(prop_map->ext_key_usage_value);
 }

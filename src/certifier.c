@@ -44,7 +44,7 @@
 static CERTIFIER_LOG_callback logger;
 
 typedef struct Map {
-    char node_address[XTRA_SMALL_STRING_SIZE];
+    char node_address[VERY_SMALL_STRING_SIZE];
     char *base64_public_key;
     unsigned char *der_public_key;
     int der_public_key_len;
@@ -1274,7 +1274,7 @@ CertifierPropMap *certifier_easy_api_get_props(Certifier *certifier)
 
 void certifier_easy_api_get_node_address(Certifier *certifier, char *node_address)
 {
-    memcpy(node_address, certifier->tmp_map.node_address,XTRA_SMALL_STRING_SIZE);
+    memcpy(node_address, certifier->tmp_map.node_address,VERY_SMALL_STRING_SIZE);
 }
 
 
@@ -1296,6 +1296,7 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
     const char *dns_san = property_get(props, CERTIFIER_OPT_DNS_SAN);
     const char *ip_san = property_get(props, CERTIFIER_OPT_IP_SAN);
     const char *email_san = property_get(props, CERTIFIER_OPT_EMAIL_SAN);
+    const char *domain = property_get(props, CERTIFIER_OPT_DOMAIN);
     const char *profile_name = property_get(props, CERTIFIER_OPT_PROFILE_NAME);
     const char *product_id = property_get(props, CERTIFIER_OPT_PRODUCT_ID);
     const char *authenticated_tag_1 = property_get(props, CERTIFIER_OPT_AUTH_TAG_1);
@@ -1306,6 +1307,11 @@ char* certifier_create_csr_post_data(CertifierPropMap *props,
 
     if (util_is_not_empty(node_address)) {
         json_object_set_string(root_object, "nodeAddress", node_address);
+    }
+
+    if (util_is_not_empty(domain)) {
+        log_debug("\ndomain Id :\n%s\n", domain);
+        json_object_set_string(root_object, "domain", domain);
     }
 
     if (util_is_not_empty(node_id)) {

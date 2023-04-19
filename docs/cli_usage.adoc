@@ -105,7 +105,7 @@ The command below fetches a Matter-compliant Operational Certificate with a desi
 | Check validity of certificate
 
 | renew-cert
-| Renew certificate's validity period if expired
+| Renew certificate’s validity period if not expired, and meets renew requirements
 
 | print-cert
 | Display leaf certificate's PEM Base64 data
