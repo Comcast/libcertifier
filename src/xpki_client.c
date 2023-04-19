@@ -194,6 +194,7 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
     params->dns_san       = NULL;
     params->ip_san        = NULL;
     params->email_san     = NULL;
+    params->domain        = NULL;
     params->serial_number = NULL;
     params->crt           = NULL;
     params->source_id     = NULL;
@@ -326,6 +327,10 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     if (params->common_name != NULL)
     {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CN_PREFIX, params->common_name));
+    }
+    if (params->domain != NULL)
+    {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_DOMAIN, params->domain));
     }
     if (params->mac_address != NULL)
     {

@@ -40,7 +40,8 @@ static void test_get_cert()
     params.profile_name        = "XFN_Matter_OP_Class_3_ICA";
     params.validity_days       = 90;
     params.lite                = true;
-    params.common_name         = "TEST_CERT";
+    params.common_name         = "X9c0XXBqIosRCg35keK8XsWC2PAdjQrG";
+    params.domain              = "matter.opensource.com";
     params.source_id           = "libcertifier-opensource";
 
 #ifdef RDK_BUILD

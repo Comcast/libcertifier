@@ -103,7 +103,9 @@ typedef enum
  *  @var get_cert_param_t::email_san
  *  Email Address added to Subject Alternate Name (SAN) field (Optional).
  *  @var get_cert_param_t::common_name
- *  Contains the CN value field of the Certificate Subject. (Optional)
+ *  Contains the CN value field of the Certificate Subject (Optional).
+ *  @var get_cert_param_t::domain
+ *  Contains the domain of the CN value field of the Certificate Subject (Optional).
  */
 typedef struct
 {
@@ -131,6 +133,7 @@ typedef struct
     const char * ip_san;
     const char * email_san;
     const char * common_name;
+    const char * domain;
 } get_cert_param_t;
 
 /** @struct get_cert_status_param_t
