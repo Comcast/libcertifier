@@ -11,16 +11,7 @@ To build libcertifier along example applications of Matter Commissioning Flow yo
 ----
 git clone git@github.com:Comcast/libcertifier.git
 cd libcertifier
-git submodule update --init
-pushd .
-cd matter_plugin/matter-sdk
-git submodule update --init
-source scripts/activate.sh
-popd
-mkdir build
-cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=/ -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=OFF -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Debug -DENABLE_MATTER_EXAMPLES=ON -DSYSTEMV_DAEMON=OFF
-make
+source build_matter_plugin_build.sh
 ----
 
 Having run this, two target executables will be created. Check how to use them in the following Sections.

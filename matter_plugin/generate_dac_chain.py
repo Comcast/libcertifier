@@ -17,11 +17,11 @@ with open(str(sys.argv[1]), 'rb') as infile:
     private_key, certificate, additional_certificates = pkcs12.load_key_and_certificates(
         infile.read(), b"changeit")
 
-paa_certificate = additional_certificates[0].public_bytes(
+paa_certificate = additional_certificates[1].public_bytes(
     serialization.Encoding.DER)
-pai_certificate = additional_certificates[1].public_bytes(
+pai_certificate = additional_certificates[0].public_bytes(
     serialization.Encoding.DER)
-pai_certificate_pem = additional_certificates[1].public_bytes(
+pai_certificate_pem = additional_certificates[0].public_bytes(
     serialization.Encoding.PEM)
 device_manufacturer_certificate = certificate.public_bytes(
     serialization.Encoding.DER)
@@ -33,7 +33,7 @@ private_key_bytes = private_key.private_bytes(
 public_key = private_key.public_key().public_bytes(
     serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
 
-skid = additional_certificates[0].extensions.get_extension_for_oid(
+skid = additional_certificates[1].extensions.get_extension_for_oid(
     x509.ExtensionOID.SUBJECT_KEY_IDENTIFIER).value.digest
 
 # write header file

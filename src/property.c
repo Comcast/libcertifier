@@ -43,6 +43,7 @@
 #define DEFAULT_CA_PATH              "/etc/ssl/certs"
 #define DEFAULT_USER_CA_PATH         "/usr/local/etc/certfier"
 #define DEFAULT_GLOBAL_CA_PATH       "/etc/certifier"
+#define DEFAULT_CURDIR_CA_PATH       "."
 #define DEFAULT_CERTIFER_URL         "https://certifier.xpki.io/v1/certifier"
 #define DEFAULT_PROFILE_NAME         "XFN_Matter_OP_Class_3_ICA"
 #define DEFAULT_CERT_MIN_TIME_LEFT_S 90 * 24 * 60 * 60;
@@ -70,10 +71,11 @@ const char *get_default_cfg_filename()
 
 const char *get_default_ca_path()
 {
-    static char ca[]      = DEFAULT_CA_PATH;
-    static char user_ca[] = DEFAULT_USER_CA_PATH;
-    static char glbl_ca[] = DEFAULT_GLOBAL_CA_PATH;
-    char *ca_order_list[] = { ca, user_ca, glbl_ca };
+    static char ca[]        = DEFAULT_CA_PATH;
+    static char user_ca[]   = DEFAULT_USER_CA_PATH;
+    static char glbl_ca[]   = DEFAULT_GLOBAL_CA_PATH;
+    static char curdir_ca[] = DEFAULT_CURDIR_CA_PATH;
+    char *ca_order_list[] = { ca, user_ca, glbl_ca, curdir_ca };
 
     static char ca_filepath[256] = { 0 };
 
@@ -111,7 +113,7 @@ const char *get_default_ca_info()
         }
     }
 
-    return NULL;
+    return ca;
 }
 
 /*
@@ -780,7 +782,6 @@ property_set_defaults(CertifierPropMap *prop_map) {
         return_code = property_set(prop_map, CERTIFIER_OPT_CA_PATH, default_ca_path);
         if (return_code != 0) {
             log_error("Failed to set default property name: CERTIFIER_OPT_CA_PATH with error code: %i", return_code);
-            return return_code;
         }
     }
 

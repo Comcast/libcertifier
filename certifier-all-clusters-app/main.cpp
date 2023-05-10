@@ -19,6 +19,7 @@
 #include "AppMain.h"
 #include "LightingManager.h"
 #include "binding-handler.h"
+#include "main-common.h"
 
 #include <CertifierDACProvider.h>
 
@@ -60,5 +61,7 @@ int main(int argc, char * argv[])
     LinuxDeviceOptions::GetInstance().dacProvider = chip::Credentials::Certifier::GetDACProvider();
 
     ChipLinuxAppMainLoop();
+    ApplicationExit();
+
     return 0;
 }

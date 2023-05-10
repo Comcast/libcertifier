@@ -40,6 +40,7 @@ public:
 
     void SetNodeIdForNextNOCRequest(NodeId nodeId) override { mNodeId = nodeId; }
     void SetFabricIdForNextNOCRequest(FabricId fabricId) override { mFabricId = fabricId; }
+    void SetCATValuesForNextNOCRequest(CATValues cats) { mNextCATs = cats; }
 
     CHIP_ERROR ObtainCsrNonce(MutableByteSpan & csrNonce) override;
 
@@ -51,8 +52,9 @@ public:
     CHIP_ERROR SetCertConfig(const char * certCfgPath, size_t len);
 
 private:
-    NodeId mNodeId;
-    FabricId mFabricId;
+    NodeId mNodeId      = 1;
+    FabricId mFabricId  = 1;
+    CATValues mNextCATs = kUndefinedCATs;
 
     CERTIFIER * mCertifier     = nullptr;
     char mAuthCertificate[256] = "libcertifier-cert.crt";

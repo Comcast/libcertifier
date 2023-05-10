@@ -1,4 +1,4 @@
-# Copyright 2021 Comcast Cable Communications Management, LLC
+# Copyright 2021-23 Comcast Cable Communications Management, LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,3 +17,10 @@
 import("//build_overrides/chip.gni")
 
 import("${chip_root}/config/standalone/args.gni")
+
+chip_device_project_config_include = "<CHIPProjectAppConfig.h>"
+chip_project_config_include = "<CHIPProjectAppConfig.h>"
+chip_system_project_config_include = "<SystemProjectConfig.h>"
+
+chip_project_config_include_dirs = [ "${chip_root}/examples/chip-tool/include" ]
+chip_project_config_include_dirs += [ "${chip_root}/config/standalone" ]
