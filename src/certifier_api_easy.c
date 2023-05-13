@@ -873,7 +873,6 @@ static int process_command_line(CERTIFIER *easy) {
                 if (optarg == NULL) {
                     break;
                 }
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH, optarg);
 
                 if (strlen(optarg) > NODE_ID_LENGTH) {
                     log_error("Node ID is expected to be a 64-bit hex number");

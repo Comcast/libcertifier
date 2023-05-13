@@ -72,7 +72,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::GenerateNOCChainAfterValidatio
     uint8_t OpCertificateChain[4096];
     MutableByteSpan OpCertificateChainSpan(OpCertificateChain);
 
-    SuccessOrExit(error = ObtainOpCert(dac, csr, nonce, OpCertificateChainSpan, nodeId));
+    SuccessOrExit(error = ObtainOpCert(dac, csr, nonce, OpCertificateChainSpan, nodeId, fabricId));
 
     OpCertificateChain[OpCertificateChainSpan.size()] = 0;
     util_trim(reinterpret_cast<char *>(OpCertificateChain));
@@ -252,7 +252,7 @@ http_response * CertifierOperationalCredentialsIssuer::DoHttpExchange(uint8_t * 
 }
 
 CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & dac, const ByteSpan & csr, const ByteSpan & nonce,
-                                                               MutableByteSpan & pkcs7OpCert, NodeId nodeId)
+                                                               MutableByteSpan & pkcs7OpCert, NodeId nodeId, FabricId fabricId)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -273,6 +273,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
     char * jsonCSR       = nullptr;
     char operationalID[] = "XFN-MTR";
     char nodeIdArray[17];
+    char fabricIdArray[17];
 
     http_response * resp                = nullptr;
     const char * OpCertificateChainTemp = nullptr;
@@ -290,6 +291,9 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
 
     memset(nodeIdArray, 0, sizeof(nodeIdArray));
     snprintf(nodeIdArray, sizeof(nodeIdArray), "%016" PRIX64, nodeId);
+
+    memset(fabricIdArray, 0, sizeof(fabricIdArray));
+    snprintf(fabricIdArray, sizeof(fabricIdArray), "%016" PRIX64, fabricId);
 
     json_object_set_string(root_object, "tokenType", cert_id);
     base64_encode(base64Certificate.Get(), dac.data(), static_cast<int>(dac.size()));
@@ -344,6 +348,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
     certifier_api_easy_set_opt(mCertifier, CERTIFIER_OPT_CRT, base64JsonCrt.Get());
     certifier_api_easy_set_opt(mCertifier, CERTIFIER_OPT_CN_PREFIX, operationalID);
     certifier_api_easy_set_opt(mCertifier, CERTIFIER_OPT_NODE_ID, nodeIdArray);
+    certifier_api_easy_set_opt(mCertifier, CERTIFIER_OPT_FABRIC_ID, fabricIdArray);
 
     base64_encode(base64CSR.Get(), reinterpret_cast<const unsigned char *>(csr.data()), static_cast<int>(csr.size()));
     if (!(certifier_api_easy_create_json_csr(mCertifier, reinterpret_cast<unsigned char *>(base64CSR.Get()), (char *) operationalID,

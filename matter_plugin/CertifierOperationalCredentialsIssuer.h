@@ -64,7 +64,7 @@ private:
     void GetTimestampForCertifying();
     http_response * DoHttpExchange(uint8_t * buffer, CERTIFIER * certifier);
     CHIP_ERROR ObtainOpCert(const ByteSpan & dac, const ByteSpan & csr, const ByteSpan & nonce, MutableByteSpan & pkcs7OpCert,
-                            NodeId nodeId);
+                            NodeId nodeId, FabricId fabricId);
 };
 
 } // namespace Controller
