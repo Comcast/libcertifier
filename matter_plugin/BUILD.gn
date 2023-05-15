@@ -19,11 +19,34 @@ import("//build_overrides/chip.gni")
 
 import("${chip_root}/build/chip/tools.gni")
 
-import("//build_overrides/certifier.gni")
+import("${build_root}/config/linux/pkg_config.gni")
+
+pkg_config("openssl_config") {
+  packages = [ "openssl" ]
+}
+
+copy("libcertifier_cert_copy") {
+  sources = [ "certifier/libcertifier-cert.crt" ]
+  outputs = [ "$root_out_dir/libcertifier-cert.crt" ]
+}
+
+action("generate_dac_chain") {
+  script = "generate_dac_chain.py"
+  sources = [ "certifier/resources/dac-commissioner.p12" ]
+  outputs = [
+    "${root_out_dir}/CertifierDacChain.h",
+    "${root_out_dir}/pai.pem",
+    "${root_out_dir}/dac.pem",
+    "${root_out_dir}/keypair.pem",
+  ]
+
+  args = rebase_path(sources, "") + rebase_path(outputs, root_out_dir)
+}
 
 executable("certifier-tool") {
   sources = [
     "CertifierCredentialIssuerCommands.h",
+    "CertifierDACProvider.cpp",
     "CertifierDACProvider.h",
     "CertifierOperationalCredentialsIssuer.cpp",
     "CertifierOperationalCredentialsIssuer.h",
@@ -33,15 +56,25 @@ executable("certifier-tool") {
   include_dirs = [
     ".",
     "${root_out_dir}",
+    "certifier/include",
+    "certifier/internal_headers",
   ]
 
   deps = [
+    ":generate_dac_chain",
     "${chip_root}/examples/chip-tool:chip-tool-utils",
-    "${certifier_root}:certifier",
-    "${certifier_root}:generate_dac_chain",
+    "${chip_root}/src/platform/logging:force_stdio",
   ]
 
-  sources += [ "CertifierDACProvider.cpp" ]
+  lib_dirs = [ "." ]
+  libs = [
+    "certifier",
+    "curl",
+    "crypto",
+    "ssl",
+  ]
+
+  configs += [ ":openssl_config" ]
 
   output_dir = root_out_dir
 }

@@ -233,6 +233,12 @@ Matter Only certificate
 | Choose CASE Authentication Tag (32-bit integer) to be assigned to the resulting certificate +
 Matter Only certificate
 
+| ca-path
+| c
+| --ca-path <value> +
+-c <value>
+| Pass in custom path where libcertifier-cert.crt file is located at
+
 |===
 
 == *certifierUtil get-crt-token options*
@@ -326,6 +332,12 @@ Disabled by default - Only error messages are shown.
 | Enable verbose log output mode. +
 Disabled by default - Only error messages are shown.
 
+| ca-path
+| c
+| --ca-path <value> +
+-c <value>
+| Pass in custom path where libcertifier-cert.crt file is located at
+
 |===
 
 == *certifierUtil renew-cert options*
@@ -365,6 +377,12 @@ Disabled by default - Only error messages are shown.
 -v
 | Enable verbose log output mode. +
 Disabled by default - Only error messages are shown.
+
+| ca-path
+| c
+| --ca-path <value> +
+-c <value>
+| Pass in custom path where libcertifier-cert.crt file is located at
 
 |===
 
@@ -446,6 +464,12 @@ Disabled by default - Only error messages are shown.
 -v
 | Enable verbose log output mode. +
 Disabled by default - Only error messages are shown.
+
+| ca-path
+| c
+| --ca-path <value> +
+-c <value>
+| Pass in custom path where libcertifier-cert.crt file is located at
 
 |===
 

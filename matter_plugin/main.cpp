@@ -19,7 +19,10 @@
 #include "CertifierCredentialIssuerCommands.h"
 #include "commands/common/Commands.h"
 
+#include "commands/delay/Commands.h"
 #include "commands/discover/Commands.h"
+#include "commands/group/Commands.h"
+#include "commands/interactive/Commands.h"
 #include "commands/pairing/Commands.h"
 #include "commands/payload/Commands.h"
 #include "commands/storage/Commands.h"
@@ -34,10 +37,13 @@ int main(int argc, char * argv[])
 {
     CertifierCredentialIssuerCommands credIssuerCommands;
     Commands commands;
+    registerCommandsDelay(commands, &credIssuerCommands);
     registerCommandsDiscover(commands, &credIssuerCommands);
+    registerCommandsInteractive(commands, &credIssuerCommands);
     registerCommandsPayload(commands);
     registerCommandsPairing(commands, &credIssuerCommands);
     registerCommandsTests(commands, &credIssuerCommands);
+    registerCommandsGroup(commands, &credIssuerCommands);
     registerClusters(commands, &credIssuerCommands);
     registerCommandsStorage(commands);
 

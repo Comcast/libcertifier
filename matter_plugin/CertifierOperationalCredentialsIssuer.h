@@ -40,6 +40,7 @@ public:
 
     void SetNodeIdForNextNOCRequest(NodeId nodeId) override { mNodeId = nodeId; }
     void SetFabricIdForNextNOCRequest(FabricId fabricId) override { mFabricId = fabricId; }
+    void SetCATValuesForNextNOCRequest(CATValues cats) { mNextCATs = cats; }
 
     CHIP_ERROR ObtainCsrNonce(MutableByteSpan & csrNonce) override;
 
@@ -51,8 +52,9 @@ public:
     CHIP_ERROR SetCertConfig(const char * certCfgPath, size_t len);
 
 private:
-    NodeId mNodeId;
-    FabricId mFabricId;
+    NodeId mNodeId      = 1;
+    FabricId mFabricId  = 1;
+    CATValues mNextCATs = kUndefinedCATs;
 
     CERTIFIER * mCertifier     = nullptr;
     char mAuthCertificate[256] = "libcertifier-cert.crt";
@@ -62,7 +64,7 @@ private:
     void GetTimestampForCertifying();
     http_response * DoHttpExchange(uint8_t * buffer, CERTIFIER * certifier);
     CHIP_ERROR ObtainOpCert(const ByteSpan & dac, const ByteSpan & csr, const ByteSpan & nonce, MutableByteSpan & pkcs7OpCert,
-                            NodeId nodeId);
+                            NodeId nodeId, FabricId fabricId);
 };
 
 } // namespace Controller

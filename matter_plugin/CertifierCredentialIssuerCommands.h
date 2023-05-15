@@ -1,5 +1,5 @@
 /**
- * Copyright 2021 Comcast Cable Communications Management, LLC
+ * Copyright 2021-2023 Comcast Cable Communications Management, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,23 +20,24 @@
 
 #include <CertifierDACProvider.h>
 #include <CertifierOperationalCredentialsIssuer.h>
-#include <commands/common/CredentialIssuerCommands.h>
-#include <credentials/attestation_verifier/DefaultDeviceAttestationVerifier.h>
 
-class CertifierCredentialIssuerCommands : public CredentialIssuerCommands
+#include <commands/example/ExampleCredentialIssuerCommands.h>
+
+class CertifierCredentialIssuerCommands : public ExampleCredentialIssuerCommands
 {
 private:
     CHIP_ERROR InitializeCredentialsIssuer(chip::PersistentStorageDelegate & storage) override { return CHIP_NO_ERROR; }
     CHIP_ERROR SetupDeviceAttestation(chip::Controller::SetupParams & setupParams,
                                       const chip::Credentials::AttestationTrustStore * trustStore) override
     {
-        chip::Credentials::SetDeviceAttestationCredentialsProvider(chip::Credentials::Certifier::GetDACProvider());
+        ReturnErrorOnFailure(ExampleCredentialIssuerCommands::SetupDeviceAttestation(setupParams, trustStore));
 
-        mDacVerifier = setupParams.deviceAttestationVerifier = chip::Credentials::GetDefaultDACVerifier(trustStore);
+        chip::Credentials::SetDeviceAttestationCredentialsProvider(chip::Credentials::Certifier::GetDACProvider());
 
         return CHIP_NO_ERROR;
     }
     chip::Controller::OperationalCredentialsDelegate * GetCredentialIssuer() override { return &mOpCredsIssuer; }
+    void SetCredentialIssuerCATValues(chip::CATValues cats) override { mOpCredsIssuer.SetCATValuesForNextNOCRequest(cats); }
     CHIP_ERROR GenerateControllerNOCChain(chip::NodeId nodeId, chip::FabricId fabricId, const chip::CATValues & cats,
                                           chip::Crypto::P256Keypair & keypair, chip::MutableByteSpan & rcac,
                                           chip::MutableByteSpan & icac, chip::MutableByteSpan & noc) override
@@ -57,24 +58,10 @@ private:
             chip::Credentials::GetDeviceAttestationCredentialsProvider();
         ReturnErrorOnFailure(dacProvider->GetDeviceAttestationCert(dacBufSpan));
 
+        // TODO: Add CATs support
         return mOpCredsIssuer.GenerateNOCChainAfterValidation(
             nodeId, fabricId, dacBufSpan, chip::ByteSpan(csrBuffer, csrBufferLength), nonceSpan, rcac, icac, noc);
     }
 
-    CHIP_ERROR AddAdditionalCDVerifyingCerts(const std::vector<std::vector<uint8_t>> & additionalCdCerts) override
-    {
-        VerifyOrReturnError(mDacVerifier != nullptr, CHIP_ERROR_INCORRECT_STATE);
-
-        for (const auto & cert : additionalCdCerts)
-        {
-            auto cdTrustStore = mDacVerifier->GetCertificationDeclarationTrustStore();
-            VerifyOrReturnError(cdTrustStore != nullptr, CHIP_ERROR_INCORRECT_STATE);
-            ReturnErrorOnFailure(cdTrustStore->AddTrustedKey(chip::ByteSpan(cert.data(), cert.size())));
-        }
-
-        return CHIP_NO_ERROR;
-    }
-
     chip::Controller::CertifierOperationalCredentialsIssuer mOpCredsIssuer;
-    chip::Credentials::DeviceAttestationVerifier * mDacVerifier;
 };

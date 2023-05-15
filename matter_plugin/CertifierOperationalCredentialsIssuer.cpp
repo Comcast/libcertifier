@@ -24,7 +24,6 @@
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <lib/asn1/ASN1.h>
 #include <lib/asn1/ASN1Macros.h>
-#include <lib/core/CHIPTLV.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ScopedBuffer.h>
@@ -39,9 +38,9 @@
 #include <certifier/certifier_internal.h>
 #include <certifier/http.h>
 #include <certifier/parson.h>
-#include <certifier/util.h>
 #include <certifier/security.h>
 #include <certifier/types.h>
+#include <certifier/util.h>
 
 #include <openssl/bn.h>
 #include <openssl/ecdsa.h>
@@ -65,15 +64,15 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::GenerateNOCChainAfterValidatio
                                                                                   const ByteSpan & nonce, MutableByteSpan & rcac,
                                                                                   MutableByteSpan & icac, MutableByteSpan & noc)
 {
-    CHIP_ERROR error = CHIP_NO_ERROR;
-    X509_LIST * certs;
-    X509_CERT * cert = nullptr;
+    CHIP_ERROR error        = CHIP_NO_ERROR;
+    X509_LIST * certs       = nullptr;
+    X509_CERT * cert        = nullptr;
     unsigned char * rawCert = nullptr;
-    size_t rawCertLength = 0;
+    size_t rawCertLength    = 0;
     uint8_t OpCertificateChain[4096];
     MutableByteSpan OpCertificateChainSpan(OpCertificateChain);
 
-    SuccessOrExit(error = ObtainOpCert(dac, csr, nonce, OpCertificateChainSpan, nodeId));
+    SuccessOrExit(error = ObtainOpCert(dac, csr, nonce, OpCertificateChainSpan, nodeId, fabricId));
 
     OpCertificateChain[OpCertificateChainSpan.size()] = 0;
     util_trim(reinterpret_cast<char *>(OpCertificateChain));
@@ -107,12 +106,19 @@ exit:
     return error;
 }
 
+// TODO: Add CATs support
 CHIP_ERROR CertifierOperationalCredentialsIssuer::GenerateNOCChain(const ByteSpan & csrElements, const ByteSpan & csrNonce,
                                                                    const ByteSpan & attestationSignature,
                                                                    const ByteSpan & attestationChallenge, const ByteSpan & DAC,
                                                                    const ByteSpan & PAI,
                                                                    Callback::Callback<OnNOCChainGeneration> * onCompletion)
 {
+    (void) csrNonce;
+    (void) attestationSignature;
+    (void) attestationChallenge;
+    (void) DAC;
+    (void) PAI;
+
     ChipLogProgress(Controller, "Verifying Certificate Signing Request");
     TLVReader reader;
     reader.Init(csrElements);
@@ -129,29 +135,34 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::GenerateNOCChain(const ByteSpa
     ReturnErrorOnFailure(reader.EnterContainer(containerType));
     ReturnErrorOnFailure(reader.Next(kTLVType_ByteString, TLV::ContextTag(1)));
 
-    ByteSpan csr;
-    ReturnErrorOnFailure(reader.Get(csr));
-
-    ReturnErrorOnFailure(reader.Next(kTLVType_ByteString, TLV::ContextTag(2)));
-
-    ByteSpan nonce;
-    ReturnErrorOnFailure(reader.Get(nonce));
-
+    ByteSpan csr(reader.GetReadPoint(), reader.GetLength());
     reader.ExitContainer(containerType);
 
-    Platform::ScopedMemoryBuffer<uint8_t> noc;
-    ReturnErrorCodeIf(!noc.Alloc(kMaxCHIPDERCertLength), CHIP_ERROR_NO_MEMORY);
-    MutableByteSpan nocSpan(noc.Get(), kMaxCHIPDERCertLength);
+    chip::Platform::ScopedMemoryBuffer<uint8_t> noc;
+    ReturnErrorCodeIf(!noc.Alloc(kMaxDERCertLength), CHIP_ERROR_NO_MEMORY);
+    MutableByteSpan nocSpan(noc.Get(), kMaxDERCertLength);
 
-    Platform::ScopedMemoryBuffer<uint8_t> icac;
-    ReturnErrorCodeIf(!icac.Alloc(kMaxCHIPDERCertLength), CHIP_ERROR_NO_MEMORY);
-    MutableByteSpan icacSpan(icac.Get(), kMaxCHIPDERCertLength);
+    chip::Platform::ScopedMemoryBuffer<uint8_t> icac;
+    ReturnErrorCodeIf(!icac.Alloc(kMaxDERCertLength), CHIP_ERROR_NO_MEMORY);
+    MutableByteSpan icacSpan(icac.Get(), kMaxDERCertLength);
 
-    Platform::ScopedMemoryBuffer<uint8_t> rcac;
-    ReturnErrorCodeIf(!rcac.Alloc(kMaxCHIPDERCertLength), CHIP_ERROR_NO_MEMORY);
-    MutableByteSpan rcacSpan(rcac.Get(), kMaxCHIPDERCertLength);
+    chip::Platform::ScopedMemoryBuffer<uint8_t> rcac;
+    ReturnErrorCodeIf(!rcac.Alloc(kMaxDERCertLength), CHIP_ERROR_NO_MEMORY);
+    MutableByteSpan rcacSpan(rcac.Get(), kMaxDERCertLength);
 
-    ReturnErrorOnFailure(GenerateNOCChainAfterValidation(mNodeId, mFabricId, DAC, csr, nonce, rcacSpan, icacSpan, nocSpan));
+    uint8_t nonceBuffer[chip::Controller::kCSRNonceLength];
+    chip::MutableByteSpan certifierNonce(nonceBuffer);
+    uint8_t dacBuf[chip::Credentials::kMaxDERCertLength];
+    chip::MutableByteSpan dacBufSpan(dacBuf);
+
+    ReturnErrorOnFailure(ObtainCsrNonce(certifierNonce));
+
+    chip::Credentials::DeviceAttestationCredentialsProvider * dacProvider =
+        chip::Credentials::GetDeviceAttestationCredentialsProvider();
+    ReturnErrorOnFailure(dacProvider->GetDeviceAttestationCert(dacBufSpan));
+
+    ReturnErrorOnFailure(
+        GenerateNOCChainAfterValidation(mNodeId, mFabricId, dacBufSpan, csr, certifierNonce, rcacSpan, icacSpan, nocSpan));
 
     // TODO(#13825): Should always generate some IPK. Using a temporary fixed value until APIs are plumbed in to set it end-to-end
     // TODO: Force callers to set IPK if used before GenerateNOCChain will succeed.
@@ -163,11 +174,12 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::GenerateNOCChain(const ByteSpa
     // Prepare IPK to be sent back. A more fully-fledged operational credentials delegate
     // would obtain a suitable key per fabric.
     uint8_t ipkValue[CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES];
-    Crypto::AesCcm128KeySpan ipkSpan(ipkValue);
+    Crypto::IdentityProtectionKeySpan ipkSpan(ipkValue);
 
     ReturnErrorCodeIf(defaultIpkSpan.size() != sizeof(ipkValue), CHIP_ERROR_INTERNAL);
     memcpy(&ipkValue[0], defaultIpkSpan.data(), defaultIpkSpan.size());
 
+    // Callback onto commissioner.
     ChipLogProgress(Controller, "Providing certificate chain to the commissioner");
     onCompletion->mCall(onCompletion->mContext, CHIP_NO_ERROR, nocSpan, icacSpan, rcacSpan, MakeOptional(ipkSpan),
                         Optional<NodeId>());
@@ -220,7 +232,8 @@ http_response * CertifierOperationalCredentialsIssuer::DoHttpExchange(uint8_t * 
     char certifier_certificate_url[256];
     char certificate_url[] = "/certificate";
     strncpy(certifier_certificate_url, certifier_url, sizeof(certifier_certificate_url));
-    strncpy(certifier_certificate_url + strlen(certifier_url), certificate_url, sizeof(certifier_certificate_url) - strlen(certifier_url));
+    strncpy(certifier_certificate_url + strlen(certifier_url), certificate_url,
+            sizeof(certifier_certificate_url) - strlen(certifier_url));
 
     if (bearer_token != nullptr)
     {
@@ -239,7 +252,7 @@ http_response * CertifierOperationalCredentialsIssuer::DoHttpExchange(uint8_t * 
 }
 
 CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & dac, const ByteSpan & csr, const ByteSpan & nonce,
-                                                               MutableByteSpan & pkcs7OpCert, NodeId nodeId)
+                                                               MutableByteSpan & pkcs7OpCert, NodeId nodeId, FabricId fabricId)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -257,9 +270,10 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
     uint8_t derSignature[kMax_ECDSA_Signature_Length_Der];
     MutableByteSpan derSignatureSpan(derSignature);
 
-    char * jsonCSR = nullptr;
+    char * jsonCSR       = nullptr;
     char operationalID[] = "XFN-MTR";
     char nodeIdArray[17];
+    char fabricIdArray[17];
 
     http_response * resp                = nullptr;
     const char * OpCertificateChainTemp = nullptr;
@@ -277,6 +291,9 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
 
     memset(nodeIdArray, 0, sizeof(nodeIdArray));
     snprintf(nodeIdArray, sizeof(nodeIdArray), "%016" PRIX64, nodeId);
+
+    memset(fabricIdArray, 0, sizeof(fabricIdArray));
+    snprintf(fabricIdArray, sizeof(fabricIdArray), "%016" PRIX64, fabricId);
 
     json_object_set_string(root_object, "tokenType", cert_id);
     base64_encode(base64Certificate.Get(), dac.data(), static_cast<int>(dac.size()));
@@ -296,7 +313,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
         ByteSpan tbsSpan;
         size_t tbsDataLen = dac.size() + strlen(mTimestamp) + nonce.size() + strlen(cert_id);
         P256ECDSASignature signature;
-        MutableByteSpan signatureSpan(signature, signature.Capacity());
+        MutableByteSpan signatureSpan(signature.Bytes(), signature.Capacity());
 
         DeviceAttestationCredentialsProvider * dacProvider = GetDeviceAttestationCredentialsProvider();
 
@@ -307,7 +324,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
         XMEMCPY(tbsData.Get() + dac.size() + strlen(mTimestamp), nonce.data(), nonce.size());
         XMEMCPY(tbsData.Get() + dac.size() + strlen(mTimestamp) + nonce.size(), cert_id, strlen(cert_id));
 
-        tbsSpan = ByteSpan { tbsData.Get(), tbsDataLen };
+        tbsSpan = ByteSpan{ tbsData.Get(), tbsDataLen };
 
         SuccessOrExit(err = dacProvider->SignWithDeviceAttestationKey(tbsSpan, signatureSpan));
         SuccessOrExit(err = signature.SetLength(signatureSpan.size()));
@@ -331,6 +348,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
     certifier_api_easy_set_opt(mCertifier, CERTIFIER_OPT_CRT, base64JsonCrt.Get());
     certifier_api_easy_set_opt(mCertifier, CERTIFIER_OPT_CN_PREFIX, operationalID);
     certifier_api_easy_set_opt(mCertifier, CERTIFIER_OPT_NODE_ID, nodeIdArray);
+    certifier_api_easy_set_opt(mCertifier, CERTIFIER_OPT_FABRIC_ID, fabricIdArray);
 
     base64_encode(base64CSR.Get(), reinterpret_cast<const unsigned char *>(csr.data()), static_cast<int>(csr.size()));
     if (!(certifier_api_easy_create_json_csr(mCertifier, reinterpret_cast<unsigned char *>(base64CSR.Get()), (char *) operationalID,
@@ -347,7 +365,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
     if (nullptr == (resp = DoHttpExchange(reinterpret_cast<uint8_t *>(jsonCSR), mCertifier)))
     {
         ChipLogError(AppServer, "kProtocol_OpCredentials Error obtaining HTTP response.");
-        err = CHIP_ERROR_STATUS_REPORT_RECEIVED;
+        err = CHIP_ERROR_INTERNAL;
         SuccessOrExit(err);
     }
     if ((resp->error != 0) || (resp->payload == nullptr))
@@ -355,7 +373,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
         ChipLogError(AppServer, "kProtocol_OpCredentials Error in HTTP response:\n%s",
                      util_format_curl_error("certifiercommissioner_request_x509_certificate", resp->http_code, resp->error,
                                             resp->error_msg, resp->payload, __FILE__, __LINE__));
-        err = CHIP_ERROR_STATUS_REPORT_RECEIVED;
+        err = CHIP_ERROR_INTERNAL;
         SuccessOrExit(err);
     }
 

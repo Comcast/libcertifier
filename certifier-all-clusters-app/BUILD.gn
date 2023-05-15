@@ -17,11 +17,23 @@
 import("//build_overrides/chip.gni")
 import("${chip_root}/build/chip/tools.gni")
 
-import("//build_overrides/certifier.gni")
-
 copy("trafficlight_copy") {
   sources = [ "trafficlight" ]
   outputs = [ "$root_out_dir/trafficlight" ]
+}
+
+# TODO: Move this onto a common gn file
+action("generate_dac_chain") {
+  script = "../matter_plugin/generate_dac_chain.py"
+  sources = [ "certifier/resources/dac-commissionee.p12" ]
+  outputs = [
+    "${root_out_dir}/CertifierDacChain.h",
+    "${root_out_dir}/pai.pem",
+    "${root_out_dir}/dac.pem",
+    "${root_out_dir}/keypair.pem",
+  ]
+
+  args = rebase_path(sources, "") + rebase_path(outputs, root_out_dir)
 }
 
 executable("certifier-all-clusters-app") {
@@ -36,15 +48,16 @@ executable("certifier-all-clusters-app") {
   include_dirs = [
     "../matter_plugin",
     "${chip_root}/examples/all-clusters-app/all-clusters-common/include",
+    "${chip_root}/examples/all-clusters-app/linux",
     "${root_out_dir}",
   ]
 
   deps = [
+    ":generate_dac_chain",
     ":trafficlight_copy",
     "${chip_root}/examples/all-clusters-app/linux:chip-all-clusters-common",
     "${chip_root}/examples/platform/linux:app-main",
     "${chip_root}/src/credentials",
-    "${certifier_root}:generate_dac_chain",
   ]
 
   output_dir = root_out_dir

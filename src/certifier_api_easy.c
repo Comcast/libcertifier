@@ -54,6 +54,7 @@ if (p == NULL)                                                          \
 #define GET_CRT_TOKEN_SHORT_OPTIONS "X:S:"
 #define GET_CERT_SHORT_OPTIONS "fT:P:o:i:n:F:a:w:"
 #define VALIDITY_DAYS_SHORT_OPTION "t:"
+#define CA_PATH_SHORT_OPTION "c:"
 
 #define BASE_LONG_OPTIONS                                \
     {"help",              no_argument,       NULL, 'h'}, \
@@ -80,6 +81,9 @@ if (p == NULL)                                                          \
 
 #define VALIDITY_DAYS_LONG_OPTION                         \
     {"validity-days",      required_argument, NULL, 't'}
+
+#define CA_PATH_LONG_OPTION                         \
+    {"ca-path",            required_argument, NULL, 'c'}
 
 static void finish_operation(CERTIFIER *easy, int return_code, const char *operation_output);
 
@@ -143,19 +147,22 @@ static const char * get_command_opt_helper(CERTIFIER_MODE mode) {
 #define VALIDITY_DAYS_HELPER \
     "--validity-days (-t)\n"
 
+#define CA_PATH_HELPER \
+    "--ca-path (-c)\n"
+
     switch (mode) {
         case CERTIFIER_MODE_REGISTER:
-            return BASE_HELPER GET_CRT_TOKEN_HELPER GET_CERT_HELPER VALIDITY_DAYS_HELPER;
+            return BASE_HELPER GET_CRT_TOKEN_HELPER GET_CERT_HELPER VALIDITY_DAYS_HELPER CA_PATH_HELPER;
         case CERTIFIER_MODE_CREATE_CRT:
             return BASE_HELPER GET_CRT_TOKEN_HELPER;
         case CERTIFIER_MODE_GET_CERT_STATUS:
-            return BASE_HELPER;
+            return BASE_HELPER CA_PATH_HELPER;
         case CERTIFIER_MODE_RENEW_CERT:
-            return BASE_HELPER;
+            return BASE_HELPER CA_PATH_HELPER;
         case CERTIFIER_MODE_PRINT_CERT:
             return BASE_HELPER;
         case CERTIFIER_MODE_REVOKE_CERT:
-            return BASE_HELPER;
+            return BASE_HELPER CA_PATH_HELPER;
         default:
             return "";
     }
@@ -712,16 +719,19 @@ static int process_command_line(CERTIFIER *easy) {
         return return_code;
     }
 
-    static const char * const get_cert_short_options      = BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS GET_CERT_SHORT_OPTIONS VALIDITY_DAYS_SHORT_OPTION;
-    static const char * const get_crt_token_short_options = BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS;
-    static const char * const renew_cert_short_options    = BASE_SHORT_OPTIONS;
-    static const char * const base_short_options          = BASE_SHORT_OPTIONS;
+    static const char * const get_cert_short_options        = BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS GET_CERT_SHORT_OPTIONS VALIDITY_DAYS_SHORT_OPTION CA_PATH_SHORT_OPTION;
+    static const char * const get_crt_token_short_options   = BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS;
+    static const char * const get_cert_status_short_options = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
+    static const char * const renew_cert_short_options      = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
+    static const char * const print_cert_short_options      = BASE_SHORT_OPTIONS;
+    static const char * const revoke_cert_short_options     = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
 
     static const struct option get_cert_long_opts[] = {
             BASE_LONG_OPTIONS,
             GET_CRT_TOKEN_LONG_OPTIONS,
             GET_CERT_LONG_OPTIONS,
             VALIDITY_DAYS_LONG_OPTION,
+            CA_PATH_LONG_OPTION,
             {NULL, 0,                             NULL, 0}
     };
     static const struct option get_crt_token_long_opts[] = {
@@ -729,22 +739,33 @@ static int process_command_line(CERTIFIER *easy) {
             GET_CRT_TOKEN_LONG_OPTIONS,
             {NULL, 0,                             NULL, 0}
     };
+    static const struct option get_cert_status_long_opts[] = {
+            BASE_LONG_OPTIONS,
+            CA_PATH_LONG_OPTION,
+            {NULL, 0,                             NULL, 0}
+    };
     static const struct option renew_cert_long_opts[] = {
+            BASE_LONG_OPTIONS,
+            CA_PATH_LONG_OPTION,
+            {NULL, 0,                             NULL, 0}
+    };
+    static const struct option print_cert_long_opts[] = {
             BASE_LONG_OPTIONS,
             {NULL, 0,                             NULL, 0}
     };
-    static const struct option base_long_opts[] = {
+    static const struct option revoke_cert_long_opts[] = {
             BASE_LONG_OPTIONS,
+            CA_PATH_LONG_OPTION,
             {NULL, 0,                             NULL, 0}
     };
 
     static command_opt_lut_t command_opt_lut[] = {
         {CERTIFIER_MODE_REGISTER, get_cert_short_options, get_cert_long_opts},
         {CERTIFIER_MODE_CREATE_CRT, get_crt_token_short_options, get_crt_token_long_opts},
-        {CERTIFIER_MODE_GET_CERT_STATUS, base_short_options, base_long_opts},
+        {CERTIFIER_MODE_GET_CERT_STATUS, get_cert_status_short_options, get_cert_status_long_opts},
         {CERTIFIER_MODE_RENEW_CERT, renew_cert_short_options, renew_cert_long_opts},
-        {CERTIFIER_MODE_PRINT_CERT, base_short_options, base_long_opts},
-        {CERTIFIER_MODE_REVOKE_CERT, base_short_options, base_long_opts},
+        {CERTIFIER_MODE_PRINT_CERT, print_cert_short_options, print_cert_long_opts},
+        {CERTIFIER_MODE_REVOKE_CERT, revoke_cert_short_options, revoke_cert_long_opts},
     };
 
     char *version_string = certifier_api_easy_get_version(easy);
@@ -768,6 +789,9 @@ static int process_command_line(CERTIFIER *easy) {
             case 'h':
                 XFPRINTF(stdout, get_command_opt_helper(easy->mode), easy->argv[0]);
                 exit(1);
+            case 'c':
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_CA_PATH, optarg);
+                break;
             case 'f':
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) true);
                 break;
@@ -849,7 +873,6 @@ static int process_command_line(CERTIFIER *easy) {
                 if (optarg == NULL) {
                     break;
                 }
-                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH, optarg);
 
                 if (strlen(optarg) > NODE_ID_LENGTH) {
                     log_error("Node ID is expected to be a 64-bit hex number");

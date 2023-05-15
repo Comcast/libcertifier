@@ -1,11 +1,10 @@
-<<<<<<< HEAD
 # File created using '.gitignore Generator' for Visual Studio Code: https://bit.ly/vscode-gig
 
 # Created by https://www.gitignore.io/api/visualstudiocode,macos
 # Edit at https://www.gitignore.io/?templates=visualstudiocode,macos
 
 # ./build
-build/
+build*/
 
 ### macOS ###
 # General
@@ -37,10 +36,10 @@ Temporary Items
 
 ### VisualStudioCode ###
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# !.vscode/settings.json
+# !.vscode/tasks.json
+# !.vscode/launch.json
+# !.vscode/extensions.json
 
 ### VisualStudioCode Patch ###
 # Ignore all local history of files
@@ -49,8 +48,4 @@ Temporary Items
 # End of https://www.gitignore.io/api/visualstudiocode,macos
 
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
-
-=======
-.vscode/
-build/
->>>>>>> 52c7855ae26dfbffd6404febfdb69b6a1a301d77
+*.a
