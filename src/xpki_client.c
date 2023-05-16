@@ -238,14 +238,14 @@ static XPKI_CLIENT_ERROR_CODE xc_create_x509_crt()
 
     char * tmp_crt = NULL;
     char * cert    = NULL;
-    int cert_len = 0;
+    int cert_len   = 0;
 
     return_code = certifier_create_x509_crt(certifier, &tmp_crt);
     VerifyOrExit(return_code == 0, xc_error = XPKI_CLIENT_ERROR_INTERNAL);
     VerifyOrExit(tmp_crt != NULL, xc_error = XPKI_CLIENT_ERROR_NO_MEMORY);
 
     cert_len = (int) XSTRLEN(tmp_crt);
-    cert               = XMALLOC(base64_encode_len(cert_len));
+    cert     = XMALLOC(base64_encode_len(cert_len));
     base64_encode(cert, (const unsigned char *) tmp_crt, cert_len);
     return_code = certifier_set_property(certifier, CERTIFIER_OPT_CRT, cert);
     VerifyOrExit(return_code == 0, xc_error = XPKI_CLIENT_ERROR_INTERNAL);

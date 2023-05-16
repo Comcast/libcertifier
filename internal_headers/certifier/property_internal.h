@@ -1,20 +1,20 @@
 /**
-* Copyright 2019 Comcast Cable Communications Management, LLC
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*
-* SPDX-License-Identifier: Apache-2.0
-*/
+ * Copyright 2019 Comcast Cable Communications Management, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 #ifndef LIBLEDGER_PROPERTY_INTERNAL_H
 #define LIBLEDGER_PROPERTY_INTERNAL_H
@@ -47,11 +47,11 @@ typedef struct _PropMap CertifierPropMap;
  * Create a new properties container with defaults set.
  * @return
  */
-CertifierPropMap *property_new(void);
+CertifierPropMap * property_new(void);
 
-CertifierPropMap *property_ext(void);
+CertifierPropMap * property_ext(void);
 
-int property_destroy(CertifierPropMap *prop_map);
+int property_destroy(CertifierPropMap * prop_map);
 
 /**
  * Set a boolean option
@@ -59,7 +59,7 @@ int property_destroy(CertifierPropMap *prop_map);
  * @param enable
  * @return 0 on success
  */
-int property_set_option(CertifierPropMap *prop_map, CERTIFIER_OPT_OPTION option, bool enable);
+int property_set_option(CertifierPropMap * prop_map, CERTIFIER_OPT_OPTION option, bool enable);
 
 /**
  * Convenience function to read a boolean option.
@@ -68,34 +68,28 @@ int property_set_option(CertifierPropMap *prop_map, CERTIFIER_OPT_OPTION option,
  * @param option
  * @return
  */
-bool property_is_option_set(CertifierPropMap *map, CERTIFIER_OPT_OPTION option);
+bool property_is_option_set(CertifierPropMap * map, CERTIFIER_OPT_OPTION option);
 
-int
-property_set_defaults(CertifierPropMap *prop_map);
+int property_set_defaults(CertifierPropMap * prop_map);
 
-int
-property_set_ext(CertifierPropMap *prop_map);
+int property_set_ext(CertifierPropMap * prop_map);
 
-int
-property_set(CertifierPropMap *prop_map, CERTIFIER_OPT name, const void *value);
+int property_set(CertifierPropMap * prop_map, CERTIFIER_OPT name, const void * value);
 
-int
-property_set_int(CertifierPropMap *prop_map, CERTIFIER_OPT name, int value);
+int property_set_int(CertifierPropMap * prop_map, CERTIFIER_OPT name, int value);
 
-void *
-property_get(CertifierPropMap *prop_map, CERTIFIER_OPT name);
+void * property_get(CertifierPropMap * prop_map, CERTIFIER_OPT name);
 
-int
-property_set_defaults_from_cfg_file(CertifierPropMap *propMap);
+int property_set_defaults_from_cfg_file(CertifierPropMap * propMap);
 
-const char *get_default_cfg_filename();
+const char * get_default_cfg_filename();
 
-const char *get_default_ca_path();
+const char * get_default_ca_path();
 
-const char *get_default_ca_info();
+const char * get_default_ca_info();
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif //LIBLEDGER_PROPERTY_INTERNAL_H
+#endif // LIBLEDGER_PROPERTY_INTERNAL_H

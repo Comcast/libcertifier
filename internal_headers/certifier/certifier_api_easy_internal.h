@@ -19,8 +19,8 @@
 #ifndef CERTIFIER_API_EASY_INTERNAL_H
 #define CERTIFIER_API_EASY_INTERNAL_H
 
-#include "certifier/types.h"
 #include "certifier/http.h"
+#include "certifier/types.h"
 
 #ifdef __cplusplus
 extern "C" {

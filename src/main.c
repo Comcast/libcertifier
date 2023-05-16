@@ -20,20 +20,20 @@
 
 // Includes
 #include "certifier/certifier_api_easy.h"
-#include "certifier/types.h"
 #include "certifier/log.h"
+#include "certifier/types.h"
 
 // Main
-int main(int argc, char *argv[])
+int main(int argc, char * argv[])
 {
-    int return_code = 0;
-    CERTIFIER *easy = certifier_api_easy_new();
+    int return_code  = 0;
+    CERTIFIER * easy = certifier_api_easy_new();
 
     certifier_api_easy_set_cli_args(easy, argc, argv);
     certifier_api_easy_set_mode(easy, certifier_api_easy_get_mode(easy));
     return_code = certifier_api_easy_perform(easy);
 
-    const char *result = certifier_api_easy_get_result_json(easy);
+    const char * result = certifier_api_easy_get_result_json(easy);
 
     if (result != NULL)
     {

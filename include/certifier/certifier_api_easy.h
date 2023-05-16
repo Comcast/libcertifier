@@ -1,20 +1,20 @@
 /**
-* Copyright 2019 Comcast Cable Communications Management, LLC
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*
-* SPDX-License-Identifier: Apache-2.0
-*/
+ * Copyright 2019 Comcast Cable Communications Management, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 #ifndef CERTIFIER_API_EASY_H
 #define CERTIFIER_API_EASY_H
@@ -33,7 +33,8 @@ typedef struct CERTIFIER CERTIFIER;
  * Modes for certifier_api_easy_perform.
  * @note Postconditions are true only after calling certifier_api_easy_perform and receiving a 0 (OK) result code.
  */
-typedef enum {
+typedef enum
+{
     CERTIFIER_MODE_NONE = 0,
     /**
      * Register a device.
@@ -51,10 +52,10 @@ typedef enum {
      * @post The file at &lt;CERTIFIER_OPT_KEYSTORE&gt;.p12 contains a keypair and client certificate
      * @post the certifier ID is available in certifier_api_easy_get_result.
      */
-            CERTIFIER_MODE_REGISTER = 1,
+    CERTIFIER_MODE_REGISTER = 1,
 
-            CERTIFIER_MODE_REVOKE_CERT = 2,
-    //4, 8 & 16 are unused
+    CERTIFIER_MODE_REVOKE_CERT = 2,
+    // 4, 8 & 16 are unused
     /**
      * Generate a node address based on CERTIFIER_OPT_OUTPUT_NODE
      * For devices, this is the DER public key
@@ -62,8 +63,7 @@ typedef enum {
      * @pre CERTIFIER_OPT_OUTPUT_NODE is set
      * @post the address is available in certifier_api_easy_get_result.
      */
-            CERTIFIER_MODE_CREATE_NODE_ADDRESS = 32,
-
+    CERTIFIER_MODE_CREATE_NODE_ADDRESS = 32,
 
     // 64 is unused
 
@@ -71,7 +71,7 @@ typedef enum {
      * Create a CRT with
      * @see CERTIFIER_MODE_CREATE_CRT
      */
-            CERTIFIER_MODE_CREATE_CRT = 128,
+    CERTIFIER_MODE_CREATE_CRT = 128,
 
     CERTIFIER_MODE_COMBO_REGISTER = 512,
 
@@ -85,7 +85,7 @@ typedef enum {
      * @post the certifier id is available in certifier_api_easy_get_result.
      * @note the return code will be a CERTIFIER_ERR_REGISTRATION_STATUS value offset by CERTIFIER_ERR_RENEW_CERT_1.
      */
-            CERTIFIER_MODE_GET_CERT_STATUS = 4096,
+    CERTIFIER_MODE_GET_CERT_STATUS = 4096,
 
     /**
      * Automatically renew the certificate if it is 'near' expiration.
@@ -93,7 +93,7 @@ typedef enum {
      * @see CERTIFIER_MODE_GET_CERT_STATUS to query the exact certificate status
      * @post the certifier ID is available in certifier_api_easy_get_result.
      */
-            CERTIFIER_MODE_RENEW_CERT = 8192,
+    CERTIFIER_MODE_RENEW_CERT = 8192,
 
     CERTIFIER_MODE_PRINT_CERT = 16384,
 
@@ -111,7 +111,7 @@ typedef int (*key_exchange_t)(uint8_t *, size_t, uint8_t *, size_t, int);
  * @note Free it with certifier_api_easy_destroy() after performing all desired operations.
  * @return the API context or NULL on failure
  */
-CERTIFIER *certifier_api_easy_new(void);
+CERTIFIER * certifier_api_easy_new(void);
 
 /**
  * Create a new easy API context, same as certifier_api_easy_new,
@@ -119,15 +119,15 @@ CERTIFIER *certifier_api_easy_new(void);
  * @return the API context or NULL on failure
  */
 
-CERTIFIER *certifier_api_easy_new_cfg(char *libcertifier_cfg);
+CERTIFIER * certifier_api_easy_new_cfg(char * libcertifier_cfg);
 
-void certifier_set_key_exchange_method(CERTIFIER *easy, key_exchange_t key_exchange);
+void certifier_set_key_exchange_method(CERTIFIER * easy, key_exchange_t key_exchange);
 
 /**
  * Free an easy API context
  * @param easy
  */
-void certifier_api_easy_destroy(CERTIFIER *easy);
+void certifier_api_easy_destroy(CERTIFIER * easy);
 
 /**
  * Get a certifier configuration option.
@@ -138,7 +138,7 @@ void certifier_api_easy_destroy(CERTIFIER *easy);
  * @param option
  * @return value See option description for valid values (the value is copied by certifier).
  */
-void *certifier_api_easy_get_opt(CERTIFIER *easy, CERTIFIER_OPT option);
+void * certifier_api_easy_get_opt(CERTIFIER * easy, CERTIFIER_OPT option);
 
 /**
  * Get a certifier configuration option.
@@ -149,7 +149,7 @@ void *certifier_api_easy_get_opt(CERTIFIER *easy, CERTIFIER_OPT option);
  * @param option
  * @return value See option description for valid values (the value is copied by certifier).
  */
-void *certifier_api_easy_get_opt(CERTIFIER *easy, CERTIFIER_OPT option);
+void * certifier_api_easy_get_opt(CERTIFIER * easy, CERTIFIER_OPT option);
 
 /**
  * Set a certifier configuration option.
@@ -161,7 +161,7 @@ void *certifier_api_easy_get_opt(CERTIFIER *easy, CERTIFIER_OPT option);
  * @param value See option description for valid values (the value is copied by certifier).
  * @return
  */
-int certifier_api_easy_set_opt(CERTIFIER *easy, CERTIFIER_OPT option, void *value);
+int certifier_api_easy_set_opt(CERTIFIER * easy, CERTIFIER_OPT option, void * value);
 
 /**
  * tbw
@@ -170,7 +170,7 @@ int certifier_api_easy_set_opt(CERTIFIER *easy, CERTIFIER_OPT option, void *valu
  * @return tbw
  * @see CERTIFIER_MODE for allowed values
  */
-CERTIFIER_MODE certifier_api_easy_get_mode(CERTIFIER *easy);
+CERTIFIER_MODE certifier_api_easy_get_mode(CERTIFIER * easy);
 
 /**
  * Set the operation that certifier_api_easy_perform() will attempt.
@@ -180,7 +180,7 @@ CERTIFIER_MODE certifier_api_easy_get_mode(CERTIFIER *easy);
  * @return 0 on success or CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1
  * @see CERTIFIER_MODE for allowed values
  */
-int certifier_api_easy_set_mode(CERTIFIER *easy, CERTIFIER_MODE mode);
+int certifier_api_easy_set_mode(CERTIFIER * easy, CERTIFIER_MODE mode);
 
 /**
  * When set, certifier_api_easy_perform() will parse argv for commandline arguments.
@@ -190,20 +190,20 @@ int certifier_api_easy_set_mode(CERTIFIER *easy, CERTIFIER_MODE mode);
  * @return 0 on success or CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1
  * @note caller must not free argv before invoking certifier_api_easy_destroy()
  */
-int certifier_api_easy_set_cli_args(CERTIFIER *easy, int argc, char **argv);
+int certifier_api_easy_set_cli_args(CERTIFIER * easy, int argc, char ** argv);
 
 /**
  * Get certifier version info
  * @param easy
  * @return a plain version string (caller must free)
  */
-char *certifier_api_easy_get_version(CERTIFIER *easy);
+char * certifier_api_easy_get_version(CERTIFIER * easy);
 
 /**
  * Print Help/Version Info
  * @param easy
  */
-int certifier_api_easy_print_helper(CERTIFIER *easy);
+int certifier_api_easy_print_helper(CERTIFIER * easy);
 
 /**
  * Execute an operation
@@ -212,21 +212,21 @@ int certifier_api_easy_print_helper(CERTIFIER *easy);
  * @param easy
  * @return 0 on success
  */
-int certifier_api_easy_perform(CERTIFIER *easy);
+int certifier_api_easy_perform(CERTIFIER * easy);
 
 /**
  * Get a JSON document explaining the last operation result.
  * @param easy
  * @return
  */
-const char *certifier_api_easy_get_result_json(CERTIFIER *easy);
+const char * certifier_api_easy_get_result_json(CERTIFIER * easy);
 
 /**
  * Get the last operation's output
  * @param easy
  * @return a NULL terminated string. Any non-C-string data is base64 encoded.
  */
-const char *certifier_api_easy_get_result(CERTIFIER *easy);
+const char * certifier_api_easy_get_result(CERTIFIER * easy);
 
 /**
  * @}
