@@ -71,6 +71,10 @@ ECC_KEY * security_get_private_key_from_der(unsigned char * der_key, int der_key
  */
 int security_serialize_der_public_key(ECC_KEY * ec_key, unsigned char ** der_public_key);
 
+int security_serialize_raw_public_key(ECC_KEY * ec_key, unsigned char * public_key, size_t public_key_capacity);
+
+int security_serialize_raw_private_key(ECC_KEY * ec_key, unsigned char * private_key, size_t private_key_capacity);
+
 void security_free_eckey(ECC_KEY * eckey);
 
 ECC_KEY * security_dup_eckey(const ECC_KEY * eckey);
@@ -165,7 +169,8 @@ CertifierError security_verify_x509(X509_CERT * cert, const char * signature_b64
 CertifierError security_check_cert_is_valid(X509_CERT * cert, const char * security_cert_root_ca, const char * security_cert_int_ca,
                                             time_t * overridden_time_t);
 
-CertifierError security_get_X509_PKCS12_file(const char * filename, const char * password, X509_LIST * certs, X509_CERT ** out);
+CertifierError security_get_X509_PKCS12_file(const char * filename, const char * password, X509_LIST * certs, X509_CERT ** out,
+                                             ECC_KEY ** out_keypair);
 
 void security_free_cert(X509_CERT * cert);
 

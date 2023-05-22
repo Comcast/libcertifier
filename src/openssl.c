@@ -950,7 +950,8 @@ char * security_get_field_from_cert(X509_CERT * cert, const char * field_name)
     return NULL;
 }
 
-CertifierError security_get_X509_PKCS12_file(const char * filename, const char * password, X509_LIST * certs, X509_CERT ** out)
+CertifierError security_get_X509_PKCS12_file(const char * filename, const char * password, X509_LIST * certs, X509_CERT ** out,
+                                             ECC_KEY ** out_keypair)
 {
     XFILE fp                         = NULL;
     EVP_PKEY * pkey                  = NULL;
@@ -958,6 +959,7 @@ CertifierError security_get_X509_PKCS12_file(const char * filename, const char *
     X509_CERT * cert                 = NULL;
     unsigned long openssl_error_code = 0;
     bool free_cert_list              = false;
+    bool free_keypair                = false;
     CertifierError result            = CERTIFIER_ERROR_INITIALIZER;
 
     if (filename == NULL || password == NULL)
@@ -971,6 +973,11 @@ CertifierError security_get_X509_PKCS12_file(const char * filename, const char *
     {
         certs          = sk_X509_new_null();
         free_cert_list = true;
+    }
+
+    if (out_keypair == NULL)
+    {
+        free_keypair = true;
     }
 
     if (!(fp = XFOPEN(filename, "rb")))
@@ -1010,14 +1017,25 @@ cleanup:
     }
 
     PKCS12_free(p12);
-    EVP_PKEY_free(pkey);
+
+    if (free_keypair)
+    {
+        EVP_PKEY_free(pkey);
+    }
+    else
+    {
+        *out_keypair = EVP_PKEY_get1_EC_KEY(pkey);
+    }
 
     if (fp)
     {
         XFCLOSE(fp);
     }
 
-    *out = cert;
+    if (out)
+    {
+        *out = cert;
+    }
 
     ERR_clear_error();
 
@@ -1318,6 +1336,68 @@ int security_serialize_der_public_key(ECC_KEY * ec_key, unsigned char ** der_pub
         return 0;
     else
         return der_len;
+}
+
+int security_serialize_raw_public_key(ECC_KEY * ec_key, unsigned char * public_key, size_t public_key_capacity)
+{
+    int len            = 0;
+    EC_GROUP * group   = NULL;
+    size_t pubkey_size = 0;
+
+    const EC_POINT * pubkey_ecp = EC_KEY_get0_public_key(ec_key);
+    if (pubkey_ecp == NULL)
+    {
+        goto exit;
+    }
+
+    group = EC_GROUP_new_by_curve_name(EC_curve_nist2nid("P-256"));
+    if (group == NULL)
+    {
+        goto exit;
+    }
+
+    pubkey_size = EC_POINT_point2oct(group, pubkey_ecp, POINT_CONVERSION_UNCOMPRESSED, public_key, public_key_capacity, NULL);
+    pubkey_ecp  = NULL;
+
+    if (pubkey_size != 65)
+    {
+        goto exit;
+    }
+
+    len = pubkey_size;
+
+exit:
+    if (group != NULL)
+    {
+        EC_GROUP_free(group);
+        group = NULL;
+    }
+
+    return len;
+}
+
+int security_serialize_raw_private_key(ECC_KEY * ec_key, unsigned char * private_key, size_t private_key_capacity)
+{
+    if (private_key_capacity != 32)
+    {
+        return 0;
+    }
+
+    int privkey_size          = 0;
+    const BIGNUM * privkey_bn = EC_KEY_get0_private_key(ec_key);
+    if (privkey_bn == NULL)
+    {
+        return 0;
+    }
+
+    privkey_size = BN_bn2binpad(privkey_bn, private_key, private_key_capacity);
+    privkey_bn   = NULL;
+    if (privkey_size != private_key_capacity)
+    {
+        return 0;
+    }
+
+    return privkey_size;
 }
 
 CertifierError security_check_x509_valid_range(time_t current_time, long min_secs_left, X509_CERT * cert,

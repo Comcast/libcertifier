@@ -22,43 +22,35 @@ copy("trafficlight_copy") {
   outputs = [ "$root_out_dir/trafficlight" ]
 }
 
-# TODO: Move this onto a common gn file
-action("generate_dac_chain") {
-  script = "../matter_plugin/generate_dac_chain.py"
-  sources = [ "certifier/resources/dac-commissionee.p12" ]
-  outputs = [
-    "${root_out_dir}/CertifierDacChain.h",
-    "${root_out_dir}/pai.pem",
-    "${root_out_dir}/dac.pem",
-    "${root_out_dir}/keypair.pem",
-  ]
-
-  args = rebase_path(sources, "") + rebase_path(outputs, root_out_dir)
-}
-
 executable("certifier-all-clusters-app") {
   sources = [
-    "../matter_plugin/CertifierDACProvider.h",
-    "../matter_plugin/CertifierDACProvider.cpp",
+    "../common/CertifierDACProvider.h",
+    "../common/CertifierDACProvider.cpp",
     "LightingManager.h",
     "LightingManager.cpp",
+    "CertifierOptions.h",
+    "CertifierOptions.cpp",
     "main.cpp",
   ]
 
   include_dirs = [
-    "../matter_plugin",
+    "../common",
     "${chip_root}/examples/all-clusters-app/all-clusters-common/include",
     "${chip_root}/examples/all-clusters-app/linux",
     "${root_out_dir}",
+    "certifier/include",
+    "certifier/internal_headers",
   ]
 
   deps = [
-    ":generate_dac_chain",
     ":trafficlight_copy",
     "${chip_root}/examples/all-clusters-app/linux:chip-all-clusters-common",
     "${chip_root}/examples/platform/linux:app-main",
     "${chip_root}/src/credentials",
   ]
+
+  lib_dirs = [ "." ]
+  libs = [ "certifier" ]
 
   output_dir = root_out_dir
 }

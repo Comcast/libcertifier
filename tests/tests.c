@@ -1254,13 +1254,13 @@ static void test_pkcs12(void ** state)
 
     // end positive case
 
-    result = security_get_X509_PKCS12_file(pkcs12_file_name, "fake_password", NULL, &cert);
+    result = security_get_X509_PKCS12_file(pkcs12_file_name, "fake_password", NULL, &cert, NULL);
     assert_true(result.application_error_code >= 1);
     error_clear(&result);
     assert_null(cert);
     security_free_cert(cert);
 
-    result = security_get_X509_PKCS12_file(pkcs12_file_name, pkcs12_passwd, NULL, &cert);
+    result = security_get_X509_PKCS12_file(pkcs12_file_name, pkcs12_passwd, NULL, &cert, NULL);
     assert_int_equal(0, result.application_error_code);
     error_clear(&result);
     assert_non_null(cert);
@@ -1308,7 +1308,7 @@ static void test_pkcs12(void ** state)
     assert_non_null(key);
     security_free_eckey(key);
 
-    result = security_get_X509_PKCS12_file(pkcs12_file_name_2, "beware the ninjas", NULL, &cert);
+    result = security_get_X509_PKCS12_file(pkcs12_file_name_2, "beware the ninjas", NULL, &cert, NULL);
     assert_int_equal(0, result.application_error_code);
     error_clear(&result);
     assert_non_null(cert);

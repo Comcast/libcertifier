@@ -20,9 +20,10 @@
 #include <crypto/CHIPCryptoPAL.h>
 
 #include <lib/core/CHIPError.h>
+#include <lib/support/CodeUtils.h>
 #include <lib/support/Span.h>
 
-#include <CertifierDacChain.h>
+#include <certifier/security.h>
 
 namespace chip {
 namespace Credentials {
@@ -30,7 +31,6 @@ namespace Certifier {
 
 namespace {
 
-// TODO: This should be moved to a method of P256Keypair
 CHIP_ERROR LoadKeypairFromRaw(ByteSpan private_key, ByteSpan public_key, Crypto::P256Keypair & keypair)
 {
     Crypto::P256SerializedKeypair serialized_keypair;
@@ -40,24 +40,55 @@ CHIP_ERROR LoadKeypairFromRaw(ByteSpan private_key, ByteSpan public_key, Crypto:
     return keypair.Deserialize(serialized_keypair);
 }
 
-class CertifierDACProvider : public DeviceAttestationCredentialsProvider
-{
-public:
-    CHIP_ERROR GetCertificationDeclaration(MutableByteSpan & out_cd_buffer) override;
-    CHIP_ERROR GetFirmwareInformation(MutableByteSpan & out_firmware_info_buffer) override;
-    CHIP_ERROR GetDeviceAttestationCert(MutableByteSpan & out_dac_buffer) override;
-    CHIP_ERROR GetProductAttestationIntermediateCert(MutableByteSpan & out_pai_buffer) override;
-    CHIP_ERROR SignWithDeviceAttestationKey(const ByteSpan & message_to_sign, MutableByteSpan & out_signature_buffer) override;
-};
-
 CHIP_ERROR CertifierDACProvider::GetDeviceAttestationCert(MutableByteSpan & out_dac_buffer)
 {
-    return CopySpanToMutableSpan(ByteSpan{ kDacCertificate }, out_dac_buffer);
+    X509_CERT * cert     = nullptr;
+    CertifierError error = CERTIFIER_ERROR_INITIALIZER;
+
+    error = security_get_X509_PKCS12_file(m_dac_filepath ? m_dac_filepath->ValueOr(kDefaultDacFilepath) : kDefaultDacFilepath,
+                                          m_dac_password ? m_dac_password->ValueOr(kDefaultDacPassword) : kDefaultDacPassword,
+                                          nullptr, &cert, nullptr);
+    VerifyOrReturnError(error.application_error_code == 0 && error.library_error_code == 0, CHIP_ERROR_INTERNAL);
+
+    size_t der_len      = 0;
+    unsigned char * der = security_X509_to_DER(cert, &der_len);
+    VerifyOrReturnError(der != nullptr, CHIP_ERROR_INTERNAL);
+
+    CopySpanToMutableSpan(ByteSpan(der, der_len), out_dac_buffer);
+
+    XFREE(der);
+    security_free_cert(cert);
+
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR CertifierDACProvider::GetProductAttestationIntermediateCert(MutableByteSpan & out_pai_buffer)
 {
-    return CopySpanToMutableSpan(ByteSpan{ kPaiCertificate }, out_pai_buffer);
+    X509_LIST * certs    = nullptr;
+    X509_CERT * cert     = nullptr;
+    CertifierError error = CERTIFIER_ERROR_INITIALIZER;
+
+    certs = security_new_cert_list();
+    VerifyOrReturnError(certs != nullptr, CHIP_ERROR_INTERNAL);
+
+    error = security_get_X509_PKCS12_file(m_dac_filepath ? m_dac_filepath->ValueOr(kDefaultDacFilepath) : kDefaultDacFilepath,
+                                          m_dac_password ? m_dac_password->ValueOr(kDefaultDacPassword) : kDefaultDacPassword,
+                                          certs, nullptr, nullptr);
+    VerifyOrReturnError(error.application_error_code == 0 && error.library_error_code == 0, CHIP_ERROR_INTERNAL);
+
+    cert = security_cert_list_get(certs, 1);
+
+    size_t der_len      = 0;
+    unsigned char * der = security_X509_to_DER(cert, &der_len);
+    VerifyOrReturnError(der != nullptr, CHIP_ERROR_INTERNAL);
+
+    CopySpanToMutableSpan(ByteSpan(der, der_len), out_pai_buffer);
+
+    XFREE(der);
+    security_free_cert(cert);
+    security_free_cert_list(certs);
+
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR CertifierDACProvider::GetCertificationDeclaration(MutableByteSpan & out_cd_buffer)
@@ -109,7 +140,28 @@ CHIP_ERROR CertifierDACProvider::SignWithDeviceAttestationKey(const ByteSpan & m
     VerifyOrReturnError(IsSpanUsable(message_to_sign), CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(out_signature_buffer.size() >= signature.Capacity(), CHIP_ERROR_BUFFER_TOO_SMALL);
 
-    ReturnErrorOnFailure(LoadKeypairFromRaw(ByteSpan{ kDacPrivateKey }, ByteSpan{ kDacPublicKey }, keypair));
+    X509_CERT * cert     = nullptr;
+    ECC_KEY * key        = nullptr;
+    CertifierError error = CERTIFIER_ERROR_INITIALIZER;
+
+    error = security_get_X509_PKCS12_file(m_dac_filepath ? m_dac_filepath->ValueOr(kDefaultDacFilepath) : kDefaultDacFilepath,
+                                          m_dac_password ? m_dac_password->ValueOr(kDefaultDacPassword) : kDefaultDacPassword,
+                                          nullptr, &cert, &key);
+    VerifyOrReturnError(error.application_error_code == 0 && error.library_error_code == 0, CHIP_ERROR_INTERNAL);
+
+    uint8_t raw_public_key[65]  = { 0 };
+    uint8_t raw_private_key[32] = { 0 };
+    size_t raw_public_key_len   = security_serialize_raw_public_key(key, raw_public_key, sizeof(raw_public_key));
+    size_t raw_private_key_len  = security_serialize_raw_private_key(key, raw_private_key, sizeof(raw_private_key));
+    VerifyOrReturnError(raw_public_key_len == sizeof(raw_public_key), CHIP_ERROR_INTERNAL);
+    VerifyOrReturnError(raw_private_key_len == sizeof(raw_private_key), CHIP_ERROR_INTERNAL);
+
+    ReturnErrorOnFailure(LoadKeypairFromRaw(ByteSpan{ raw_private_key, raw_private_key_len },
+                                            ByteSpan{ raw_public_key, raw_public_key_len }, keypair));
+
+    security_free_eckey(key);
+    security_free_cert(cert);
+
     ReturnErrorOnFailure(keypair.ECDSA_sign_msg(message_to_sign.data(), message_to_sign.size(), signature));
 
     return CopySpanToMutableSpan(ByteSpan{ signature.ConstBytes(), signature.Length() }, out_signature_buffer);

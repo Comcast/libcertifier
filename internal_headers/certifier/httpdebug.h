@@ -21,6 +21,8 @@
 
 #include "certifier/types.h"
 
+#include <curl/curl.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

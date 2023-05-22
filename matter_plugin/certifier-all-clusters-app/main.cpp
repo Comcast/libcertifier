@@ -17,6 +17,7 @@
  */
 
 #include "AppMain.h"
+#include "CertifierOptions.h"
 #include "LightingManager.h"
 #include "binding-handler.h"
 #include "main-common.h"
@@ -35,7 +36,7 @@ void MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & 
 
 int main(int argc, char * argv[])
 {
-    VerifyOrDie(ChipLinuxAppInit(argc, argv) == 0);
+    VerifyOrDie(ChipLinuxAppInit(argc, argv, CertifierOptions::GetOptions()) == 0);
     VerifyOrDie(InitBindingHandlers() == CHIP_NO_ERROR);
 
     LightingMgr().Init([]() {
