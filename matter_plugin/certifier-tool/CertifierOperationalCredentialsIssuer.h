@@ -32,7 +32,9 @@ namespace Controller {
 class DLL_EXPORT CertifierOperationalCredentialsIssuer : public OperationalCredentialsDelegate
 {
 public:
-    virtual ~CertifierOperationalCredentialsIssuer() {}
+    virtual ~CertifierOperationalCredentialsIssuer();
+
+    CertifierOperationalCredentialsIssuer();
 
     CHIP_ERROR GenerateNOCChain(const ByteSpan & csrElements, const ByteSpan & csrNonce, const ByteSpan & attestationSignature,
                                 const ByteSpan & attestationChallenge, const ByteSpan & DAC, const ByteSpan & PAI,
@@ -44,14 +46,18 @@ public:
 
     CHIP_ERROR ObtainCsrNonce(MutableByteSpan & csrNonce) override;
 
-    CHIP_ERROR GenerateNOCChainAfterValidation(NodeId nodeId, FabricId fabricId, const ByteSpan & dac, const ByteSpan & csr,
-                                               const ByteSpan & nonce, MutableByteSpan & rcac, MutableByteSpan & icac,
-                                               MutableByteSpan & noc);
+    CHIP_ERROR GenerateNOCChainAfterValidation(NodeId nodeId, FabricId fabricId, const ByteSpan & csr, const ByteSpan & nonce,
+                                               MutableByteSpan & rcac, MutableByteSpan & icac, MutableByteSpan & noc);
 
     CHIP_ERROR SetAuthCertificate(const char * authCertPath, size_t len);
     CHIP_ERROR SetCertConfig(const char * certCfgPath, size_t len);
 
+    void SetSATAuthentication(Optional<bool> * satAuthentication) { mSatAuthentication = satAuthentication; }
+    void SetSATToken(Optional<char *> * satToken) { mSatToken = satToken; }
+
 private:
+    static constexpr size_t kMaxSatTokenSize = 800;
+
     NodeId mNodeId      = 1;
     FabricId mFabricId  = 1;
     CATValues mNextCATs = kUndefinedCATs;
@@ -61,10 +67,13 @@ private:
     char mCertifierCfg[256]    = "libcertifier.cfg";
     char mTimestamp[21]        = "";
 
+    Optional<bool> * mSatAuthentication = nullptr;
+    chip::Optional<char *> * mSatToken  = nullptr;
+
     void GetTimestampForCertifying();
     http_response * DoHttpExchange(uint8_t * buffer, CERTIFIER * certifier);
-    CHIP_ERROR ObtainOpCert(const ByteSpan & dac, const ByteSpan & csr, const ByteSpan & nonce, MutableByteSpan & pkcs7OpCert,
-                            NodeId nodeId, FabricId fabricId);
+    CHIP_ERROR ObtainOpCert(const ByteSpan & csr, const ByteSpan & nonce, MutableByteSpan & pkcs7OpCert, NodeId nodeId,
+                            FabricId fabricId);
 };
 
 } // namespace Controller
