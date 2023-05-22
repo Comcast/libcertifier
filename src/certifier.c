@@ -243,7 +243,7 @@ static int load_cert(Certifier * certifier)
     if (util_file_exists(p12_filename))
     {
         log_debug("PKCS12 file %s exists. Loading x509", p12_filename);
-        CertifierError result = security_get_X509_PKCS12_file(p12_filename, password, NULL, &cert);
+        CertifierError result = security_get_X509_PKCS12_file(p12_filename, password, NULL, &cert, NULL);
         assign_last_error(certifier, &result);
         return_code = result.application_error_code;
         if (result.application_error_code != 0)
@@ -605,6 +605,8 @@ int certifier_create_crt(Certifier * certifier, char ** out_crt, const char * to
         return_code = CERTIFIER_ERR_CREATE_CRT_3;
         goto cleanup;
     }
+
+    log_info("Generated CRT is: %s\n", serialized_string);
 
     *out_crt = XSTRDUP(serialized_string);
 

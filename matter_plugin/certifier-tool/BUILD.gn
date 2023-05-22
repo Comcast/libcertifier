@@ -30,24 +30,11 @@ copy("libcertifier_cert_copy") {
   outputs = [ "$root_out_dir/libcertifier-cert.crt" ]
 }
 
-action("generate_dac_chain") {
-  script = "generate_dac_chain.py"
-  sources = [ "certifier/resources/dac-commissioner.p12" ]
-  outputs = [
-    "${root_out_dir}/CertifierDacChain.h",
-    "${root_out_dir}/pai.pem",
-    "${root_out_dir}/dac.pem",
-    "${root_out_dir}/keypair.pem",
-  ]
-
-  args = rebase_path(sources, "") + rebase_path(outputs, root_out_dir)
-}
-
 executable("certifier-tool") {
   sources = [
+    "../common/CertifierDACProvider.cpp",
+    "../common/CertifierDACProvider.h",
     "CertifierCredentialIssuerCommands.h",
-    "CertifierDACProvider.cpp",
-    "CertifierDACProvider.h",
     "CertifierOperationalCredentialsIssuer.cpp",
     "CertifierOperationalCredentialsIssuer.h",
     "main.cpp",
@@ -55,13 +42,13 @@ executable("certifier-tool") {
 
   include_dirs = [
     ".",
+    "../common",
     "${root_out_dir}",
     "certifier/include",
     "certifier/internal_headers",
   ]
 
   deps = [
-    ":generate_dac_chain",
     "${chip_root}/examples/chip-tool:chip-tool-utils",
     "${chip_root}/src/platform/logging:force_stdio",
   ]

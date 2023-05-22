@@ -30,6 +30,12 @@
 #include <zap-generated/cluster/Commands.h>
 #include <zap-generated/test/Commands.h>
 
+#include "CertifierDACProvider.h"
+
+using namespace chip::Credentials::Certifier;
+
+void registerCommandsCertifierPairing(Commands & commands, CredentialIssuerCommands * credsIssuerConfig);
+
 // ================================================================================
 // Main Code
 // ================================================================================
@@ -42,10 +48,41 @@ int main(int argc, char * argv[])
     registerCommandsInteractive(commands, &credIssuerCommands);
     registerCommandsPayload(commands);
     registerCommandsPairing(commands, &credIssuerCommands);
+    registerCommandsCertifierPairing(commands, &credIssuerCommands);
     registerCommandsTests(commands, &credIssuerCommands);
     registerCommandsGroup(commands, &credIssuerCommands);
     registerClusters(commands, &credIssuerCommands);
     registerCommandsStorage(commands);
 
     return commands.Run(argc, argv);
+}
+
+class CertifierPairOnNetwork : public PairingCommand
+{
+public:
+    CertifierPairOnNetwork(CredentialIssuerCommands * credsIssuerConfig) :
+        PairingCommand("onnetwork-certifier", PairingMode::OnNetwork, PairingNetworkType::None, credsIssuerConfig)
+    {
+        AddArgument("dac-filepath", &m_dac_filepath, "A pkcs12 file bundled with a dac certificate chain of this device");
+        AddArgument("dac-password", &m_dac_password, "Password to extract dac and keypair from the dac file");
+
+        CertifierDACProvider * certifierDACProvider = reinterpret_cast<CertifierDACProvider *>(GetDACProvider());
+        certifierDACProvider->SetDACFilepath(&m_dac_filepath);
+        certifierDACProvider->SetDACPassword(&m_dac_password);
+    }
+
+private:
+    chip::Optional<char *> m_dac_filepath;
+    chip::Optional<char *> m_dac_password;
+};
+
+void registerCommandsCertifierPairing(Commands & commands, CredentialIssuerCommands * credsIssuerConfig)
+{
+    const char * clusterName = "Pairing";
+
+    commands_list clusterCommands = {
+        make_unique<CertifierPairOnNetwork>(credsIssuerConfig),
+    };
+
+    commands.Register(clusterName, clusterCommands);
 }
