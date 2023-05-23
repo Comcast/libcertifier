@@ -47,9 +47,10 @@
 
 namespace {
 
-constexpr char cert_id[] = "X509";
+constexpr char x509_token[] = "X509";
+constexpr char sat_token[]  = "SAT";
 
-}
+} // namespace
 
 namespace chip {
 namespace Controller {
@@ -59,10 +60,20 @@ using namespace Crypto;
 using namespace ASN1;
 using namespace TLV;
 
+CertifierOperationalCredentialsIssuer::CertifierOperationalCredentialsIssuer()
+{
+    mCertifier = certifier_api_easy_new();
+}
+
+CertifierOperationalCredentialsIssuer::~CertifierOperationalCredentialsIssuer()
+{
+    certifier_api_easy_destroy(mCertifier);
+}
+
 CHIP_ERROR CertifierOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(NodeId nodeId, FabricId fabricId,
-                                                                                  const ByteSpan & dac, const ByteSpan & csr,
-                                                                                  const ByteSpan & nonce, MutableByteSpan & rcac,
-                                                                                  MutableByteSpan & icac, MutableByteSpan & noc)
+                                                                                  const ByteSpan & csr, const ByteSpan & nonce,
+                                                                                  MutableByteSpan & rcac, MutableByteSpan & icac,
+                                                                                  MutableByteSpan & noc)
 {
     CHIP_ERROR error        = CHIP_NO_ERROR;
     X509_LIST * certs       = nullptr;
@@ -72,7 +83,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::GenerateNOCChainAfterValidatio
     uint8_t OpCertificateChain[4096];
     MutableByteSpan OpCertificateChainSpan(OpCertificateChain);
 
-    SuccessOrExit(error = ObtainOpCert(dac, csr, nonce, OpCertificateChainSpan, nodeId, fabricId));
+    SuccessOrExit(error = ObtainOpCert(csr, nonce, OpCertificateChainSpan, nodeId, fabricId));
 
     OpCertificateChain[OpCertificateChainSpan.size()] = 0;
     util_trim(reinterpret_cast<char *>(OpCertificateChain));
@@ -152,17 +163,10 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::GenerateNOCChain(const ByteSpa
 
     uint8_t nonceBuffer[chip::Controller::kCSRNonceLength];
     chip::MutableByteSpan certifierNonce(nonceBuffer);
-    uint8_t dacBuf[chip::Credentials::kMaxDERCertLength];
-    chip::MutableByteSpan dacBufSpan(dacBuf);
 
     ReturnErrorOnFailure(ObtainCsrNonce(certifierNonce));
 
-    chip::Credentials::DeviceAttestationCredentialsProvider * dacProvider =
-        chip::Credentials::GetDeviceAttestationCredentialsProvider();
-    ReturnErrorOnFailure(dacProvider->GetDeviceAttestationCert(dacBufSpan));
-
-    ReturnErrorOnFailure(
-        GenerateNOCChainAfterValidation(mNodeId, mFabricId, dacBufSpan, csr, certifierNonce, rcacSpan, icacSpan, nocSpan));
+    ReturnErrorOnFailure(GenerateNOCChainAfterValidation(mNodeId, mFabricId, csr, certifierNonce, rcacSpan, icacSpan, nocSpan));
 
     // TODO(#13825): Should always generate some IPK. Using a temporary fixed value until APIs are plumbed in to set it end-to-end
     // TODO: Force callers to set IPK if used before GenerateNOCChain will succeed.
@@ -251,17 +255,43 @@ http_response * CertifierOperationalCredentialsIssuer::DoHttpExchange(uint8_t * 
     return certifier_api_easy_http_post(certifier, certifier_certificate_url, headers, (const char *) (buffer));
 }
 
-CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & dac, const ByteSpan & csr, const ByteSpan & nonce,
+CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & csr, const ByteSpan & nonce,
                                                                MutableByteSpan & pkcs7OpCert, NodeId nodeId, FabricId fabricId)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
+    uint8_t dacBuf[kMaxDERCertLength];
+    MutableByteSpan dacBufSpan(dacBuf);
+    const char * token = nullptr;
+
+    size_t base64CertificateLength = 0;
+    Platform::ScopedMemoryBuffer<char> base64Certificate;
+
+    const char * cert_id = mSatAuthentication->ValueOr(false) ? sat_token : x509_token;
+
     JSON_Value * root_value   = json_value_init_object();
     JSON_Object * root_object = json_value_get_object(root_value);
 
-    size_t base64CertificateLength = static_cast<size_t>(base64_encode_len(static_cast<int>(dac.size()) + 2));
-    size_t base64CSRLength         = static_cast<size_t>(base64_encode_len(static_cast<int>(csr.size()))) + 1;
-    Platform::ScopedMemoryBuffer<char> base64Certificate;
+    if (mSatAuthentication->ValueOr(false))
+    {
+        if (mSatToken->HasValue())
+        {
+            token = mSatToken->Value();
+        }
+        else
+        {
+            token = reinterpret_cast<char *>(certifier_api_easy_get_opt(mCertifier, CERTIFIER_OPT_AUTH_TOKEN));
+        }
+    }
+    else
+    {
+        DeviceAttestationCredentialsProvider * dacProvider = GetDeviceAttestationCredentialsProvider();
+        ReturnErrorOnFailure(dacProvider->GetDeviceAttestationCert(dacBufSpan));
+
+        base64CertificateLength = static_cast<size_t>(base64_encode_len(static_cast<int>(dacBufSpan.size()) + 2));
+    }
+
+    size_t base64CSRLength = static_cast<size_t>(base64_encode_len(static_cast<int>(csr.size()))) + 1;
     Platform::ScopedMemoryBuffer<char> base64JsonCrt;
     Platform::ScopedMemoryBuffer<char> base64CSR;
     Platform::ScopedMemoryBuffer<char> base64Signature;
@@ -294,10 +324,17 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
 
     memset(fabricIdArray, 0, sizeof(fabricIdArray));
     snprintf(fabricIdArray, sizeof(fabricIdArray), "%016" PRIX64, fabricId);
-
     json_object_set_string(root_object, "tokenType", cert_id);
-    base64_encode(base64Certificate.Get(), dac.data(), static_cast<int>(dac.size()));
-    result = json_object_set_string(root_object, "certificate", base64Certificate.Get());
+
+    if (mSatAuthentication->ValueOr(false))
+    {
+        result = json_object_set_string(root_object, "token", token);
+    }
+    else
+    {
+        base64_encode(base64Certificate.Get(), dacBufSpan.data(), static_cast<int>(dacBufSpan.size()));
+        result = json_object_set_string(root_object, "certificate", base64Certificate.Get());
+    }
     VerifyOrExit(result == 0, err = CHIP_ERROR_INTERNAL);
     GetTimestampForCertifying();
     result = json_object_set_string(root_object, "timestamp", mTimestamp);
@@ -308,42 +345,44 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
     result                            = json_object_set_string(root_object, "nonce", nullTerminatedNonce);
     VerifyOrExit(result == 0, err = CHIP_ERROR_INTERNAL);
 
+    if (mSatAuthentication->ValueOr(false) == false)
     {
-        Platform::ScopedMemoryBuffer<uint8_t> tbsData;
-        ByteSpan tbsSpan;
-        size_t tbsDataLen = dac.size() + strlen(mTimestamp) + nonce.size() + strlen(cert_id);
-        P256ECDSASignature signature;
-        MutableByteSpan signatureSpan(signature.Bytes(), signature.Capacity());
+        {
+            Platform::ScopedMemoryBuffer<uint8_t> tbsData;
+            ByteSpan tbsSpan;
+            size_t tbsDataLen = dacBufSpan.size() + strlen(mTimestamp) + nonce.size() + strlen(cert_id);
+            P256ECDSASignature signature;
+            MutableByteSpan signatureSpan(signature.Bytes(), signature.Capacity());
 
-        DeviceAttestationCredentialsProvider * dacProvider = GetDeviceAttestationCredentialsProvider();
+            DeviceAttestationCredentialsProvider * dacProvider = GetDeviceAttestationCredentialsProvider();
 
-        VerifyOrExit(tbsData.Alloc(tbsDataLen), err = CHIP_ERROR_NO_MEMORY);
+            VerifyOrExit(tbsData.Alloc(tbsDataLen), err = CHIP_ERROR_NO_MEMORY);
 
-        XMEMCPY(tbsData.Get(), dac.data(), dac.size());
-        XMEMCPY(tbsData.Get() + dac.size(), mTimestamp, strlen(mTimestamp));
-        XMEMCPY(tbsData.Get() + dac.size() + strlen(mTimestamp), nonce.data(), nonce.size());
-        XMEMCPY(tbsData.Get() + dac.size() + strlen(mTimestamp) + nonce.size(), cert_id, strlen(cert_id));
+            XMEMCPY(tbsData.Get(), dacBufSpan.data(), dacBufSpan.size());
+            XMEMCPY(tbsData.Get() + dacBufSpan.size(), mTimestamp, strlen(mTimestamp));
+            XMEMCPY(tbsData.Get() + dacBufSpan.size() + strlen(mTimestamp), nonce.data(), nonce.size());
+            XMEMCPY(tbsData.Get() + dacBufSpan.size() + strlen(mTimestamp) + nonce.size(), cert_id, strlen(cert_id));
 
-        tbsSpan = ByteSpan{ tbsData.Get(), tbsDataLen };
+            tbsSpan = ByteSpan{ tbsData.Get(), tbsDataLen };
 
-        SuccessOrExit(err = dacProvider->SignWithDeviceAttestationKey(tbsSpan, signatureSpan));
-        SuccessOrExit(err = signature.SetLength(signatureSpan.size()));
+            SuccessOrExit(err = dacProvider->SignWithDeviceAttestationKey(tbsSpan, signatureSpan));
+            SuccessOrExit(err = signature.SetLength(signatureSpan.size()));
 
-        SuccessOrExit(err = EcdsaRawSignatureToAsn1(kMAX_FE_Length, signatureSpan, derSignatureSpan));
+            SuccessOrExit(err = EcdsaRawSignatureToAsn1(kMAX_FE_Length, signatureSpan, derSignatureSpan));
+        }
+
+        base64SignatureLength = base64_encode_len(static_cast<int>(derSignatureSpan.size()));
+        VerifyOrExit(base64Signature.Alloc(static_cast<size_t>(base64SignatureLength + 6)), err = CHIP_ERROR_NO_MEMORY);
+        base64_encode(base64Signature.Get(), derSignatureSpan.data(), static_cast<int>(derSignatureSpan.size()));
+        result = json_object_set_string(root_object, "signature", base64Signature.Get());
+        VerifyOrExit(result == 0, err = CHIP_ERROR_INTERNAL);
     }
-
-    base64SignatureLength = base64_encode_len(static_cast<int>(derSignatureSpan.size()));
-    VerifyOrExit(base64Signature.Alloc(static_cast<size_t>(base64SignatureLength + 6)), err = CHIP_ERROR_NO_MEMORY);
-    base64_encode(base64Signature.Get(), derSignatureSpan.data(), static_cast<int>(derSignatureSpan.size()));
-    result = json_object_set_string(root_object, "signature", base64Signature.Get());
-    VerifyOrExit(result == 0, err = CHIP_ERROR_INTERNAL);
 
     mJsonCrt = json_serialize_to_string_pretty(root_value);
     ChipLogProgress(AppServer, "X509 JSON certificate for obtaining operational credentials: \n%s", mJsonCrt);
     VerifyOrExit(base64JsonCrt.Alloc(static_cast<size_t>(base64_encode_len(static_cast<int>(strlen(mJsonCrt))))),
                  err = CHIP_ERROR_NO_MEMORY);
     base64_encode(base64JsonCrt.Get(), reinterpret_cast<const unsigned char *>(mJsonCrt), static_cast<int>(strlen(mJsonCrt)));
-    mCertifier = certifier_api_easy_new();
     certifier_api_easy_set_opt(mCertifier, CERTIFIER_OPT_CFG_FILENAME, reinterpret_cast<void *>(mCertifierCfg));
     certifier_api_easy_set_opt(mCertifier, CERTIFIER_OPT_CRT, base64JsonCrt.Get());
     certifier_api_easy_set_opt(mCertifier, CERTIFIER_OPT_CN_PREFIX, operationalID);

@@ -6,10 +6,16 @@ Command Line Examples
 
 *Create X509 CRT*
 
-The command below assumes there is a file called `seed.p12`, which is the pre-existing PKCS12 with a password of `changeit` without the single quotes.
+The command below assumes there is a file called `seed.p12`, which is the pre-existing PKCS12 with a password of `changeit` without the single quotes. This uses the default authentication method, X509 Authentication.
 
 ----
 ./certifierUtil get-crt-token -X X509 -k ./seed.p12 -p changeit
+----
+
+Alternatively, SAT can be utilized for authentication in place of an X.509 certificate.
+
+----
+./certifierUtil get-crt-token -X SAT -S <SAT_TOKEN>
 ----
 
 This command could also be invoked from `./tests/functional/create_x509_crt.sh`.  Example -
@@ -42,12 +48,24 @@ The command below combines both examples above into a single call.
 ./certifierUtil get-cert -f -k ./seed.p12 -p changeit -o matter_dac.p12 -w changeit
 ----
 
+Same command with SAT authentication:
+
+----
+./certifierUtil get-cert -f -X SAT -S <SAT_TOKEN> -o matter_dac.p12 -w changeit
+----
+
 *Fetch a Matter Device Attestation Certificate*
 
-The command below fetches a Device Attestation Certificate with a desired Product-ID (16-bit hex). VendorID will always be fixed to 0xFFF4
+The command below fetches a Device Attestation Certificate with a desired Product-ID (16-bit hex) using X509 Authentication. VendorID will always be fixed to 0xFFF4
 
 ----
 ./certifierUtil get-cert -k ./seed.p12 -p changeit -o matter_dac.p12 -w changeit --product-id 1101 -P XFN_DL_PAI_1_Class_3
+----
+
+Same command with SAT authentication:
+
+----
+./certifierUtil get-cert -X SAT -S <SAT_TOKEN> -o matter_dac.p12 -w changeit --product-id 1101 -P XFN_DL_PAI_1_Class_3
 ----
 
 *Fetch a Matter Operational Certificate*
@@ -56,6 +74,12 @@ The command below fetches a Matter-compliant Operational Certificate with a desi
 
 ----
 ./certifierUtil get-cert -k ./seed.p12 -p changeit -o matter_opcert.p12 -w changeit --node-id AAAABBBBCCCCDDDD -P XFN_Matter_OP_Class_3_ICA
+----
+
+Same command with SAT authentication:
+
+----
+./certifierUtil get-cert -X SAT -S <SAT_TOKEN> -o matter_opcert.p12 -w changeit --node-id AAAABBBBCCCCDDDD -P XFN_Matter_OP_Class_3_ICA
 ----
 
 == *Other Examples*

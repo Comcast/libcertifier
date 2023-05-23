@@ -966,6 +966,7 @@ int property_set_defaults_from_cfg_file(CertifierPropMap * propMap)
     int http_connect_timeout_value;
     int http_trace_value;
     const char * input_p12_path_value = NULL;
+    const char * sat_token_value      = NULL;
     const char * ca_info_value        = NULL;
     const char * ca_path_value        = NULL;
     const char * ecc_curve_id_value   = NULL;
@@ -1117,6 +1118,13 @@ int property_set_defaults_from_cfg_file(CertifierPropMap * propMap)
     {
         log_info("Loaded input_p12_path_value: %s from cfg file.", input_p12_path_value);
         property_set(propMap, CERTIFIER_OPT_INPUT_P12_PATH, input_p12_path_value);
+    }
+
+    sat_token_value = json_object_get_string(json_object(json), "libcertifier.sat.token");
+    if (sat_token_value)
+    {
+        log_info("Loaded sat_token_value: %s from cfg file.", sat_token_value);
+        property_set(propMap, CERTIFIER_OPT_AUTH_TOKEN, sat_token_value);
     }
 
     ca_info_value = json_object_get_string(json_object(json), "libcertifier.ca.info");

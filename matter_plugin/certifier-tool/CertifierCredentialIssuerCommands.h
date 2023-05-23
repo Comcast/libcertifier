@@ -25,6 +25,10 @@
 
 class CertifierCredentialIssuerCommands : public ExampleCredentialIssuerCommands
 {
+public:
+    void SetSATAuthentication(chip::Optional<bool> * satAuthentication) { mOpCredsIssuer.SetSATAuthentication(satAuthentication); }
+    void SetSATToken(chip::Optional<char *> * satToken) { mOpCredsIssuer.SetSATToken(satToken); }
+
 private:
     CHIP_ERROR InitializeCredentialsIssuer(chip::PersistentStorageDelegate & storage) override { return CHIP_NO_ERROR; }
     CHIP_ERROR SetupDeviceAttestation(chip::Controller::SetupParams & setupParams,
@@ -46,21 +50,15 @@ private:
         size_t csrBufferLength = sizeof(csrBuffer);
         uint8_t nonceBuffer[chip::Controller::kCSRNonceLength];
         chip::MutableByteSpan nonceSpan(nonceBuffer);
-        uint8_t dacBuf[chip::Credentials::kMaxDERCertLength];
-        chip::MutableByteSpan dacBufSpan(dacBuf);
 
         ReturnErrorOnFailure(keypair.NewCertificateSigningRequest(csrBuffer, csrBufferLength));
         VerifyOrReturnError(csrBufferLength < UINT8_MAX, CHIP_ERROR_INTERNAL);
 
         ReturnErrorOnFailure(mOpCredsIssuer.ObtainCsrNonce(nonceSpan));
 
-        chip::Credentials::DeviceAttestationCredentialsProvider * dacProvider =
-            chip::Credentials::GetDeviceAttestationCredentialsProvider();
-        ReturnErrorOnFailure(dacProvider->GetDeviceAttestationCert(dacBufSpan));
-
         // TODO: Add CATs support
-        return mOpCredsIssuer.GenerateNOCChainAfterValidation(
-            nodeId, fabricId, dacBufSpan, chip::ByteSpan(csrBuffer, csrBufferLength), nonceSpan, rcac, icac, noc);
+        return mOpCredsIssuer.GenerateNOCChainAfterValidation(nodeId, fabricId, chip::ByteSpan(csrBuffer, csrBufferLength),
+                                                              nonceSpan, rcac, icac, noc);
     }
 
     chip::Controller::CertifierOperationalCredentialsIssuer mOpCredsIssuer;

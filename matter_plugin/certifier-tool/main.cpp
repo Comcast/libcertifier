@@ -61,19 +61,28 @@ class CertifierPairOnNetwork : public PairingCommand
 {
 public:
     CertifierPairOnNetwork(CredentialIssuerCommands * credsIssuerConfig) :
-        PairingCommand("onnetwork-certifier", PairingMode::OnNetwork, PairingNetworkType::None, credsIssuerConfig)
+        PairingCommand("onnetwork-certifier", PairingMode::OnNetwork, PairingNetworkType::None, credsIssuerConfig),
+        m_certifier_credential_issuer_config(reinterpret_cast<CertifierCredentialIssuerCommands *>(credsIssuerConfig)),
+        m_certifier_dac_provider(reinterpret_cast<CertifierDACProvider *>(GetDACProvider()))
     {
-        AddArgument("dac-filepath", &m_dac_filepath, "A pkcs12 file bundled with a dac certificate chain of this device");
+        AddArgument("dac-filepath", &m_dac_filepath, "A PKCS12 file bundled with a dac certificate chain for this device");
         AddArgument("dac-password", &m_dac_password, "Password to extract dac and keypair from the dac file");
-
-        CertifierDACProvider * certifierDACProvider = reinterpret_cast<CertifierDACProvider *>(GetDACProvider());
-        certifierDACProvider->SetDACFilepath(&m_dac_filepath);
-        certifierDACProvider->SetDACPassword(&m_dac_password);
+        AddArgument("sat", 0, 1, &m_sat_authentication, "Enable XPKI SAT Token Autentication");
+        AddArgument("sat-token", &m_sat_token, "A SAT Token to be used for XPKI authentication");
+        m_certifier_credential_issuer_config->SetSATAuthentication(&m_sat_authentication);
+        m_certifier_credential_issuer_config->SetSATToken(&m_sat_token);
+        m_certifier_dac_provider->SetDACFilepath(&m_dac_filepath);
+        m_certifier_dac_provider->SetDACPassword(&m_dac_password);
     }
 
 private:
     chip::Optional<char *> m_dac_filepath;
     chip::Optional<char *> m_dac_password;
+    chip::Optional<char *> m_sat_token;
+    chip::Optional<bool> m_sat_authentication;
+
+    CertifierCredentialIssuerCommands * m_certifier_credential_issuer_config = nullptr;
+    CertifierDACProvider * m_certifier_dac_provider                          = nullptr;
 };
 
 void registerCommandsCertifierPairing(Commands & commands, CredentialIssuerCommands * credsIssuerConfig)

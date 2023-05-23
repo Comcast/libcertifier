@@ -24,15 +24,38 @@ This is the first executable/target that should be run. This application will ac
 ./certifier-all-clusters-app --vendor-id 65524 --product-id 4353 --dac dac-commissionee.p12 --dac-password changeit
 ----
 
-*Comissioner Usage (certifier-tool)*
+*Commissioner Usage (certifier-tool)*
 
-Once the Commissionee application is running, `certifier-tool` shall be run with the following parameters:
+Commissioner will interact with the cloud PKI and retrieve Matter NOC certificates for both to the Commissioner (during initialization) and Commissionee (during Matter Commissioning Flow), using either X.509 or SAT authentication.
+
+Once the Commissionee application is running, run `certifier-tool` with the following parameters:
+
+X.509 authentication:
 
 ----
 ./certifier-tool pairing onnetwork-certifier 0x12 20202021 --paa-trust-store-path ../matter_sdk/credentials/development/paa-root-certs --dac-filepath dac-commissioner.p12 --dac-password changeit
-./certifier-tool onoff toggle 0x12 1 --paa-trust-store-path ../matter_sdk/credentials/development/paa-root-certs --dac-filepath dac-commissioner.p12 --dac-password changeit
 ----
 
-This application will interact with the cloud PKI and issue certificates both to the Commissioner (during initialization) and Commissionee (during Matter Commissioning Flow) applications.
+SAT authentication:
 
-The second line of the command above will be used to test a Toggle command to a lighting device.
+----
+./certifier-tool pairing onnetwork-certifier 0x12 20202021 --paa-trust-store-path ../matter_sdk/credentials/production/paa-root-certs --sat 1 --sat-token <token>
+----
+
+Instead of passing SAT as a command line parameter, it can be added to the `libcertifier.cfg` file as indicated below:
+
+----
+"libcertifier.sat.token": "<token>",
+----
+
+Then, run `certifier-tool` with the following parameters:
+
+----
+./certifier-tool pairing onnetwork-certifier 0x12 20202021 --paa-trust-store-path ../matter_sdk/credentials/production/paa-root-certs --sat 1
+----
+
+After successfully commissioning the device, execute the following to send a Toggle command to a lighting device:
+
+----
+./certifier-tool onoff toggle 0x12 1 --paa-trust-store-path ../matter_sdk/credentials/development/paa-root-certs --dac-filepath dac-commissioner.p12 --dac-password changeit
+----
