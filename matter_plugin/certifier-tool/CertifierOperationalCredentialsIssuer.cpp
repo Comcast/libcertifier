@@ -267,21 +267,18 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
     size_t base64CertificateLength = 0;
     Platform::ScopedMemoryBuffer<char> base64Certificate;
 
-    const char * cert_id = mSatAuthentication->ValueOr(false) ? sat_token : x509_token;
+    const char * cert_id = mAuthType ? mAuthType->ValueOr(const_cast<char *>(x509_token)) : x509_token;
+
+    bool sat_auth = strncmp(cert_id, sat_token, sizeof(sat_token) - 1) == 0;
 
     JSON_Value * root_value   = json_value_init_object();
     JSON_Object * root_object = json_value_get_object(root_value);
 
-    if (mSatAuthentication->ValueOr(false))
+    if (sat_auth)
     {
-        if (mSatToken->HasValue())
-        {
-            token = mSatToken->Value();
-        }
-        else
-        {
-            token = reinterpret_cast<char *>(certifier_api_easy_get_opt(mCertifier, CERTIFIER_OPT_AUTH_TOKEN));
-        }
+        token = mSatToken
+            ? mSatToken->ValueOr(reinterpret_cast<char *>(certifier_api_easy_get_opt(mCertifier, CERTIFIER_OPT_AUTH_TOKEN)))
+            : reinterpret_cast<char *>(certifier_api_easy_get_opt(mCertifier, CERTIFIER_OPT_AUTH_TOKEN));
     }
     else
     {
@@ -326,7 +323,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
     snprintf(fabricIdArray, sizeof(fabricIdArray), "%016" PRIX64, fabricId);
     json_object_set_string(root_object, "tokenType", cert_id);
 
-    if (mSatAuthentication->ValueOr(false))
+    if (sat_auth)
     {
         result = json_object_set_string(root_object, "token", token);
     }
@@ -345,7 +342,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
     result                            = json_object_set_string(root_object, "nonce", nullTerminatedNonce);
     VerifyOrExit(result == 0, err = CHIP_ERROR_INTERNAL);
 
-    if (mSatAuthentication->ValueOr(false) == false)
+    if (sat_auth == false)
     {
         {
             Platform::ScopedMemoryBuffer<uint8_t> tbsData;

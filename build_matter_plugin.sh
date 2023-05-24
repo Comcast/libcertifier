@@ -22,7 +22,11 @@ cd build
 ./certifierUtil get-cert -f -k seed.p12 -p changeit -o dac-commissioner.p12 --product-id 1101 --profile-name XFN_AS_PAI_1
 ./certifierUtil get-cert -f -k seed.p12 -p changeit -o dac-commissionee.p12 --product-id 1101 --profile-name XFN_AS_PAI_1
 
-cd ../matter_plugin/certifier-tool
+cd ../matter_plugin/certification-declaration-gen
+make install all PRODUCT_ID=4353
+cp *.array ../common/
+
+cd ../certifier-tool
 gn gen --check out/build
 ninja -C out/build
 

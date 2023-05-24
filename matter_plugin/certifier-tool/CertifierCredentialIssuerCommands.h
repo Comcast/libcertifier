@@ -26,7 +26,7 @@
 class CertifierCredentialIssuerCommands : public ExampleCredentialIssuerCommands
 {
 public:
-    void SetSATAuthentication(chip::Optional<bool> * satAuthentication) { mOpCredsIssuer.SetSATAuthentication(satAuthentication); }
+    void SetAuthenticatonType(chip::Optional<char *> * authType) { mOpCredsIssuer.SetAutheticationType(authType); }
     void SetSATToken(chip::Optional<char *> * satToken) { mOpCredsIssuer.SetSATToken(satToken); }
 
 private:

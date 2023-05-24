@@ -65,11 +65,11 @@ public:
         m_certifier_credential_issuer_config(reinterpret_cast<CertifierCredentialIssuerCommands *>(credsIssuerConfig)),
         m_certifier_dac_provider(reinterpret_cast<CertifierDACProvider *>(GetDACProvider()))
     {
-        AddArgument("dac-filepath", &m_dac_filepath, "A PKCS12 file bundled with a dac certificate chain for this device");
-        AddArgument("dac-password", &m_dac_password, "Password to extract dac and keypair from the dac file");
-        AddArgument("sat", 0, 1, &m_sat_authentication, "Enable XPKI SAT Token Autentication");
+        AddArgument("input-p12-path", &m_dac_filepath, "A PKCS12 file bundled with a dac certificate chain for this device");
+        AddArgument("input-p12-password", &m_dac_password, "Password to extract dac and keypair from the dac file");
         AddArgument("sat-token", &m_sat_token, "A SAT Token to be used for XPKI authentication");
-        m_certifier_credential_issuer_config->SetSATAuthentication(&m_sat_authentication);
+        AddArgument("auth-type", &m_auth_type, "Enable XPKI SAT Token Autentication");
+        m_certifier_credential_issuer_config->SetAuthenticatonType(&m_auth_type);
         m_certifier_credential_issuer_config->SetSATToken(&m_sat_token);
         m_certifier_dac_provider->SetDACFilepath(&m_dac_filepath);
         m_certifier_dac_provider->SetDACPassword(&m_dac_password);
@@ -79,7 +79,7 @@ private:
     chip::Optional<char *> m_dac_filepath;
     chip::Optional<char *> m_dac_password;
     chip::Optional<char *> m_sat_token;
-    chip::Optional<bool> m_sat_authentication;
+    chip::Optional<char *> m_auth_type;
 
     CertifierCredentialIssuerCommands * m_certifier_credential_issuer_config = nullptr;
     CertifierDACProvider * m_certifier_dac_provider                          = nullptr;
