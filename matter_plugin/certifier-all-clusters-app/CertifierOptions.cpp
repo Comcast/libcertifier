@@ -63,15 +63,15 @@ bool CertifierOptions::HandleOptions(const char * program, OptionSet * options, 
 OptionSet * CertifierOptions::GetOptions()
 {
     static OptionDef optionsDef[] = {
-        { "dac", kArgumentRequired, kOptionDacFilePath },
-        { "dac-password", kArgumentRequired, kOptionDacPassword },
+        { "input-p12-path", kArgumentRequired, kOptionDacFilePath },
+        { "input-p12-password", kArgumentRequired, kOptionDacPassword },
         {},
     };
 
     static OptionSet options = { CertifierOptions::HandleOptions, optionsDef, "PROGRAM OPTIONS",
-                                 "  --dac <filepath>\n"
+                                 "  --input-p12-path <filepath>\n"
                                  "       A pkcs12 file bundled with a dac certificate chain of this device.\n"
-                                 "  --dac-password <value>\n"
+                                 "  --input-p12-password <value>\n"
                                  "       Password to extract dac and keypair from the dac file.\n" };
 
     return &options;

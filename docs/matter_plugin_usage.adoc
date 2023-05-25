@@ -21,7 +21,7 @@ Having run this, two target executables will be created. Check how to use them i
 This is the first executable/target that should be run. This application will act as a device in a Matter network ready to be commissioned.
 
 ----
-./certifier-all-clusters-app --vendor-id 65524 --product-id 4353 --dac dac-commissionee.p12 --dac-password changeit
+./certifier-all-clusters-app --vendor-id 65524 --product-id 4353 --input-p12-path dac-commissionee.p12 --input-p12-password changeit
 ----
 
 *Commissioner Usage (certifier-tool)*
@@ -33,7 +33,7 @@ Once the Commissionee application is running, run `certifier-tool` with the foll
 X.509 authentication:
 
 ----
-./certifier-tool pairing onnetwork-certifier 0x12 20202021 --paa-trust-store-path ../matter_sdk/credentials/development/paa-root-certs --dac-filepath dac-commissioner.p12 --dac-password changeit
+./certifier-tool pairing onnetwork-certifier 0x12 20202021 --paa-trust-store-path ../matter_sdk/credentials/development/paa-root-certs --input-p12-path dac-commissioner.p12 --input-p12-password changeit
 ----
 
 SAT authentication:
@@ -57,5 +57,5 @@ Then, run `certifier-tool` with the following parameters:
 After successfully commissioning the device, execute the following to send a Toggle command to a lighting device:
 
 ----
-./certifier-tool onoff toggle 0x12 1 --paa-trust-store-path ../matter_sdk/credentials/development/paa-root-certs --dac-filepath dac-commissioner.p12 --dac-password changeit
+./certifier-tool onoff toggle 0x12 1 --paa-trust-store-path ../matter_sdk/credentials/development/paa-root-certs --input-p12-path dac-commissioner.p12 --input-p12-password changeit
 ----
