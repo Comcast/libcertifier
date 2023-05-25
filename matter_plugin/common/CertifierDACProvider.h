@@ -37,15 +37,15 @@ public:
     CHIP_ERROR GetProductAttestationIntermediateCert(MutableByteSpan & out_pai_buffer) override;
     CHIP_ERROR SignWithDeviceAttestationKey(const ByteSpan & message_to_sign, MutableByteSpan & out_signature_buffer) override;
 
-    void SetDACFilepath(Optional<char *> * dac_filepath) { m_dac_filepath = dac_filepath; }
-    void SetDACPassword(Optional<char *> * dac_password) { m_dac_password = dac_password; }
+    void SetDACFilepath(Optional<char *> dac_filepath) { m_dac_filepath = dac_filepath; }
+    void SetDACPassword(Optional<char *> dac_password) { m_dac_password = dac_password; }
 
 private:
     char kDefaultDacFilepath[8] = "dac.p12";
     char kDefaultDacPassword[9] = "changeit";
 
-    Optional<char *> * m_dac_filepath = nullptr;
-    Optional<char *> * m_dac_password = nullptr;
+    Optional<char *> m_dac_filepath;
+    Optional<char *> m_dac_password;
 };
 
 } // namespace

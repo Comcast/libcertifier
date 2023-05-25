@@ -45,8 +45,8 @@ CHIP_ERROR CertifierDACProvider::GetDeviceAttestationCert(MutableByteSpan & out_
     X509_CERT * cert     = nullptr;
     CertifierError error = CERTIFIER_ERROR_INITIALIZER;
 
-    error = security_get_X509_PKCS12_file(m_dac_filepath ? m_dac_filepath->ValueOr(kDefaultDacFilepath) : kDefaultDacFilepath,
-                                          m_dac_password ? m_dac_password->ValueOr(kDefaultDacPassword) : kDefaultDacPassword,
+    error = security_get_X509_PKCS12_file(m_dac_filepath.ValueOr(kDefaultDacFilepath),
+                                          m_dac_password.ValueOr(kDefaultDacPassword),
                                           nullptr, &cert, nullptr);
     VerifyOrReturnError(error.application_error_code == 0 && error.library_error_code == 0, CHIP_ERROR_INTERNAL);
 
@@ -71,8 +71,8 @@ CHIP_ERROR CertifierDACProvider::GetProductAttestationIntermediateCert(MutableBy
     certs = security_new_cert_list();
     VerifyOrReturnError(certs != nullptr, CHIP_ERROR_INTERNAL);
 
-    error = security_get_X509_PKCS12_file(m_dac_filepath ? m_dac_filepath->ValueOr(kDefaultDacFilepath) : kDefaultDacFilepath,
-                                          m_dac_password ? m_dac_password->ValueOr(kDefaultDacPassword) : kDefaultDacPassword,
+    error = security_get_X509_PKCS12_file(m_dac_filepath.ValueOr(kDefaultDacFilepath),
+                                          m_dac_password.ValueOr(kDefaultDacPassword),
                                           certs, nullptr, nullptr);
     VerifyOrReturnError(error.application_error_code == 0 && error.library_error_code == 0, CHIP_ERROR_INTERNAL);
 
@@ -144,8 +144,8 @@ CHIP_ERROR CertifierDACProvider::SignWithDeviceAttestationKey(const ByteSpan & m
     ECC_KEY * key        = nullptr;
     CertifierError error = CERTIFIER_ERROR_INITIALIZER;
 
-    error = security_get_X509_PKCS12_file(m_dac_filepath ? m_dac_filepath->ValueOr(kDefaultDacFilepath) : kDefaultDacFilepath,
-                                          m_dac_password ? m_dac_password->ValueOr(kDefaultDacPassword) : kDefaultDacPassword,
+    error = security_get_X509_PKCS12_file(m_dac_filepath.ValueOr(kDefaultDacFilepath),
+                                          m_dac_password.ValueOr(kDefaultDacPassword),
                                           nullptr, &cert, &key);
     VerifyOrReturnError(error.application_error_code == 0 && error.library_error_code == 0, CHIP_ERROR_INTERNAL);
 

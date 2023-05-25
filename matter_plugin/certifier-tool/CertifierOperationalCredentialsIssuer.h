@@ -52,8 +52,8 @@ public:
     CHIP_ERROR SetAuthCertificate(const char * authCertPath, size_t len);
     CHIP_ERROR SetCertConfig(const char * certCfgPath, size_t len);
 
-    void SetSATAuthentication(Optional<bool> * satAuthentication) { mSatAuthentication = satAuthentication; }
-    void SetSATToken(Optional<char *> * satToken) { mSatToken = satToken; }
+    void SetSATAuthentication(Optional<bool> satAuthentication) { mSatAuthentication = satAuthentication; }
+    void SetSATToken(Optional<char *> satToken) { mSatToken = satToken; }
 
 private:
     static constexpr size_t kMaxSatTokenSize = 800;
@@ -67,8 +67,8 @@ private:
     char mCertifierCfg[256]    = "libcertifier.cfg";
     char mTimestamp[21]        = "";
 
-    Optional<bool> * mSatAuthentication = nullptr;
-    chip::Optional<char *> * mSatToken  = nullptr;
+    chip::Optional<bool> mSatAuthentication;
+    chip::Optional<char *> mSatToken;
 
     void GetTimestampForCertifying();
     http_response * DoHttpExchange(uint8_t * buffer, CERTIFIER * certifier);
