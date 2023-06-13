@@ -26,8 +26,11 @@
 class CertifierCredentialIssuerCommands : public ExampleCredentialIssuerCommands
 {
 public:
-    void SetAuthenticatonType(chip::Optional<char *> * authType) { mOpCredsIssuer.SetAutheticationType(authType); }
-    void SetSATToken(chip::Optional<char *> * satToken) { mOpCredsIssuer.SetSATToken(satToken); }
+    void SetCertifierToolAuthenticationType(chip::Optional<char *> * authType)
+    {
+        mOpCredsIssuer.SetCertifierToolAuthenticationType(authType);
+    }
+    void SetCertifierToolSATToken(chip::Optional<char *> * satToken) { mOpCredsIssuer.SetCertifierToolSATToken(satToken); }
 
 private:
     CHIP_ERROR InitializeCredentialsIssuer(chip::PersistentStorageDelegate & storage) override { return CHIP_NO_ERROR; }

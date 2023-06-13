@@ -69,10 +69,10 @@ public:
         AddArgument("input-p12-password", &m_dac_password, "Password to extract dac and keypair from the dac file");
         AddArgument("sat-token", &m_sat_token, "A SAT Token to be used for XPKI authentication");
         AddArgument("auth-type", &m_auth_type, "Enable XPKI SAT Token Autentication");
-        m_certifier_credential_issuer_config->SetAuthenticatonType(&m_auth_type);
-        m_certifier_credential_issuer_config->SetSATToken(&m_sat_token);
-        m_certifier_dac_provider->SetDACFilepath(&m_dac_filepath);
-        m_certifier_dac_provider->SetDACPassword(&m_dac_password);
+        m_certifier_credential_issuer_config->SetCertifierToolAuthenticationType(&m_auth_type);
+        m_certifier_credential_issuer_config->SetCertifierToolSATToken(&m_sat_token);
+        m_certifier_dac_provider->SetCertifierToolDACFilepath(&m_dac_filepath);
+        m_certifier_dac_provider->SetCertifierToolDACPassword(&m_dac_password);
     }
 
 private:
