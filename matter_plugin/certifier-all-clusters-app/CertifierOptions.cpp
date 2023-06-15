@@ -44,11 +44,11 @@ bool CertifierOptions::HandleOptions(const char * program, OptionSet * options, 
     {
     case kOptionDacFilePath:
         g_dac_filepath.SetValue(const_cast<char *>(value));
-        certifierDACProvider->SetDACFilepath(&g_dac_filepath);
+        certifierDACProvider->SetCertifierToolDACFilepath(&g_dac_filepath);
         break;
     case kOptionDacPassword: {
         g_dac_password.SetValue(const_cast<char *>(value));
-        certifierDACProvider->SetDACPassword(&g_dac_password);
+        certifierDACProvider->SetCertifierToolDACPassword(&g_dac_password);
         break;
     }
     default:

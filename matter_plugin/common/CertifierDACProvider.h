@@ -31,21 +31,49 @@ namespace {
 class CertifierDACProvider : public DeviceAttestationCredentialsProvider
 {
 public:
+    CertifierDACProvider()
+    {
+        SetDACFilepath(kDefaultDacFilepath, sizeof(kDefaultDacFilepath));
+        SetDACPassword(kDefaultDacPassword, sizeof(kDefaultDacPassword));
+    }
+
     CHIP_ERROR GetCertificationDeclaration(MutableByteSpan & out_cd_buffer) override;
     CHIP_ERROR GetFirmwareInformation(MutableByteSpan & out_firmware_info_buffer) override;
     CHIP_ERROR GetDeviceAttestationCert(MutableByteSpan & out_dac_buffer) override;
     CHIP_ERROR GetProductAttestationIntermediateCert(MutableByteSpan & out_pai_buffer) override;
     CHIP_ERROR SignWithDeviceAttestationKey(const ByteSpan & message_to_sign, MutableByteSpan & out_signature_buffer) override;
 
-    void SetDACFilepath(Optional<char *> * dac_filepath) { m_dac_filepath = dac_filepath; }
-    void SetDACPassword(Optional<char *> * dac_password) { m_dac_password = dac_password; }
+    // TODO: Remove CertifierTool-related methods below once proprietary app is created
+    // certifier-tool compatibility methods
+    void SetCertifierToolDACFilepath(Optional<char *> * certifier_tool_dac_filepath)
+    {
+        m_certifier_tool_dac_filepath = certifier_tool_dac_filepath;
+    }
+    void SetCertifierToolDACPassword(Optional<char *> * certifier_tool_dac_password)
+    {
+        m_certifier_tool_dac_password = certifier_tool_dac_password;
+    }
+
+    CHIP_ERROR SetDACFilepath(const char * dac_filepath, size_t len);
+    CHIP_ERROR SetDACPassword(const char * dac_password, size_t len);
 
 private:
+    static constexpr size_t kMaxDacFilepathLength = 512;
+    static constexpr size_t kMaxDacPasswordLength = 256;
+
     char kDefaultDacFilepath[8] = "dac.p12";
     char kDefaultDacPassword[9] = "changeit";
 
-    Optional<char *> * m_dac_filepath = nullptr;
-    Optional<char *> * m_dac_password = nullptr;
+    char m_dac_filepath[kMaxDacFilepathLength] = { 0 };
+    char m_dac_password[kMaxDacPasswordLength] = { 0 };
+
+    // TODO: Remove CertifierTool-related variables below once proprietary app is created
+    // certifier-tool compatibility variables
+    Optional<char *> * m_certifier_tool_dac_filepath = nullptr;
+    Optional<char *> * m_certifier_tool_dac_password = nullptr;
+
+    const char * GetDACFilepath();
+    const char * GetDACPassword();
 };
 
 } // namespace

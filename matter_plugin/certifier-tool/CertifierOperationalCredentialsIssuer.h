@@ -52,10 +52,19 @@ public:
     CHIP_ERROR SetAuthCertificate(const char * authCertPath, size_t len);
     CHIP_ERROR SetCertConfig(const char * certCfgPath, size_t len);
 
-    void SetAutheticationType(Optional<char *> * authType) { mAuthType = authType; }
-    void SetSATToken(Optional<char *> * satToken) { mSatToken = satToken; }
+    // TODO: Remove CertifierTool-related methods below once proprietary app is created
+    // certifier-tool compatibility methods
+    void SetCertifierToolAuthenticationType(Optional<char *> * certifierToolAuthType)
+    {
+        mCertifierToolAuthType = certifierToolAuthType;
+    }
+    void SetCertifierToolSATToken(Optional<char *> * certifierToolSatToken) { mCertifierToolSatToken = certifierToolSatToken; }
+
+    CHIP_ERROR SetAuthenticationType(const char * authentication_type, size_t len);
+    CHIP_ERROR SetSATToken(const char * sat_token, size_t len);
 
 private:
+    static constexpr size_t kMaxAuthTypeSize = 16;
     static constexpr size_t kMaxSatTokenSize = 800;
 
     NodeId mNodeId      = 1;
@@ -67,13 +76,25 @@ private:
     char mCertifierCfg[256]    = "libcertifier.cfg";
     char mTimestamp[21]        = "";
 
-    Optional<char *> * mAuthType = nullptr;
-    Optional<char *> * mSatToken = nullptr;
+    char kDefaultX509Token[5] = "X509";
+
+    char mAuthType[kMaxAuthTypeSize] = { 0 };
+    char mSatToken[kMaxSatTokenSize] = { 0 };
+    size_t mSatTokenLength           = 0;
+
+    // TODO: Remove CertifierTool-related variables below once proprietary app is created
+    // certifier-tool compatibility variables
+    Optional<char *> * mCertifierToolAuthType = nullptr;
+    Optional<char *> * mCertifierToolSatToken = nullptr;
 
     void GetTimestampForCertifying();
     http_response * DoHttpExchange(uint8_t * buffer, CERTIFIER * certifier);
     CHIP_ERROR ObtainOpCert(const ByteSpan & csr, const ByteSpan & nonce, MutableByteSpan & pkcs7OpCert, NodeId nodeId,
                             FabricId fabricId);
+
+    const char * GetAuthenticationType();
+    const char * GetSATToken();
+    bool IsSATTokenEmpty() { return mSatTokenLength == 0; }
 };
 
 } // namespace Controller

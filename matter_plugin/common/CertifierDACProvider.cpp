@@ -45,9 +45,7 @@ CHIP_ERROR CertifierDACProvider::GetDeviceAttestationCert(MutableByteSpan & out_
     X509_CERT * cert     = nullptr;
     CertifierError error = CERTIFIER_ERROR_INITIALIZER;
 
-    error = security_get_X509_PKCS12_file(m_dac_filepath ? m_dac_filepath->ValueOr(kDefaultDacFilepath) : kDefaultDacFilepath,
-                                          m_dac_password ? m_dac_password->ValueOr(kDefaultDacPassword) : kDefaultDacPassword,
-                                          nullptr, &cert, nullptr);
+    error = security_get_X509_PKCS12_file(GetDACFilepath(), GetDACPassword(), nullptr, &cert, nullptr);
     VerifyOrReturnError(error.application_error_code == 0 && error.library_error_code == 0, CHIP_ERROR_INTERNAL);
 
     size_t der_len      = 0;
@@ -71,9 +69,7 @@ CHIP_ERROR CertifierDACProvider::GetProductAttestationIntermediateCert(MutableBy
     certs = security_new_cert_list();
     VerifyOrReturnError(certs != nullptr, CHIP_ERROR_INTERNAL);
 
-    error = security_get_X509_PKCS12_file(m_dac_filepath ? m_dac_filepath->ValueOr(kDefaultDacFilepath) : kDefaultDacFilepath,
-                                          m_dac_password ? m_dac_password->ValueOr(kDefaultDacPassword) : kDefaultDacPassword,
-                                          certs, nullptr, nullptr);
+    error = security_get_X509_PKCS12_file(GetDACFilepath(), GetDACPassword(), certs, nullptr, nullptr);
     VerifyOrReturnError(error.application_error_code == 0 && error.library_error_code == 0, CHIP_ERROR_INTERNAL);
 
     cert = security_cert_list_get(certs, 1);
@@ -122,9 +118,7 @@ CHIP_ERROR CertifierDACProvider::SignWithDeviceAttestationKey(const ByteSpan & m
     ECC_KEY * key        = nullptr;
     CertifierError error = CERTIFIER_ERROR_INITIALIZER;
 
-    error = security_get_X509_PKCS12_file(m_dac_filepath ? m_dac_filepath->ValueOr(kDefaultDacFilepath) : kDefaultDacFilepath,
-                                          m_dac_password ? m_dac_password->ValueOr(kDefaultDacPassword) : kDefaultDacPassword,
-                                          nullptr, &cert, &key);
+    error = security_get_X509_PKCS12_file(GetDACFilepath(), GetDACPassword(), nullptr, &cert, &key);
     VerifyOrReturnError(error.application_error_code == 0 && error.library_error_code == 0, CHIP_ERROR_INTERNAL);
 
     uint8_t raw_public_key[65]  = { 0 };
@@ -143,6 +137,30 @@ CHIP_ERROR CertifierDACProvider::SignWithDeviceAttestationKey(const ByteSpan & m
     ReturnErrorOnFailure(keypair.ECDSA_sign_msg(message_to_sign.data(), message_to_sign.size(), signature));
 
     return CopySpanToMutableSpan(ByteSpan{ signature.ConstBytes(), signature.Length() }, out_signature_buffer);
+}
+
+CHIP_ERROR CertifierDACProvider::SetDACFilepath(const char * dac_filepath, size_t len)
+{
+    VerifyOrReturnError(len < sizeof(m_dac_filepath), CHIP_ERROR_INVALID_ARGUMENT);
+    strncpy(m_dac_filepath, dac_filepath, len);
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR CertifierDACProvider::SetDACPassword(const char * dac_password, size_t len)
+{
+    VerifyOrReturnError(len < sizeof(m_dac_password), CHIP_ERROR_INVALID_ARGUMENT);
+    strncpy(m_dac_password, dac_password, len);
+    return CHIP_NO_ERROR;
+}
+
+const char * CertifierDACProvider::GetDACFilepath()
+{
+    return m_certifier_tool_dac_filepath ? m_certifier_tool_dac_filepath->ValueOr(m_dac_filepath) : m_dac_filepath;
+}
+
+const char * CertifierDACProvider::GetDACPassword()
+{
+    return m_certifier_tool_dac_password ? m_certifier_tool_dac_password->ValueOr(m_dac_password) : m_dac_password;
 }
 
 } // namespace

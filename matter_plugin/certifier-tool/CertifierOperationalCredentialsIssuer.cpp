@@ -47,8 +47,7 @@
 
 namespace {
 
-constexpr char x509_token[] = "X509";
-constexpr char sat_token[]  = "SAT";
+constexpr char sat_token[] = "SAT";
 
 } // namespace
 
@@ -62,6 +61,7 @@ using namespace TLV;
 
 CertifierOperationalCredentialsIssuer::CertifierOperationalCredentialsIssuer()
 {
+    SetAuthenticationType(kDefaultX509Token, sizeof(kDefaultX509Token));
     mCertifier = certifier_api_easy_new();
 }
 
@@ -267,7 +267,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
     size_t base64CertificateLength = 0;
     Platform::ScopedMemoryBuffer<char> base64Certificate;
 
-    const char * cert_id = mAuthType ? mAuthType->ValueOr(const_cast<char *>(x509_token)) : x509_token;
+    const char * cert_id = GetAuthenticationType();
 
     bool sat_auth = strncmp(cert_id, sat_token, sizeof(sat_token) - 1) == 0;
 
@@ -276,9 +276,7 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
 
     if (sat_auth)
     {
-        token = mSatToken
-            ? mSatToken->ValueOr(reinterpret_cast<char *>(certifier_api_easy_get_opt(mCertifier, CERTIFIER_OPT_AUTH_TOKEN)))
-            : reinterpret_cast<char *>(certifier_api_easy_get_opt(mCertifier, CERTIFIER_OPT_AUTH_TOKEN));
+        token = GetSATToken();
     }
     else
     {
@@ -449,6 +447,36 @@ CHIP_ERROR CertifierOperationalCredentialsIssuer::ObtainOpCert(const ByteSpan & 
 exit:
     json_value_free(root_value);
     return err;
+}
+
+CHIP_ERROR CertifierOperationalCredentialsIssuer::SetAuthenticationType(const char * authentication_type, size_t len)
+{
+    VerifyOrReturnError(len < sizeof(mAuthType), CHIP_ERROR_INVALID_ARGUMENT);
+    strncpy(mAuthType, authentication_type, len);
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR CertifierOperationalCredentialsIssuer::SetSATToken(const char * sat_token, size_t len)
+{
+    VerifyOrReturnError(len < sizeof(mSatToken), CHIP_ERROR_INVALID_ARGUMENT);
+    strncpy(mSatToken, sat_token, len);
+    mSatTokenLength = len;
+    return CHIP_NO_ERROR;
+}
+
+const char * CertifierOperationalCredentialsIssuer::GetAuthenticationType()
+{
+    return mCertifierToolAuthType ? mCertifierToolAuthType->ValueOr(const_cast<char *>(mAuthType)) : mAuthType;
+}
+
+const char * CertifierOperationalCredentialsIssuer::GetSATToken()
+{
+    return mCertifierToolSatToken
+        ? mCertifierToolSatToken->ValueOr(
+              IsSATTokenEmpty() ? reinterpret_cast<char *>(certifier_api_easy_get_opt(mCertifier, CERTIFIER_OPT_AUTH_TOKEN))
+                                : mSatToken)
+        : IsSATTokenEmpty() ? reinterpret_cast<char *>(certifier_api_easy_get_opt(mCertifier, CERTIFIER_OPT_AUTH_TOKEN))
+                            : mSatToken;
 }
 
 } // namespace Controller
