@@ -20,6 +20,7 @@
 
 #include <CertifierDACProvider.h>
 #include <CertifierOperationalCredentialsIssuer.h>
+#include <lib/support/TestGroupData.h>
 
 #include <commands/example/ExampleCredentialIssuerCommands.h>
 
@@ -33,7 +34,13 @@ public:
     void SetCertifierToolSATToken(chip::Optional<char *> * satToken) { mOpCredsIssuer.SetCertifierToolSATToken(satToken); }
 
 private:
-    CHIP_ERROR InitializeCredentialsIssuer(chip::PersistentStorageDelegate & storage) override { return CHIP_NO_ERROR; }
+    CHIP_ERROR InitializeCredentialsIssuer(chip::PersistentStorageDelegate & storage) override
+    {
+        // TODO: Initialize storage, store keypair and NOC chain
+        chip::ByteSpan defaultIpkSpan = chip::GroupTesting::DefaultIpkValue::GetDefaultIpk();
+        mOpCredsIssuer.SetIPKForNextNOCRequest(defaultIpkSpan);
+        return CHIP_NO_ERROR;
+    }
     CHIP_ERROR SetupDeviceAttestation(chip::Controller::SetupParams & setupParams,
                                       const chip::Credentials::AttestationTrustStore * trustStore) override
     {
