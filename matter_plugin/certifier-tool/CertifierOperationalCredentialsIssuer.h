@@ -51,6 +51,7 @@ public:
 
     CHIP_ERROR SetAuthCertificate(const char * authCertPath, size_t len);
     CHIP_ERROR SetCertConfig(const char * certCfgPath, size_t len);
+    CHIP_ERROR SetIPKForNextNOCRequest(ByteSpan ipkSpan);
 
     // TODO: Remove CertifierTool-related methods below once proprietary app is created
     // certifier-tool compatibility methods
@@ -75,6 +76,8 @@ private:
     char mAuthCertificate[256] = "libcertifier-cert.crt";
     char mCertifierCfg[256]    = "libcertifier.cfg";
     char mTimestamp[21]        = "";
+    uint8_t mIpk[Crypto::CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES];
+    Optional<Crypto::IdentityProtectionKeySpan> mIpkSpan;
 
     char kDefaultX509Token[5] = "X509";
 
