@@ -26,8 +26,6 @@ namespace Certifier {
 
 DeviceAttestationCredentialsProvider * GetDACProvider();
 
-namespace {
-
 class CertifierDACProvider : public DeviceAttestationCredentialsProvider
 {
 public:
@@ -75,8 +73,6 @@ private:
     const char * GetDACFilepath();
     const char * GetDACPassword();
 };
-
-} // namespace
 
 } // namespace Certifier
 } // namespace Credentials

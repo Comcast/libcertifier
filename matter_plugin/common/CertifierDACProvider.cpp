@@ -29,8 +29,6 @@ namespace chip {
 namespace Credentials {
 namespace Certifier {
 
-namespace {
-
 CHIP_ERROR LoadKeypairFromRaw(ByteSpan private_key, ByteSpan public_key, Crypto::P256Keypair & keypair)
 {
     Crypto::P256SerializedKeypair serialized_keypair;
@@ -162,8 +160,6 @@ const char * CertifierDACProvider::GetDACPassword()
 {
     return m_certifier_tool_dac_password ? m_certifier_tool_dac_password->ValueOr(m_dac_password) : m_dac_password;
 }
-
-} // namespace
 
 DeviceAttestationCredentialsProvider * GetDACProvider()
 {
