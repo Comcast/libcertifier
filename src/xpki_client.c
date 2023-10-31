@@ -189,6 +189,7 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
     param               = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
     params->common_name = param ? (const char *) param : NULL;
 
+    params->static_certifier = false;
     params->keypair       = NULL;
     params->mac_address   = NULL;
     params->dns_san       = NULL;
@@ -218,6 +219,8 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_status_param(get_cert_status_param_t 
 
     param             = certifier_get_property(certifier, CERTIFIER_OPT_SOURCE);
     params->source_id = param ? (const char *) param : NULL;
+
+    params->static_certifier = false;
 
     return XPKI_CLIENT_SUCCESS;
 }
@@ -361,6 +364,10 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     {
         ReturnErrorOnFailure(xc_create_x509_crt());
     } // TODO: else
+    if (params->static_certifier == true)
+    {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
+    }
 
     if (certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH) != NULL)
     {
@@ -400,6 +407,10 @@ XPKI_CLIENT_ERROR_CODE xc_renew_cert(renew_cert_param_t * params)
 
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, params->p12_path));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->p12_password));
+    if (params->static_certifier == true)
+    {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
+    }
     ReturnErrorOnFailure(xc_set_source_id(params->source_id));
 
     return _xc_renew_certificate();

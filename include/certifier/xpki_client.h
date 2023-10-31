@@ -28,6 +28,8 @@
 extern "C" {
 #endif
 
+#define CERTIFIER_STATIC_URL "https://cert-static.xpki.io/v1/certifier"
+
 typedef enum
 {
     XPKI_CLIENT_SUCCESS = 0,
@@ -90,8 +92,10 @@ typedef enum
  *  Choose the Fabric ID to be registered in the certificate being requested.
  *  Matter Only Cerificate Parameter
  *  @var get_cert_param_t::case_auth_tag
- *  Choose the Case Authentaiction Tag to be registered in the certificate being requested.
+ *  Choose the Case Authentication Tag to be registered in the certificate being requested.
  *  Matter Only Cerificate Parameter
+ *  @var get_cert_param_t::static_certifier
+ *  Choose whether to use static certifier url for cert requests (Optional). 
  *  @var get_cert_param_t::mac_address
  *  Mac Address (Mandatory only on RDK Devices).
  *  @var get_cert_param_t::serial_number
@@ -127,6 +131,7 @@ typedef struct
     uint64_t fabric_id;
     uint32_t case_auth_tag;
     // optional parameters below
+    bool static_certifier;
     const char * mac_address;
     const char * serial_number;
     const char * dns_san;
@@ -150,6 +155,7 @@ typedef struct
     const char * p12_path;
     const char * p12_password;
     const char * source_id;
+    bool static_certifier;
 } get_cert_status_param_t;
 
 typedef get_cert_status_param_t renew_cert_param_t;
