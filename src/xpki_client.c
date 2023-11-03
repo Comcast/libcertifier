@@ -415,6 +415,9 @@ XPKI_CLIENT_ERROR_CODE xc_renew_cert(renew_cert_param_t * params)
     {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
     }
+    else {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFER_URL));
+    }
     ReturnErrorOnFailure(xc_set_source_id(params->source_id));
 
     return _xc_renew_certificate();
