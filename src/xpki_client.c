@@ -54,6 +54,7 @@
 
 #define SYSTEM_ID_SIZE 40
 
+
 static inline Certifier * get_certifier_instance()
 {
     static Certifier * certifier = NULL;
@@ -367,6 +368,9 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     if (params->static_certifier == true)
     {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
+    }
+    else {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFER_URL));
     }
 
     if (certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH) != NULL)
