@@ -148,6 +148,8 @@ typedef struct
  *  Contains the path to the PKCS12 File.
  *  @var get_cert_status_param_t::p12_password
  *  Contains the password for the PKCS12 File.
+ *  @var get_cert_status_param_t::static_certifier
+ *  Choose whether to use static certifier url for cert requests.
  *  @var get_cert_status_param_t::source_id
  *  Contains the value of the Request Source ID. Optional.
  */
