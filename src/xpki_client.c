@@ -484,6 +484,14 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert_status(get_cert_status_param_t * params, XPKI
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->p12_password));
     ReturnErrorOnFailure(xc_set_source_id(params->source_id));
 
+    if (params->static_certifier == true)
+    {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
+    }
+    else {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFER_URL));
+    }
+
     return _xc_get_cert_status(status);
 }
 
