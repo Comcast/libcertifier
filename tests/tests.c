@@ -196,7 +196,7 @@ static void test_certifier_client_requests1(void ** state)
     const char * source        = "test_libledger";
     char * ret                 = NULL;
     char * cn_prefix           = NULL;
-    int icount = 0, return_code = 0;
+    int return_code = 0;
     unsigned int num_days = 0;
 
     JSON_Value * root_value   = json_value_init_object();
@@ -1172,7 +1172,6 @@ static void test_pkcs12(void ** state)
     XFILE pkcs12_file       = NULL;
     X509_LIST * certs       = NULL;
     ECC_KEY * key           = NULL;
-    ECC_KEY * dup_key       = NULL;
     X509_CERT * cert        = NULL;
     char * certifier_id     = NULL;
     char * generated_crt    = NULL;
@@ -1182,11 +1181,7 @@ static void test_pkcs12(void ** state)
     int der_key_len         = 0;
     int ret                 = 0;
 
-    char * tmp_crt = NULL;
-
     int rc               = 0;
-    const char * expires = "0";
-    const char * action  = "allow";
     certifier_set_property(certifier, CERTIFIER_OPT_OUTPUT_NODE, "dummy output node");
 
     blob_len = base64_decode(pkcs12_blob, pkcs12_blob_base64);
