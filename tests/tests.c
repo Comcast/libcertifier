@@ -163,9 +163,9 @@ static void test_certifier_client_requests(void ** state)
     certifier_set_property(certifier, CERTIFIER_OPT_PROFILE_NAME, profile_name);
     certifier_set_property(certifier, CERTIFIER_OPT_PRODUCT_ID, product_id);
 
-    int options = certifier_get_property(certifier, CERTIFIER_OPT_OPTIONS);
+    int options = (int)(uintptr_t)certifier_get_property(certifier, CERTIFIER_OPT_OPTIONS);
     options |= CERTIFIER_OPT_CERTIFICATE_LITE;
-    certifier_set_property(certifier, CERTIFIER_OPT_OPTIONS, options);
+    certifier_set_property(certifier, CERTIFIER_OPT_OPTIONS, (const void*)(uintptr_t)options);
 
     CertifierError rc = certifierclient_request_x509_certificate(_certifier_get_properties(certifier), (unsigned char *) csr,
                                                                  node_address, certifier_id, &ret);
@@ -207,11 +207,11 @@ static void test_certifier_client_requests1(void ** state)
     return_code = certifier_set_property(certifier, CERTIFIER_OPT_CN_PREFIX, "xcal.tv");
     assert_int_equal(0, return_code);
 
-    return_code = certifier_set_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS, 730);
+    return_code = certifier_set_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS, (const void*)(uintptr_t)730);
     assert_int_equal(0, return_code);
 
     cn_prefix = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
-    num_days  = certifier_get_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS);
+    num_days  = (unsigned int)(uintptr_t)certifier_get_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS);
     assert_int_equal(730, num_days);
     if (cn_prefix)
     {
@@ -253,9 +253,9 @@ static void test_certifier_client_requests1(void ** state)
     certifier_set_property(certifier, CERTIFIER_OPT_PROFILE_NAME, profile_name);
     certifier_set_property(certifier, CERTIFIER_OPT_PRODUCT_ID, product_id);
 
-    int options = certifier_get_property(certifier, CERTIFIER_OPT_OPTIONS);
+    int options = (int)(uintptr_t)certifier_get_property(certifier, CERTIFIER_OPT_OPTIONS);
     options |= CERTIFIER_OPT_CERTIFICATE_LITE;
-    certifier_set_property(certifier, CERTIFIER_OPT_OPTIONS, options);
+    certifier_set_property(certifier, CERTIFIER_OPT_OPTIONS, (const void*)(uintptr_t)options);
 
     CertifierError rc = certifierclient_request_x509_certificate(_certifier_get_properties(certifier), (unsigned char *) csr,
                                                                  cn_prefix, ledger_id, &ret);
