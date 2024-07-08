@@ -60,7 +60,7 @@ static void _check_version(const char * version, const int line)
 
 static void test_api_easy(void ** state)
 {
-    certifier_api_easy_set_opt(easy, CERTIFIER_OPT_KEYSTORE, "/tmp/fake.p12");
+    certifier_api_easy_set_opt(easy, CERTIFIER_OPT_INPUT_P12_PATH, "/tmp/fake.p12");
     certifier_api_easy_set_mode(easy, CERTIFIER_MODE_GET_CERT_STATUS);
 
     int rc = certifier_api_easy_perform(easy);
@@ -95,7 +95,7 @@ static inline void _check_crt(const char * b64_token, const char * type, const i
 static void test_api_easy_create_tokens(void ** state)
 {
     certifier_api_easy_set_mode(easy, CERTIFIER_MODE_CREATE_CRT);
-    certifier_api_easy_set_opt(easy, CERTIFIER_OPT_CRT_TYPE, "CRT_TYPE_1");
+    certifier_api_easy_set_opt(easy, CERTIFIER_OPT_AUTH_TYPE, "CRT_TYPE_1");
     int rc = certifier_api_easy_perform(easy);
     ASSERT_TRUE_MESSAGE(rc != 0, "CRT created with no token!");
 
@@ -106,13 +106,13 @@ static void test_api_easy_create_tokens(void ** state)
     check_crt(certifier_api_easy_get_result(easy), "CRT_TYPE_1");
 
     certifier_api_easy_set_mode(easy, CERTIFIER_MODE_CREATE_CRT);
-    certifier_api_easy_set_opt(easy, CERTIFIER_OPT_CRT_TYPE, "CRT_TYPE_2");
+    certifier_api_easy_set_opt(easy, CERTIFIER_OPT_AUTH_TYPE, "CRT_TYPE_2");
     rc = certifier_api_easy_perform(easy);
     assert_int_equal(0, rc);
     check_crt(certifier_api_easy_get_result(easy), "CRT_TYPE_2");
 
     certifier_api_easy_set_mode(easy, CERTIFIER_MODE_CREATE_CRT);
-    certifier_api_easy_set_opt(easy, CERTIFIER_OPT_CRT_TYPE, "CRT_TYPE_3");
+    certifier_api_easy_set_opt(easy, CERTIFIER_OPT_AUTH_TYPE, "CRT_TYPE_3");
     rc = certifier_api_easy_perform(easy);
     assert_int_equal(0, rc);
     check_crt(certifier_api_easy_get_result(easy), "CRT_TYPE_3");
