@@ -1517,40 +1517,40 @@ int main(int argc, char ** argv)
 
     if ((argc == 2) && (XSTRNCMP(argv[1], "--performance", XSTRLEN(argv[1])) == 0))
     {
-        RUN_TEST(test_sha256_ripemd_b58_performance);
+        RUN_TEST((UnityTestFunction)test_sha256_ripemd_b58_performance);
     }
     else
     {
         printf("starting base64 test \n");
-        RUN_TEST(test_base64);
+        RUN_TEST((UnityTestFunction)test_base64);
         printf("ending base64 test \n");
         printf("starting base58 test \n");
-        RUN_TEST(test_base58);
+        RUN_TEST((UnityTestFunction)test_base58);
         printf("ending base58 test \n");
         printf("starting test_file_utils test \n");
-        RUN_TEST(test_file_utils);
+        RUN_TEST((UnityTestFunction)test_file_utils);
         printf("ending test_file_utils test \n");
         fflush(stdout);
-        RUN_TEST(test_random_val);
-        RUN_TEST(test_str_utils);
-        RUN_TEST(test_set_curl_error);
-        RUN_TEST(test_sha256_ripemd_b58);
-        RUN_TEST(test_ecc_key);
-        RUN_TEST(test_verify_signature_1);
-        RUN_TEST(test_verify_signature_2);
-        RUN_TEST(test_x509_cert);
+        RUN_TEST((UnityTestFunction)test_random_val);
+        RUN_TEST((UnityTestFunction)test_str_utils);
+        RUN_TEST((UnityTestFunction)test_set_curl_error);
+        RUN_TEST((UnityTestFunction)test_sha256_ripemd_b58);
+        RUN_TEST((UnityTestFunction)test_ecc_key);
+        RUN_TEST((UnityTestFunction)test_verify_signature_1);
+        RUN_TEST((UnityTestFunction)test_verify_signature_2);
+        RUN_TEST((UnityTestFunction)test_x509_cert);
 
-        RUN_TEST(test_pkcs12);
+        RUN_TEST((UnityTestFunction)test_pkcs12);
 
-        RUN_TEST(test_certifier_client_requests);
-        RUN_TEST(test_certifier_client_requests1);
-        RUN_TEST(test_certifier_create_crt1);
-        RUN_TEST(test_certifier_create_node_address);
-        RUN_TEST(test_certifier_get_version);
+        RUN_TEST((UnityTestFunction)test_certifier_client_requests);
+        RUN_TEST((UnityTestFunction)test_certifier_client_requests1);
+        RUN_TEST((UnityTestFunction)test_certifier_create_crt1);
+        RUN_TEST((UnityTestFunction)test_certifier_create_node_address);
+        RUN_TEST((UnityTestFunction)test_certifier_get_version);
 
-        RUN_TEST(test_logging);
+        RUN_TEST((UnityTestFunction)test_logging);
 
-        RUN_TEST(test_options);
+        RUN_TEST((UnityTestFunction)test_options);
     }
     return UNITY_END();
 #endif
