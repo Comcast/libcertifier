@@ -37,7 +37,7 @@ static void test_get_cert()
     params.output_p12_path     = "output-xc-test-renewable.p12";
     params.overwrite_p12       = true;
     params.product_id          = 0xABCD;
-    params.profile_name        = "XFN_Matter_OP_ICA";
+    params.profile_name        = "XFN_Matter_OP_Class_3_ICA";
     params.validity_days       = 90;
     params.lite                = true;
     params.common_name         = "X9c0XXBqIosRCg35keK8XsWC2PAdjQrG";
@@ -59,7 +59,7 @@ static void test_get_cert()
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
 
     params.output_p12_path = "output-xc-test-san.p12";
-    params.profile_name    = "XFN_AS_PAI_1";
+    params.profile_name    = "XFN_DL_PAI_1_Class_3";
     params.ip_san          = "[\"1.2.3.4\"]";
     params.email_san       = "[\"testemail@test.com\"]";
     params.serial_number   = "ABCD22";
