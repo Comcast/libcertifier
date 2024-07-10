@@ -54,8 +54,8 @@ typedef enum
 
 typedef enum
 {
-    XPKI_AUTH_X509_CRT,
-    XPKI_AUTH_TOKEN,
+    XPKI_AUTH_X509,
+    XPKI_AUTH_SAT,
 } XPKI_AUTH_TYPE;
 
 /** @struct get_cert_param_t
@@ -74,6 +74,8 @@ typedef enum
  *  Selects the Profle Name/Certificate Issuer for the certificate being requested from the Server.
  *  @var get_cert_param_t::source_id
  *  Contains the value of the Request Source ID. Optional.
+ *  @var get_cert_param_t::auth_token
+ *  Contains the Authentication Token. Optional.
  *  @var get_cert_param_t::auth_type
  *  Selects the Authentication type when requesting a certificate to the Server.
  *  See XPKI_AUTH_TYPE enum for more details.
@@ -96,7 +98,7 @@ typedef enum
  *  Choose the Case Authentication Tag to be registered in the certificate being requested.
  *  Matter Only Cerificate Parameter
  *  @var get_cert_param_t::static_certifier
- *  Choose whether to use static certifier url for cert requests (Optional). 
+ *  Choose whether to use static certifier url for cert requests (Optional).
  *  @var get_cert_param_t::mac_address
  *  Mac Address (Mandatory only on RDK Devices).
  *  @var get_cert_param_t::serial_number
@@ -121,6 +123,7 @@ typedef struct
     const char * output_p12_password;
     const char * profile_name;
     const char * source_id;
+    const char * auth_token;
     XPKI_AUTH_TYPE auth_type;
     bool overwrite_p12;
     size_t validity_days;
@@ -152,12 +155,18 @@ typedef struct
  *  Choose whether to use static certifier url for cert requests.
  *  @var get_cert_status_param_t::source_id
  *  Contains the value of the Request Source ID. Optional.
+ *  @var get_cert_status_param_t::auth_token
+ *  Contains the Authentitcation Token. Optional.
+ *  @var get_cert_status_param_t::auth_type
+ *  Selects the Authentication type when requesting a certificate to the Server.
  */
 typedef struct
 {
     const char * p12_path;
     const char * p12_password;
     const char * source_id;
+    const char * auth_token;
+    XPKI_AUTH_TYPE auth_type;
     bool static_certifier;
 } get_cert_status_param_t;
 

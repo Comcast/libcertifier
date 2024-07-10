@@ -21,6 +21,8 @@
 
 #include <unity.h>
 
+static const char * token = NULL;
+
 static void test_get_cert()
 {
     XPKI_CLIENT_ERROR_CODE error;
@@ -28,7 +30,7 @@ static void test_get_cert()
 
     xc_get_default_cert_param(&params);
 
-    params.auth_type           = XPKI_AUTH_X509_CRT;
+    params.auth_type           = XPKI_AUTH_X509;
     params.fabric_id           = 0xABCDABCDABCDABCD;
     params.node_id             = 0x1234123412341234;
     params.input_p12_password  = "changeit";
@@ -65,6 +67,32 @@ static void test_get_cert()
     params.serial_number   = "ABCD22";
     params.lite            = false;
     error                  = xc_get_cert(&params);
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
+}
+
+static void test_get_cert_auth_token()
+{
+    XPKI_CLIENT_ERROR_CODE error;
+    get_cert_param_t params = { 0 };
+
+    xc_get_default_cert_param(&params);
+
+    params.auth_type           = XPKI_AUTH_SAT;
+    params.auth_token          = token;
+    params.fabric_id           = 0xABCDABCDABCDABCD;
+    params.node_id             = 0x1234123412341234;
+    params.output_p12_password = "newpass";
+    params.output_p12_path     = "output-xc-auth-token-test-renewable.p12";
+    params.overwrite_p12       = true;
+    params.product_id          = 0xABCD;
+    params.profile_name        = "XFN_Matter_OP_Class_3_ICA";
+    params.validity_days       = 90;
+    params.lite                = true;
+    params.common_name         = "X9c0XXBqIosRCg35keK8XsWC2PAdjQrG";
+    params.source_id           = "libcertifier-opensource";
+    params.mac_address         = "00:B0:D0:63:C2:26";
+
+    error = xc_get_cert(&params);
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
 }
 
@@ -107,7 +135,7 @@ static void test_renew_cert()
 
     xc_get_default_cert_param(&params);
 
-    params.auth_type          = XPKI_AUTH_X509_CRT;
+    params.auth_type          = XPKI_AUTH_X509;
     params.input_password     = "SE051";
     params.input_pkcs12_path  = "stage-seed.p12";
     params.output_password    = "newpass";
@@ -131,11 +159,32 @@ static void test_renew_cert()
 #endif
 }
 
+static void test_renew_cert_auth_token()
+{
+    renew_cert_param_t params = { 0 };
+
+    xc_get_default_renew_cert_param(&params);
+
+    params.p12_password = "newpass";
+    params.p12_path     = "output-xc-auth-token-test-renewable.p12";
+    params.auth_type    = XPKI_AUTH_SAT;
+    params.auth_token   = token;
+
+    XPKI_CLIENT_ERROR_CODE error = xc_renew_cert(&params);
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
+}
+
 int main(int argc, char ** argv)
 {
     UNITY_BEGIN();
 
     RUN_TEST(test_get_cert);
+    if (argv[1] != NULL)
+    {
+        token = argv[1];
+        RUN_TEST(test_get_cert_auth_token);
+        RUN_TEST(test_renew_cert_auth_token);
+    }
     RUN_TEST(test_get_cert_status);
     RUN_TEST(test_renew_cert);
 

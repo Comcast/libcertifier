@@ -16,10 +16,10 @@ get_cert_param_t params = { 0 };
 xc_get_default_cert_param(&params);
 ----
 
-== Setup Get-Cert Parameters
+== Setup Get-Cert Parameters (using X509 Authentication)
 
 ----
-params.auth_type           = XPKI_AUTH_X509_CRT;
+params.auth_type           = XPKI_AUTH_X509;
 params.fabric_id           = 0xABCDABCDABCDABCD;
 params.node_id             = 0x1234123412341234;
 params.input_p12_password  = "changeit";
@@ -32,6 +32,25 @@ params.profile_name        = "XFN_Matter_OP_Class_3_ICA";
 params.validity_days       = 90;
 params.lite                = true;
 params.common_name         = "TEST_CERT";
+params.mac_address         = "00:B0:D0:63:C2:26";
+----
+
+== Setup Get-Cert Parameters (using Auth Token)
+
+----
+params.auth_type           = XPKI_AUTH_SAT;
+params.auth_token          = token;
+params.fabric_id           = 0xABCDABCDABCDABCD;
+params.node_id             = 0x1234123412341234;
+params.output_p12_password = "newpass";
+params.output_p12_path     = "output-xc-auth-token-test-renewable.p12";
+params.overwrite_p12       = true;
+params.product_id          = 0xABCD;
+params.profile_name        = "XFN_Matter_OP_Class_3_ICA";
+params.validity_days       = 90;
+params.lite                = true;
+params.common_name         = "X9c0XXBqIosRCg35keK8XsWC2PAdjQrG";
+params.source_id           = "libcertifier-opensource";
 params.mac_address         = "00:B0:D0:63:C2:26";
 ----
 
@@ -70,12 +89,21 @@ XPKI_CLIENT_CERT_STATUS status;
 XPKI_CLIENT_CERT_STATUS error = xc_get_cert_status(&params, &status);
 ----
 
-== Setup Renew-Cert Parameters
+== Setup Renew-Cert Parameters (Using X509 Authentication)
 
 ----
 params.p12_password = "newpass";
 params.p12_path     = "example-certificate.p12";
 params.source_id    = "libcertifier-opensource" // Optional
+----
+
+== Setup Renew-Cert Parameters (Using Auth Token)
+
+----
+params.p12_password = "newpass";
+params.p12_path     = "output-xc-auth-token-test-renewable.p12";
+params.auth_type    = XPKI_AUTH_SAT;
+params.auth_token   = token;
 ----
 
 == Renew Certificate
