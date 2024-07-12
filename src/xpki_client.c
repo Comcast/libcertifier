@@ -21,6 +21,7 @@
 #include <certifier/base64.h>
 #include <certifier/certifier.h>
 #include <certifier/certifier_internal.h>
+#include <certifier/certifierclient.h>
 #include <certifier/types.h>
 
 #define ReturnErrorOnFailure(expr)                                                                                                 \
@@ -54,7 +55,6 @@
 
 #define SYSTEM_ID_SIZE 40
 
-
 static inline Certifier * get_certifier_instance()
 {
     static Certifier * certifier = NULL;
@@ -71,11 +71,24 @@ XPKI_AUTH_TYPE map_to_xpki_auth_type(const char * str)
 {
     if (strcmp(str, "X509") == 0)
     {
-        return XPKI_AUTH_X509_CRT;
+        return XPKI_AUTH_X509;
     }
     else
     {
-        return XPKI_AUTH_TOKEN;
+        return XPKI_AUTH_SAT;
+    }
+}
+
+const char * xpki_auth_type_to_string(XPKI_AUTH_TYPE auth_type)
+{
+    switch (auth_type)
+    {
+    case XPKI_AUTH_X509:
+        return "X509";
+    case XPKI_AUTH_SAT:
+        return "SAT";
+    default:
+        return NULL;
     }
 }
 
@@ -163,8 +176,11 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
     param                = certifier_get_property(certifier, CERTIFIER_OPT_PROFILE_NAME);
     params->profile_name = param ? (const char *) param : NULL;
 
+    param              = certifier_get_property(certifier, CERTIFIER_OPT_AUTH_TOKEN);
+    params->auth_token = param ? (const char *) param : NULL;
+
     param             = certifier_get_property(certifier, CERTIFIER_OPT_AUTH_TYPE);
-    params->auth_type = param ? map_to_xpki_auth_type(param) : XPKI_AUTH_X509_CRT;
+    params->auth_type = param ? map_to_xpki_auth_type(param) : XPKI_AUTH_X509;
 
     param                 = certifier_get_property(certifier, CERTIFIER_OPT_FORCE_REGISTRATION);
     params->overwrite_p12 = (bool) param; // bool value
@@ -191,15 +207,15 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
     params->common_name = param ? (const char *) param : NULL;
 
     params->static_certifier = false;
-    params->keypair       = NULL;
-    params->mac_address   = NULL;
-    params->dns_san       = NULL;
-    params->ip_san        = NULL;
-    params->email_san     = NULL;
-    params->domain        = NULL;
-    params->serial_number = NULL;
-    params->crt           = NULL;
-    params->source_id     = NULL;
+    params->keypair          = NULL;
+    params->mac_address      = NULL;
+    params->dns_san          = NULL;
+    params->ip_san           = NULL;
+    params->email_san        = NULL;
+    params->domain           = NULL;
+    params->serial_number    = NULL;
+    params->crt              = NULL;
+    params->source_id        = NULL;
 
     return XPKI_CLIENT_SUCCESS;
 }
@@ -231,31 +247,42 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_renew_cert_param(renew_cert_param_t * para
     return xc_get_default_cert_status_param(params);
 }
 
-static XPKI_CLIENT_ERROR_CODE xc_create_x509_crt()
+static XPKI_CLIENT_ERROR_CODE xc_create_crt(XPKI_AUTH_TYPE auth_type)
 {
+    VerifyOrReturnError(xpki_auth_type_to_string(auth_type) != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
+
     XPKI_CLIENT_ERROR_CODE xc_error = XPKI_CLIENT_SUCCESS;
     int return_code                 = 0;
     Certifier * certifier           = get_certifier_instance();
 
-    return_code = certifier_setup_keys(certifier);
-    VerifyOrReturnError(return_code == 0, XPKI_CLIENT_ERROR_INTERNAL);
-
     char * tmp_crt = NULL;
-    char * cert    = NULL;
-    int cert_len   = 0;
+    char * crt     = NULL;
+    int crt_len    = 0;
 
-    return_code = certifier_create_x509_crt(certifier, &tmp_crt);
+    if (auth_type == XPKI_AUTH_X509)
+    {
+        return_code = certifier_setup_keys(certifier);
+        VerifyOrReturnError(return_code == 0, XPKI_CLIENT_ERROR_INTERNAL);
+
+        return_code = certifier_create_x509_crt(certifier, &tmp_crt);
+    }
+    else if (auth_type == XPKI_AUTH_SAT)
+    {
+        return_code = certifier_create_crt(certifier, &tmp_crt, xpki_auth_type_to_string(auth_type));
+    }
+
     VerifyOrExit(return_code == 0, xc_error = XPKI_CLIENT_ERROR_INTERNAL);
     VerifyOrExit(tmp_crt != NULL, xc_error = XPKI_CLIENT_ERROR_NO_MEMORY);
 
-    cert_len = (int) XSTRLEN(tmp_crt);
-    cert     = XMALLOC(base64_encode_len(cert_len));
-    base64_encode(cert, (const unsigned char *) tmp_crt, cert_len);
-    return_code = certifier_set_property(certifier, CERTIFIER_OPT_CRT, cert);
+    crt_len = (int) XSTRLEN(tmp_crt);
+    crt     = XMALLOC(base64_encode_len(crt_len));
+    VerifyOrExit(crt != NULL, xc_error = XPKI_CLIENT_ERROR_NO_MEMORY);
+    base64_encode(crt, (const unsigned char *) tmp_crt, crt_len);
+    return_code = certifier_set_property(certifier, CERTIFIER_OPT_CRT, crt);
     VerifyOrExit(return_code == 0, xc_error = XPKI_CLIENT_ERROR_INTERNAL);
 
 exit:
-    XFREE(cert);
+    XFREE(crt);
     XFREE(tmp_crt);
 
     return xc_error;
@@ -285,12 +312,15 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
 
     char system_id[SYSTEM_ID_SIZE] = { 0 };
 
-    // TODO: Implement Auth Token CRT
-    // TODO: Check boundaries on enums
-    VerifyOrReturnError(params->auth_type == XPKI_AUTH_X509_CRT, XPKI_CLIENT_NOT_IMPLEMENTED);
+    VerifyOrReturnError(xpki_auth_type_to_string(params->auth_type) != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
 
     Certifier * certifier = get_certifier_instance();
 
+    if (params->auth_type == XPKI_AUTH_SAT)
+    {
+        VerifyOrReturnError(params->auth_token != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_AUTH_TOKEN, params->auth_token));
+    }
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, params->input_p12_path));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->input_p12_password));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH, params->output_p12_path));
@@ -301,6 +331,7 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFICATE_LITE, (void *) params->lite));
 
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_PROFILE_NAME, params->profile_name));
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_AUTH_TYPE, xpki_auth_type_to_string(params->auth_type)));
 
     ReturnErrorOnFailure(xc_set_source_id(params->source_id));
 
@@ -363,13 +394,14 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     }
     if (params->crt == NULL)
     {
-        ReturnErrorOnFailure(xc_create_x509_crt());
+        ReturnErrorOnFailure(xc_create_crt(params->auth_type));
     } // TODO: else
     if (params->static_certifier == true)
     {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
     }
-    else {
+    else
+    {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFER_URL));
     }
 
@@ -385,7 +417,7 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     return xc_register_certificate(params->keypair);
 }
 
-static XPKI_CLIENT_ERROR_CODE _xc_renew_certificate()
+static XPKI_CLIENT_ERROR_CODE _xc_renew_certificate(XPKI_AUTH_TYPE auth_type)
 {
     Certifier * certifier = get_certifier_instance();
 
@@ -393,7 +425,7 @@ static XPKI_CLIENT_ERROR_CODE _xc_renew_certificate()
     if (return_code == CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE ||
         return_code == CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1)
     {
-        ReturnErrorOnFailure(xc_create_x509_crt());
+        ReturnErrorOnFailure(xc_create_crt(auth_type));
         return certifier_renew_certificate(certifier) == 0 ? XPKI_CLIENT_SUCCESS : XPKI_CLIENT_ERROR_INTERNAL;
     }
     else
@@ -407,20 +439,29 @@ XPKI_CLIENT_ERROR_CODE xc_renew_cert(renew_cert_param_t * params)
     VerifyOrReturnError(params != NULL && params->p12_path != NULL && params->p12_password != NULL && params->source_id != NULL,
                         XPKI_CLIENT_INVALID_ARGUMENT);
 
+    VerifyOrReturnError(xpki_auth_type_to_string(params->auth_type) != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
+
     Certifier * certifier = get_certifier_instance();
 
+    if (params->auth_type == XPKI_AUTH_SAT)
+    {
+        VerifyOrReturnError(params->auth_token != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_AUTH_TOKEN, params->auth_token));
+    }
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, params->p12_path));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->p12_password));
     if (params->static_certifier == true)
     {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
     }
-    else {
+    else
+    {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFER_URL));
     }
     ReturnErrorOnFailure(xc_set_source_id(params->source_id));
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_AUTH_TYPE, xpki_auth_type_to_string(params->auth_type)));
 
-    return _xc_renew_certificate();
+    return _xc_renew_certificate(params->auth_type);
 }
 
 static XPKI_CLIENT_CERT_STATUS xc_map_cert_status(int value)
@@ -488,7 +529,8 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert_status(get_cert_status_param_t * params, XPKI
     {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
     }
-    else {
+    else
+    {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFER_URL));
     }
 

@@ -187,14 +187,17 @@ static void print_warning(char * property_name)
 }
 
 #define SV(field, value)                                                                                                           \
-    if (field != NULL)                                                                                                             \
+    if (field != value)                                                                                                            \
     {                                                                                                                              \
-        XFREE(field);                                                                                                              \
-        field = NULL;                                                                                                              \
-    }                                                                                                                              \
-    if (value != NULL)                                                                                                             \
-    {                                                                                                                              \
-        field = XSTRDUP(value);                                                                                                    \
+        if (field != NULL)                                                                                                         \
+        {                                                                                                                          \
+            XFREE(field);                                                                                                          \
+            field = NULL;                                                                                                          \
+        }                                                                                                                          \
+        if (value != NULL)                                                                                                         \
+        {                                                                                                                          \
+            field = XSTRDUP(value);                                                                                                \
+        }                                                                                                                          \
     };
 
 CertifierPropMap * property_new(void)
