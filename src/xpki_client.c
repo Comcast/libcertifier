@@ -22,46 +22,20 @@
 #include <certifier/certifier.h>
 #include <certifier/certifier_internal.h>
 #include <certifier/certifierclient.h>
+#include <certifier/code_utils.h>
 #include <certifier/types.h>
-
-#define ReturnErrorOnFailure(expr)                                                                                                 \
-    do                                                                                                                             \
-    {                                                                                                                              \
-        int __err = (expr);                                                                                                        \
-        if (__err != 0)                                                                                                            \
-        {                                                                                                                          \
-            return __err;                                                                                                          \
-        }                                                                                                                          \
-    } while (0)
-
-#define VerifyOrReturnError(expr, code)                                                                                            \
-    do                                                                                                                             \
-    {                                                                                                                              \
-        if (!(expr))                                                                                                               \
-        {                                                                                                                          \
-            return (code);                                                                                                         \
-        }                                                                                                                          \
-    } while (0)
-
-#define VerifyOrExit(statement, action)                                                                                            \
-    do                                                                                                                             \
-    {                                                                                                                              \
-        if ((statement) != 1)                                                                                                      \
-        {                                                                                                                          \
-            action;                                                                                                                \
-            goto exit;                                                                                                             \
-        }                                                                                                                          \
-    } while (0)
+#include <certifier/xpki_client_internal.h>
 
 #define SYSTEM_ID_SIZE 40
 
-static inline Certifier * get_certifier_instance()
+Certifier * get_certifier_instance()
 {
     static Certifier * certifier = NULL;
 
     if (certifier == NULL)
     {
         certifier = certifier_new();
+        certifier_set_property(certifier, CERTIFIER_OPT_LOG_LEVEL, (void *) (size_t) 0);
     }
 
     return certifier;
@@ -73,7 +47,7 @@ XPKI_AUTH_TYPE map_to_xpki_auth_type(const char * str)
     {
         return XPKI_AUTH_X509;
     }
-    else
+    else if (strcmp(str, "SAT") == 0)
     {
         return XPKI_AUTH_SAT;
     }
@@ -206,6 +180,9 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
     param               = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
     params->common_name = param ? (const char *) param : NULL;
 
+    param             = certifier_get_property(certifier, CERTIFIER_OPT_SOURCE);
+    params->source_id = param ? (const char *) param : NULL;
+
     params->static_certifier = false;
     params->keypair          = NULL;
     params->mac_address      = NULL;
@@ -215,7 +192,6 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
     params->domain           = NULL;
     params->serial_number    = NULL;
     params->crt              = NULL;
-    params->source_id        = NULL;
 
     return XPKI_CLIENT_SUCCESS;
 }
@@ -321,10 +297,16 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
         VerifyOrReturnError(params->auth_token != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_AUTH_TOKEN, params->auth_token));
     }
-    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, params->input_p12_path));
-    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->input_p12_password));
+    else if (params->auth_type == XPKI_AUTH_X509)
+    {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, params->input_p12_path));
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->input_p12_password));
+    }
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH, params->output_p12_path));
-    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD, params->output_p12_password));
+    if (params->output_p12_password)
+    {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD, params->output_p12_password));
+    }
 
     ReturnErrorOnFailure(
         certifier_set_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS, (const void *) (size_t) params->validity_days));
@@ -411,8 +393,10 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
                                                     certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH)));
     }
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_FORCE_REGISTRATION, (void *) params->overwrite_p12));
-    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD,
-                                                certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD)));
+    if (params->output_p12_password)
+    {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->output_p12_password));
+    }
 
     return xc_register_certificate(params->keypair);
 }

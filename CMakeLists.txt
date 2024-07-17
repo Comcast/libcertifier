@@ -86,7 +86,7 @@ include(DoxygenDoc)
 include(CheckCCompilerFlag)
 
 file(GLOB SOURCES "src/*.c")
-list(FILTER SOURCES EXCLUDE REGEX "src/main.c|src/test.c")
+list(FILTER SOURCES EXCLUDE REGEX "src/main.c|src/main-legacy.c|src/test.c")
 
 configure_file(certifier.ver.in certifier.ver @ONLY)
 add_library(certifier SHARED ${SOURCES})
@@ -104,7 +104,11 @@ target_link_libraries(certifier_ ${CERTIFIER_LIBS})
 SET_TARGET_PROPERTIES(certifier_ PROPERTIES
    OUTPUT_NAME certifier CLEAN_DIRECT_OUTPUT 1)
 
-add_executable(certifierUtil "src/error.c" "src/main.c" )
+add_executable(certifierUtilLegacy "src/error.c" "src/main-legacy.c" )
+target_link_libraries(certifierUtilLegacy ${CERTIFIER_UTIL_LIBS})
+target_include_directories(certifierUtilLegacy PUBLIC include PRIVATE internal_headers ${CERTIFIER_INCLUDE_DIRS} ${MBED_TLS_INCLUDE_DIR})
+
+add_executable(certifierUtil "src/main.c" )
 target_link_libraries(certifierUtil ${CERTIFIER_UTIL_LIBS})
 target_include_directories(certifierUtil PUBLIC include PRIVATE internal_headers ${CERTIFIER_INCLUDE_DIRS} ${MBED_TLS_INCLUDE_DIR})
 
@@ -341,6 +345,7 @@ endif ()
 
 install(TARGETS certifier LIBRARY DESTINATION lib)
 install(DIRECTORY include/certifier DESTINATION include)
+install(TARGETS certifierUtilLegacy RUNTIME DESTINATION bin)
 install(TARGETS certifierUtil RUNTIME DESTINATION bin)
 install(FILES libcertifier.cfg.sample DESTINATION etc/certifier RENAME libcertifier.cfg)
 install(FILES libcertifier-cert.crt DESTINATION etc/certifier)
