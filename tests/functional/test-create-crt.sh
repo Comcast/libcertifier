@@ -4,4 +4,4 @@ if [ -z "$4" ]; then
     exit
 fi
 #to be executed from the build directory, where all binaries and these scripts are moved
-./certifierUtil get-crt-token -S $1 -X $2 -k $3 -p $4
+./certifierUtilLegacy get-crt-token -S $1 -X $2 -k $3 -p $4
