@@ -340,8 +340,8 @@ static void try_renew_certificates(Certifier * certifier)
         case CERTIFIER_ERR_GET_CERT_STATUS_REVOKED:
             syslog(LOG_INFO, "Certificate from file %s status: Revoked. Not renewing it.", s_list_of_certs[list_of_certs_idx]);
             continue;
-        case CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
-        case CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN:
+        case CERTIFIER_ERR_GET_CERT_STATUS_UNKNOWN | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
+        case CERTIFIER_ERR_GET_CERT_STATUS_UNKNOWN:
         default:
             syslog(LOG_INFO, "Certificate from file %s status: Unknown. Not renewing it.", s_list_of_certs[list_of_certs_idx]);
             continue;

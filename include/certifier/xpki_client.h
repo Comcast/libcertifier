@@ -170,6 +170,19 @@ typedef struct
     bool static_certifier;
 } get_cert_status_param_t;
 
+/** @struct get_cert_validity_param_t
+ *  @brief This structure contains all parameters required for getting certificate validity.
+ *  @var get_cert_validity_param_t::p12_path
+ *  Contains the path to the PKCS12 File.
+ *  @var get_cert_validity_param_t::p12_password
+ *  Contains the password for the PKCS12 File.
+ */
+typedef struct
+{
+    const char * p12_path;
+    const char * p12_password;
+} get_cert_validity_param_t;
+
 typedef get_cert_status_param_t renew_cert_param_t;
 
 XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params);
@@ -178,11 +191,15 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_status_param(get_cert_status_param_t 
 
 XPKI_CLIENT_ERROR_CODE xc_get_default_renew_cert_param(renew_cert_param_t * params);
 
+XPKI_CLIENT_ERROR_CODE xc_get_default_cert_validity_param(get_cert_validity_param_t * params);
+
 XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params);
 
 XPKI_CLIENT_ERROR_CODE xc_renew_cert(renew_cert_param_t * params);
 
 XPKI_CLIENT_ERROR_CODE xc_get_cert_status(get_cert_status_param_t * params, XPKI_CLIENT_CERT_STATUS * status);
+
+XPKI_CLIENT_ERROR_CODE xc_get_cert_validity(get_cert_validity_param_t * params, XPKI_CLIENT_CERT_STATUS * status);
 
 XPKI_CLIENT_ERROR_CODE xc_enable_logs(bool enable);
 

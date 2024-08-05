@@ -681,7 +681,7 @@ CertifierError certifierclient_check_certificate_status(CertifierPropMap * props
     }
     else if (strncmp(certificate_status, "UNKNOWN", strlen("UNKNOWN")) == 0)
     {
-        rc.application_error_code = CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN;
+        rc.application_error_code = CERTIFIER_ERR_GET_CERT_STATUS_UNKNOWN;
         rc.application_error_msg  = util_format_error_here("Certificate Unknown");
         goto cleanup;
     }
@@ -693,7 +693,7 @@ CertifierError certifierclient_check_certificate_status(CertifierPropMap * props
     }
     else
     {
-        rc.application_error_code = CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN;
+        rc.application_error_code = CERTIFIER_ERR_GET_CERT_STATUS_UNKNOWN;
         rc.application_error_msg  = util_format_error_here("Certificate Unknown");
         goto cleanup;
     }
