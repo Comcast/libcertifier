@@ -174,6 +174,46 @@ static void test_renew_cert_auth_token()
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
 }
 
+static void test_print_cert_validity()
+{
+   XPKI_CLIENT_ERROR_CODE error;
+   get_cert_status_param_t params = { 0 };
+
+   xc_get_default_cert_status_param(&params);
+
+   params.p12_password = "newpass";
+   params.p12_path     = "output-xc-test-renewable.p12";
+
+   error = xc_print_cert_validity(params.p12_path, params.p12_password);
+   TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
+}
+
+static void test_get_cert_validity()
+{
+    XPKI_CLIENT_ERROR_CODE error;
+    XPKI_CLIENT_CERT_STATUS status;
+    get_cert_validity_param_t params = { 0 };
+
+    xc_get_default_cert_validity_param(&params);
+
+    params.p12_password = "newpass";
+    params.p12_path     = "output-xc-test-not-renewable.p12";
+
+    error = xc_get_cert_validity(&params, &status);
+
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_CERT_VALID , status);
+
+    xc_get_default_cert_validity_param(&params);
+    params.p12_password = "newpass";
+    params.p12_path     = "output-xc-test-renewable.p12";
+
+    error = xc_get_cert_validity(&params, &status);
+
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_CERT_ABOUT_TO_EXPIRE, status);
+}
+
 int main(int argc, char ** argv)
 {
     UNITY_BEGIN();
@@ -187,6 +227,8 @@ int main(int argc, char ** argv)
     }
     RUN_TEST(test_get_cert_status);
     RUN_TEST(test_renew_cert);
+    RUN_TEST(test_print_cert_validity);
+    RUN_TEST(test_get_cert_validity);
 
     return UNITY_END();
 }

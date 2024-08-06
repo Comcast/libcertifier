@@ -659,11 +659,11 @@ static int do_get_cert_status(CERTIFIER * easy)
     case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_REVOKED:
         XFPRINTF(stdout, "Status: Revoked\n");
         break;
-    case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN |
+    case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_UNKNOWN |
         CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
         XFPRINTF(stdout, "Warning! This certificate is about to expire. Please renew it using the 'renew-cert' command.\n");
         // fall through
-    case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN:
+    case CERTIFIER_ERR_GET_CERT_STATUS_1 | CERTIFIER_ERR_GET_CERT_STATUS_UNKNOWN:
     default:
         XFPRINTF(stdout, "Status: Unknown\n");
         break;

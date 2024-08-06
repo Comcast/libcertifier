@@ -218,6 +218,23 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_status_param(get_cert_status_param_t 
     return XPKI_CLIENT_SUCCESS;
 }
 
+XPKI_CLIENT_ERROR_CODE xc_get_default_cert_validity_param(get_cert_validity_param_t * params)
+{
+    Certifier * certifier = get_certifier_instance();
+
+    memset(params, 0, sizeof(get_cert_validity_param_t));
+
+    void * param = NULL;
+
+    param            = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH);
+    params->p12_path = param ? (const char *) param : NULL;
+
+    param                = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
+    params->p12_password = param ? (const char *) param : NULL;
+
+    return XPKI_CLIENT_SUCCESS;
+}
+
 XPKI_CLIENT_ERROR_CODE xc_get_default_renew_cert_param(renew_cert_param_t * params)
 {
     return xc_get_default_cert_status_param(params);
@@ -469,16 +486,85 @@ static XPKI_CLIENT_CERT_STATUS xc_map_cert_status(int value)
     case CERTIFIER_ERR_GET_CERT_STATUS_REVOKED:
         cert_status = XPKI_CLIENT_CERT_REVOKED;
         break;
-    case CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
+    case CERTIFIER_ERR_REGISTRATION_STATUS_P12_NONEXISTENT:
+	cert_status = XPKI_CLIENT_CERT_INVALID;
+	break;
+    case CERTIFIER_ERR_REGISTRATION_STATUS_X509_NONEXISTENT:
+	cert_status = XPKI_CLIENT_CERT_INVALID;
+	break;
+    case CERTIFIER_ERR_GET_CERT_STATUS_UNKNOWN | CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
         cert_status = XPKI_CLIENT_CERT_ABOUT_TO_EXPIRE;
         // fall through
-    case CERTIFIER_ERR_GET_CERT_STATUS_UNKOWN:
+    case CERTIFIER_ERR_GET_CERT_STATUS_UNKNOWN:
     default:
         cert_status |= XPKI_CLIENT_CERT_UNKNOWN;
     }
 
     return cert_status;
 }
+
+static XPKI_CLIENT_CERT_STATUS xc_map_cert_validity(int value)
+{
+    XPKI_CLIENT_CERT_STATUS cert_status = XPKI_CLIENT_CERT_UNKNOWN;
+
+    switch (value)
+    {
+    case CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
+        cert_status = XPKI_CLIENT_CERT_ABOUT_TO_EXPIRE;
+        break;
+    case 0:
+        cert_status = XPKI_CLIENT_CERT_VALID;
+        break;
+    case CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_2:
+        cert_status = XPKI_CLIENT_CERT_EXPIRED;
+        break;
+    case CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1:
+        cert_status = XPKI_CLIENT_CERT_NOT_YET_VALID;
+        break;
+    case CERTIFIER_ERR_REGISTRATION_STATUS_P12_NONEXISTENT:
+        cert_status = XPKI_CLIENT_CERT_INVALID;
+        break;
+    case CERTIFIER_ERR_REGISTRATION_STATUS_X509_NONEXISTENT:
+        cert_status = XPKI_CLIENT_CERT_INVALID;
+        break;
+    case CERTIFIER_ERR_GET_CERT_STATUS_UNKNOWN:
+        cert_status = XPKI_CLIENT_CERT_UNKNOWN;
+	break;
+    default:
+        cert_status = XPKI_CLIENT_CERT_UNKNOWN;
+    }
+
+    return cert_status;
+}
+
+static XPKI_CLIENT_ERROR_CODE xc_map_error_code(int value)
+{
+    XPKI_CLIENT_ERROR_CODE xc_error = XPKI_CLIENT_ERROR_INTERNAL;
+    switch (value)
+    {
+    case CERTIFIER_ERR_REGISTRATION_STATUS_P12_NONEXISTENT:
+        xc_error = XPKI_CLIENT_INVALID_ARGUMENT;
+        break;
+    case CERTIFIER_ERR_REGISTRATION_STATUS_X509_NONEXISTENT:
+        xc_error = XPKI_CLIENT_INVALID_ARGUMENT;
+        break;
+    case 0:
+    case CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_1:
+    case CERTIFIER_ERR_REGISTRATION_STATUS_CERT_EXPIRED_2:
+    case CERTIFIER_ERR_REGISTRATION_STATUS_CERT_ABOUT_TO_EXPIRE:
+    case CERTIFIER_ERR_GET_CERT_STATUS_REVOKED:
+	xc_error = XPKI_CLIENT_SUCCESS;
+	break;
+    case CERTIFIER_ERR_GET_CERT_STATUS_UNKNOWN:
+	xc_error = XPKI_CLIENT_ERROR_INTERNAL;
+	break;
+    default:
+        xc_error = XPKI_CLIENT_ERROR_INTERNAL;
+    }
+
+    return xc_error;
+}
+
 
 static XPKI_CLIENT_ERROR_CODE _xc_get_cert_status(XPKI_CLIENT_CERT_STATUS * status)
 {
@@ -519,6 +605,31 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert_status(get_cert_status_param_t * params, XPKI
     }
 
     return _xc_get_cert_status(status);
+}
+
+static XPKI_CLIENT_ERROR_CODE _xc_get_cert_validity(XPKI_CLIENT_CERT_STATUS * status)
+{
+    Certifier * certifier = get_certifier_instance();
+    int return_code       = 0;
+    *status               = XPKI_CLIENT_CERT_INVALID;
+
+    return_code = certifier_get_device_registration_status(certifier);
+    *status     = xc_map_cert_validity(return_code);
+
+    return xc_map_error_code(return_code);
+}
+
+/* Based on current time, get certificate validity status */
+XPKI_CLIENT_ERROR_CODE xc_get_cert_validity(get_cert_validity_param_t * params, XPKI_CLIENT_CERT_STATUS * status)
+{
+    VerifyOrReturnError(params != NULL && params->p12_path != NULL && params->p12_password != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
+
+    Certifier * certifier = get_certifier_instance();
+
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, params->p12_path));
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->p12_password));
+
+    return _xc_get_cert_validity(status);
 }
 
 XPKI_CLIENT_ERROR_CODE xc_enable_logs(bool enable)
