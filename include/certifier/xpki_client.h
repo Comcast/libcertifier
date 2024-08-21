@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 #define CERTIFIER_STATIC_URL "https://cert-static.xpki.io/v1/certifier"
-#define DEFAULT_CERTIFER_URL "https://certifier.xpki.io/v1/certifier"
+#define DEFAULT_CERTIFIER_URL "https://certifier.xpki.io/v1/certifier"
 
 typedef enum
 {
@@ -143,6 +143,8 @@ typedef struct
     const char * email_san;
     const char * common_name;
     const char * domain;
+    /* Certificate ID (sha1 hash) of the new certificate */
+    void** cert_id_out;
 } get_cert_param_t;
 
 /** @struct get_cert_status_param_t

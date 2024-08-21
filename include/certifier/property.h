@@ -181,6 +181,13 @@ typedef enum CERTIFIER_OPT
      */
     CERTIFIER_OPT_AUTORENEW_CERTS_PATH_LIST,
 
+    /**
+     * @brief returns the certificate ID of the new certificate
+     *
+     * @note value type: char[20]
+     */
+    CERTIFIER_OPT_OUTPUT_CERT_ID,
+
 } CERTIFIER_OPT;
 
 typedef enum

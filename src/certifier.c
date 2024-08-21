@@ -392,6 +392,9 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
     CertifierError certifier_err_info = CERTIFIER_ERROR_INITIALIZER;
     X509_LIST * certs                 = NULL;
     const char * password             = NULL;
+    void** cert_id                    = NULL;
+    unsigned char *x509_der;
+    size_t x509_len;
 
     log_info("\nTrimming x509 certificates...\n");
     util_trim(x509_certs);
@@ -407,7 +410,11 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
         goto cleanup;
     }
 
-    security_print_certs_in_list(certs, stderr);
+    int log_level = (int) (size_t) certifier_get_property(certifier, CERTIFIER_OPT_LOG_LEVEL);
+    if (log_level != 4)
+    {
+        security_print_certs_in_list(certs, stderr);
+    }
 
     /* Cert is owned by the 'certs' stack; create our own copy and save it */
     _certifier_set_x509_cert(certifier, security_cert_list_pop(certs, 0));
@@ -416,6 +423,19 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
         rc = CERTIFIER_ERR_REGISTER_SECURITY_6;
         set_last_error(certifier, rc, util_format_error_here("Failed to get certificate from certificate list!"));
         goto cleanup;
+    }
+
+    cert_id = certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_CERT_ID);
+    if (cert_id != NULL)
+    {
+        /* Calculate and return certificate ID */
+        x509_der = security_X509_to_DER(certifier->tmp_map.x509_cert, &x509_len);
+
+        /* CertID is SHA1 (known fixed size of 20 bytes)*/
+        *cert_id = malloc(CERTIFIER_SHA1_DIGEST_LENGTH);
+        security_sha1(*cert_id, x509_der, x509_len);
+
+        XFREE(x509_der);
     }
 
     password = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
@@ -859,7 +879,7 @@ void _certifier_set_x509_cert(Certifier * certifier, const X509_CERT * cert)
 
     if (cert != NULL)
     {
-        tmp = security_dup_cert(cert);
+        tmp = cert;
     }
 
     certifier->tmp_map.x509_cert = tmp;

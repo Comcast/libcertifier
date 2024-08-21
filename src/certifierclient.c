@@ -25,62 +25,16 @@
 
 #include <errno.h>
 #include <stdbool.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
+#include <pthread.h>
 
-#define SEM_MUTEX_KEY "/tmp/sem-mutex-key"
-
-static int mutex_sem;
-static int fd = -1;
+pthread_mutex_t lock;
 
 // Functions
 int certifierclient_init()
 {
-    key_t s_key;
-    bool sem_exists = false;
-
-    fd = open(SEM_MUTEX_KEY, O_EXCL | O_CREAT, 0600);
-    if (fd == -1)
-    {
-        if (errno == EEXIST)
-        {
-            sem_exists = true;
-        }
-        else
-        {
-            return 1;
-        }
-    }
-
-    s_key = ftok(SEM_MUTEX_KEY, 'a');
-    if (s_key == -1)
-    {
+    if (pthread_mutex_init(&lock, NULL) != 0) {
+        printf("\n mutex init has failed\n");
         return 1;
-    }
-
-    mutex_sem = semget(s_key, 1, sem_exists ? 0 : (0666 | IPC_CREAT));
-    if (mutex_sem == -1)
-    {
-        return 1;
-    }
-
-    if (sem_exists == false)
-    {
-        union semun
-        {
-            int val;                /* Value for SETVAL */
-            struct semid_ds * buf;  /* Buffer for IPC_STAT, IPC_SET */
-            unsigned short * array; /* Array for GETALL, SETALL */
-            struct seminfo * __buf; /* Buffer for IPC_INFO
-                                       (Linux-specific) */
-        } sem_attr;
-
-        sem_attr.val = 1; // start sem unlocked
-        int rc       = semctl(mutex_sem, 0, SETVAL, sem_attr);
-        if (rc == -1)
-        {
-            return 1;
-        }
     }
 
     return http_init();
@@ -88,13 +42,7 @@ int certifierclient_init()
 
 int certifierclient_destroy()
 {
-    if (fd != -1)
-    {
-        close(fd);
-    }
-
-    semctl(mutex_sem, 0, IPC_RMID);
-    unlink(SEM_MUTEX_KEY);
+    (void)pthread_mutex_destroy(&lock);
 
     return http_destroy();
 }
@@ -109,8 +57,6 @@ CertifierError certifierclient_request_x509_certificate(CertifierPropMap * props
         rc.application_error_msg  = util_format_error_here("out cert cannot be null");
         return rc;
     }
-
-    struct sembuf asem[1] = { 0 };
 
     char auth_header[VERY_LARGE_STRING_SIZE * 4] = "";
     char tracking_header[LARGE_STRING_SIZE]      = "";
@@ -157,10 +103,7 @@ CertifierError certifierclient_request_x509_certificate(CertifierPropMap * props
     serialized_string = certifier_create_csr_post_data(props, csr, node_address, certifier_id);
 
     // Take Mutex
-    asem[0].sem_op = -1;
-    // undo mutex-take if app crashes during http_post
-    asem[0].sem_flg = SEM_UNDO;
-    if (semop(mutex_sem, asem, 1) == -1)
+    if (pthread_mutex_lock(&lock) != 0)
     {
         rc.application_error_code = 1;
         goto cleanup;
@@ -173,8 +116,7 @@ CertifierError certifierclient_request_x509_certificate(CertifierPropMap * props
     }
 
     // Give Mutex
-    asem[0].sem_op = 1;
-    if (semop(mutex_sem, asem, 1) == -1)
+    if (pthread_mutex_unlock(&lock) != 0)
     {
         rc.application_error_code = 1;
         goto cleanup;
@@ -270,8 +212,6 @@ CertifierError certifierclient_revoke_x509_certificate(CertifierPropMap * props,
 {
     CertifierError rc = CERTIFIER_ERROR_INITIALIZER;
 
-    struct sembuf asem[1] = { 0 };
-
     char auth_header[VERY_LARGE_STRING_SIZE * 4] = "";
     char tracking_header[LARGE_STRING_SIZE]      = "";
     char source_header[SMALL_STRING_SIZE]        = "";
@@ -329,10 +269,7 @@ CertifierError certifierclient_revoke_x509_certificate(CertifierPropMap * props,
     log_debug("\nCertificate Revoke Request:\n%s\n", serialized_string);
 
     // Take Mutex
-    asem[0].sem_op = -1;
-    // undo mutex-take if app crashes during http_post
-    asem[0].sem_flg = SEM_UNDO;
-    if (semop(mutex_sem, asem, 1) == -1)
+    if (pthread_mutex_lock(&lock) != 0)
     {
         rc.application_error_code = 1;
         goto cleanup;
@@ -345,8 +282,7 @@ CertifierError certifierclient_revoke_x509_certificate(CertifierPropMap * props,
     }
 
     // Give Mutex
-    asem[0].sem_op = 1;
-    if (semop(mutex_sem, asem, 1) == -1)
+    if (pthread_mutex_unlock(&lock) != 0)
     {
         rc.application_error_code = 1;
         goto cleanup;
@@ -414,8 +350,6 @@ CertifierError certifierclient_renew_x509_certificate(CertifierPropMap * props, 
 {
     CertifierError rc = CERTIFIER_ERROR_INITIALIZER;
 
-    struct sembuf asem[1] = { 0 };
-
     char auth_header[VERY_LARGE_STRING_SIZE * 4] = "";
     char tracking_header[LARGE_STRING_SIZE]      = "";
     char source_header[SMALL_STRING_SIZE]        = "";
@@ -473,10 +407,7 @@ CertifierError certifierclient_renew_x509_certificate(CertifierPropMap * props, 
     log_debug("\nCertificate Renew Request:\n%s\n", serialized_string);
 
     // Take Mutex
-    asem[0].sem_op = -1;
-    // undo mutex-take if app crashes during http_post
-    asem[0].sem_flg = SEM_UNDO;
-    if (semop(mutex_sem, asem, 1) == -1)
+    if (pthread_mutex_lock(&lock) != 0)
     {
         rc.application_error_code = 1;
         goto cleanup;
@@ -489,8 +420,7 @@ CertifierError certifierclient_renew_x509_certificate(CertifierPropMap * props, 
     }
 
     // Give Mutex
-    asem[0].sem_op = 1;
-    if (semop(mutex_sem, asem, 1) == -1)
+    if (pthread_mutex_unlock(&lock) != 0)
     {
         rc.application_error_code = 1;
         goto cleanup;
@@ -578,8 +508,6 @@ CertifierError certifierclient_check_certificate_status(CertifierPropMap * props
         return rc;
     }
 
-    struct sembuf asem[1] = { 0 };
-
     JSON_Object * parsed_json_object_value = NULL;
     JSON_Value * parsed_json_root_value    = NULL;
     const char * certificate_status        = NULL;
@@ -602,10 +530,7 @@ CertifierError certifierclient_check_certificate_status(CertifierPropMap * props
             sizeof(certifier_status_url) - strlen(certifier_url) - strlen(status_url));
 
     // Take Mutex
-    asem[0].sem_op = -1;
-    // undo mutex-take if app crashes during http_post
-    asem[0].sem_flg = SEM_UNDO;
-    if (semop(mutex_sem, asem, 1) == -1)
+    if (pthread_mutex_lock(&lock) != 0)
     {
         rc.application_error_code = 1;
         goto cleanup;
@@ -618,8 +543,7 @@ CertifierError certifierclient_check_certificate_status(CertifierPropMap * props
     }
 
     // Give Mutex
-    asem[0].sem_op = 1;
-    if (semop(mutex_sem, asem, 1) == -1)
+    if (pthread_mutex_unlock(&lock) != 0)
     {
         rc.application_error_code = 1;
         goto cleanup;

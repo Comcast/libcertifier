@@ -44,7 +44,7 @@
 #define DEFAULT_USER_CA_PATH "/usr/local/etc/certfier"
 #define DEFAULT_GLOBAL_CA_PATH "/etc/certifier"
 #define DEFAULT_CURDIR_CA_PATH "."
-#define DEFAULT_CERTIFER_URL "https://certifier.xpki.io/v1/certifier"
+#define DEFAULT_CERTIFIER_URL "https://certifier.xpki.io/v1/certifier"
 #define DEFAULT_PROFILE_NAME "XFN_Matter_OP_Class_3_ICA"
 #define DEFAULT_CERT_MIN_TIME_LEFT_S 90 * 24 * 60 * 60;
 #define DEFAULT_OPT_SOURCE "unset-libcertifier-c-native"
@@ -171,6 +171,7 @@ struct _PropMap
     char * action;
     char * input_node;
     char * autorenew_certs_path_list;
+    void** cert_id_out;
 };
 
 static void free_prop_map_values(CertifierPropMap * prop_map);
@@ -338,6 +339,9 @@ int property_set(CertifierPropMap * prop_map, CERTIFIER_OPT name, const void * v
 
     switch (name)
     {
+    case CERTIFIER_OPT_OUTPUT_CERT_ID:
+        prop_map->cert_id_out = (void**)value;
+        break;
     case CERTIFIER_OPT_CFG_FILENAME:
         SV(prop_map->cfg_filename, value);
         break;
@@ -540,6 +544,10 @@ void * property_get(CertifierPropMap * prop_map, CERTIFIER_OPT name)
     {
     case CERTIFIER_OPT_CFG_FILENAME:
         retval = prop_map->cfg_filename;
+        break;
+
+    case CERTIFIER_OPT_OUTPUT_CERT_ID:
+        retval = prop_map->cert_id_out;
         break;
 
     case CERTIFIER_OPT_AUTH_TYPE:
@@ -776,7 +784,7 @@ int property_set_defaults(CertifierPropMap * prop_map)
 
     if (prop_map->certifier_url == NULL)
     {
-        return_code = property_set(prop_map, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFER_URL);
+        return_code = property_set(prop_map, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFIER_URL);
         if (return_code != 0)
         {
             log_error("Failed to set default property name: CERTIFIER_OPT_CERTIFIER_URL with error code: %i", return_code);
