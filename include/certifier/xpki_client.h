@@ -113,6 +113,12 @@ typedef enum
  *  Contains the CN value field of the Certificate Subject (Optional).
  *  @var get_cert_param_t::domain
  *  Contains the domain of the CN value field of the Certificate Subject (Optional).
+ *  @var get_cert_param_t::cert_x509_out
+ *  Contains the generated X.509 certificate (Optional)
+ *  @var get_cert_param_t::mtls_p12_path
+ *  Contains the path to the mTLS certificate (P12) (Optional).
+ *  @var get_cert_param_t::mtls_p12_password
+ *  Contains the password for the mTLS certificate (P12) (Optional).
  */
 typedef struct
 {
@@ -143,8 +149,9 @@ typedef struct
     const char * email_san;
     const char * common_name;
     const char * domain;
-    /* Certificate ID (sha1 hash) of the new certificate */
-    void** cert_id_out;
+    X509_CERT  * cert_x509_out;
+    const char * mtls_p12_path;
+    const char * mtls_p12_password;
 } get_cert_param_t;
 
 /** @struct get_cert_status_param_t

@@ -392,7 +392,6 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
     CertifierError certifier_err_info = CERTIFIER_ERROR_INITIALIZER;
     X509_LIST * certs                 = NULL;
     const char * password             = NULL;
-    void** cert_id                    = NULL;
     unsigned char *x509_der;
     size_t x509_len;
 
@@ -424,18 +423,23 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
         set_last_error(certifier, rc, util_format_error_here("Failed to get certificate from certificate list!"));
         goto cleanup;
     }
-
-    cert_id = certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_CERT_ID);
-    if (cert_id != NULL)
+    else
     {
-        /* Calculate and return certificate ID */
-        x509_der = security_X509_to_DER(certifier->tmp_map.x509_cert, &x509_len);
+        // Export X509 certificate to be used externally
+        X509_CERT * cert_x509_dup = security_dup_cert(certifier->tmp_map.x509_cert);
 
-        /* CertID is SHA1 (known fixed size of 20 bytes)*/
-        *cert_id = malloc(CERTIFIER_SHA1_DIGEST_LENGTH);
-        security_sha1(*cert_id, x509_der, x509_len);
+        if (cert_x509_dup)
+        {
+            rc = certifier_set_property(certifier, CERTIFIER_OPT_CERT_X509_OUT, (const void *) cert_x509_dup);
 
-        XFREE(x509_der);
+            if (rc)
+            {
+                set_last_error(certifier, rc, util_format_error_here("Failed to set certificate property CERTIFIER_OPT_CERT_X509_OUT!"));
+
+                security_free_cert(cert_x509_dup);
+                goto cleanup;
+            }
+        }
     }
 
     password = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);

@@ -303,7 +303,8 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
                         XPKI_CLIENT_INVALID_ARGUMENT);
 #endif // RDK_BUILD
 
-    char system_id[SYSTEM_ID_SIZE] = { 0 };
+    XPKI_CLIENT_ERROR_CODE err_code = XPKI_CLIENT_ERROR_INTERNAL;
+    char system_id[SYSTEM_ID_SIZE]  = { 0 };
 
     VerifyOrReturnError(xpki_auth_type_to_string(params->auth_type) != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
 
@@ -324,8 +325,6 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD, params->output_p12_password));
     }
-
-    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_OUTPUT_CERT_ID, params->cert_id_out));
 
     ReturnErrorOnFailure(
         certifier_set_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS, (const void *) (size_t) params->validity_days));
@@ -423,7 +422,14 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->output_p12_password));
     }
 
-    return xc_register_certificate(params->keypair);
+    err_code = xc_register_certificate(params->keypair);
+
+    if (err_code == XPKI_CLIENT_SUCCESS)
+    {
+        params->cert_x509_out = (X509_CERT *) certifier_get_property(certifier, CERTIFIER_OPT_CERT_X509_OUT);
+    }
+
+    return err_code;
 }
 
 static XPKI_CLIENT_ERROR_CODE _xc_renew_certificate(XPKI_AUTH_TYPE auth_type)
