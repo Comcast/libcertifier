@@ -24,6 +24,7 @@
 #include "certifier/property_internal.h"
 #include "certifier/types.h"
 #include "certifier/util.h"
+#include "certifier/security.h"
 
 #ifndef DEFAULT_LOG_LEVEL
 #define DEFAULT_LOG_LEVEL 4
@@ -44,7 +45,7 @@
 #define DEFAULT_USER_CA_PATH "/usr/local/etc/certfier"
 #define DEFAULT_GLOBAL_CA_PATH "/etc/certifier"
 #define DEFAULT_CURDIR_CA_PATH "."
-#define DEFAULT_CERTIFER_URL "https://certifier.xpki.io/v1/certifier"
+#define DEFAULT_CERTIFIER_URL "https://certifier.xpki.io/v1/certifier"
 #define DEFAULT_PROFILE_NAME "XFN_Matter_OP_Class_3_ICA"
 #define DEFAULT_CERT_MIN_TIME_LEFT_S 90 * 24 * 60 * 60;
 #define DEFAULT_OPT_SOURCE "unset-libcertifier-c-native"
@@ -171,6 +172,9 @@ struct _PropMap
     char * action;
     char * input_node;
     char * autorenew_certs_path_list;
+    X509_CERT * cert_x509_out;
+    char * mtls_filename;
+    char * mtls_p12_filename;
 };
 
 static void free_prop_map_values(CertifierPropMap * prop_map);
@@ -338,6 +342,10 @@ int property_set(CertifierPropMap * prop_map, CERTIFIER_OPT name, const void * v
 
     switch (name)
     {
+    case CERTIFIER_OPT_CERT_X509_OUT:
+        security_free_cert(prop_map->cert_x509_out);
+        prop_map->cert_x509_out = (X509_CERT *) value;
+        break;
     case CERTIFIER_OPT_CFG_FILENAME:
         SV(prop_map->cfg_filename, value);
         break;
@@ -505,6 +513,14 @@ int property_set(CertifierPropMap * prop_map, CERTIFIER_OPT name, const void * v
         retval = CERTIFIER_ERR_PROPERTY_SET_1;
         break;
 
+    case CERTIFIER_OPT_MTLS_P12_PATH:
+        SV(prop_map->mtls_filename, value);
+        break;
+
+    case CERTIFIER_OPT_MTLS_P12_PASSWORD:
+        SV(prop_map->mtls_p12_filename, value);
+        break;
+
     case CERTIFIER_OPT_DEBUG_HTTP:
     case CERTIFIER_OPT_TRACE_HTTP:
     case CERTIFIER_OPT_FORCE_REGISTRATION:
@@ -540,6 +556,10 @@ void * property_get(CertifierPropMap * prop_map, CERTIFIER_OPT name)
     {
     case CERTIFIER_OPT_CFG_FILENAME:
         retval = prop_map->cfg_filename;
+        break;
+
+    case CERTIFIER_OPT_CERT_X509_OUT:
+        retval = (void *) prop_map->cert_x509_out;
         break;
 
     case CERTIFIER_OPT_AUTH_TYPE:
@@ -715,6 +735,14 @@ void * property_get(CertifierPropMap * prop_map, CERTIFIER_OPT name)
         retval = NULL;
         break;
 
+    case CERTIFIER_OPT_MTLS_P12_PATH:
+        retval = prop_map->mtls_filename;
+        break;
+
+    case CERTIFIER_OPT_MTLS_P12_PASSWORD:
+        retval = prop_map->mtls_p12_filename;
+        break;
+
     case CERTIFIER_OPT_DEBUG_HTTP:
     case CERTIFIER_OPT_TRACE_HTTP:
     case CERTIFIER_OPT_FORCE_REGISTRATION:
@@ -776,7 +804,7 @@ int property_set_defaults(CertifierPropMap * prop_map)
 
     if (prop_map->certifier_url == NULL)
     {
-        return_code = property_set(prop_map, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFER_URL);
+        return_code = property_set(prop_map, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFIER_URL);
         if (return_code != 0)
         {
             log_error("Failed to set default property name: CERTIFIER_OPT_CERTIFIER_URL with error code: %i", return_code);
@@ -984,6 +1012,8 @@ int property_set_defaults_from_cfg_file(CertifierPropMap * propMap)
     const char * cn_prefix                       = NULL;
     const char * ext_key_usage_value             = NULL;
     const char * autorenew_certs_path_list_value = NULL;
+    const char * mtls_p12_path_value             = NULL;
+    const char * mtls_password_value             = NULL;
 
     int ret = 0;
 
@@ -1214,6 +1244,21 @@ int property_set_defaults_from_cfg_file(CertifierPropMap * propMap)
         property_set(propMap, CERTIFIER_OPT_AUTORENEW_CERTS_PATH_LIST, autorenew_certs_path_list_value);
     }
 
+    mtls_p12_path_value = json_object_get_string(json_object(json), "libcertifier.mtls.p12.path");
+    if (mtls_p12_path_value)
+    {
+        log_info("Loaded mtls_p12_path_value: %s from cfg file.", mtls_p12_path_value);
+        property_set(propMap, CERTIFIER_OPT_MTLS_P12_PATH, mtls_p12_path_value);
+    }
+
+    mtls_password_value = json_object_get_string(json_object(json), "libcertifier.mtls.p12.password");
+    if (mtls_password_value)
+    {
+        print_warning("password");
+        log_info("Loaded mTLS password from config file.");
+        property_set(propMap, CERTIFIER_OPT_MTLS_P12_PASSWORD, mtls_password_value);
+    }
+
     if (json)
     {
         json_value_free(json);
@@ -1267,4 +1312,7 @@ static void free_prop_map_values(CertifierPropMap * prop_map)
     FV(prop_map->cn_prefix);
     FV(prop_map->domain);
     FV(prop_map->ext_key_usage_value);
+    security_free_cert(prop_map->cert_x509_out);
+    FV(prop_map->mtls_filename);
+    FV(prop_map->mtls_p12_filename);
 }

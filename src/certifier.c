@@ -392,6 +392,8 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
     CertifierError certifier_err_info = CERTIFIER_ERROR_INITIALIZER;
     X509_LIST * certs                 = NULL;
     const char * password             = NULL;
+    unsigned char *x509_der;
+    size_t x509_len;
 
     log_info("\nTrimming x509 certificates...\n");
     util_trim(x509_certs);
@@ -407,7 +409,11 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
         goto cleanup;
     }
 
-    security_print_certs_in_list(certs, stderr);
+    int log_level = (int) (size_t) certifier_get_property(certifier, CERTIFIER_OPT_LOG_LEVEL);
+    if (log_level != 4)
+    {
+        security_print_certs_in_list(certs, stderr);
+    }
 
     /* Cert is owned by the 'certs' stack; create our own copy and save it */
     _certifier_set_x509_cert(certifier, security_cert_list_pop(certs, 0));
@@ -416,6 +422,24 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
         rc = CERTIFIER_ERR_REGISTER_SECURITY_6;
         set_last_error(certifier, rc, util_format_error_here("Failed to get certificate from certificate list!"));
         goto cleanup;
+    }
+    else
+    {
+        // Export X509 certificate to be used externally
+        X509_CERT * cert_x509_dup = security_dup_cert(certifier->tmp_map.x509_cert);
+
+        if (cert_x509_dup)
+        {
+            rc = certifier_set_property(certifier, CERTIFIER_OPT_CERT_X509_OUT, (const void *) cert_x509_dup);
+
+            if (rc)
+            {
+                set_last_error(certifier, rc, util_format_error_here("Failed to set certificate property CERTIFIER_OPT_CERT_X509_OUT!"));
+
+                security_free_cert(cert_x509_dup);
+                goto cleanup;
+            }
+        }
     }
 
     password = certifier_get_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD);
@@ -859,7 +883,7 @@ void _certifier_set_x509_cert(Certifier * certifier, const X509_CERT * cert)
 
     if (cert != NULL)
     {
-        tmp = security_dup_cert(cert);
+        tmp = cert;
     }
 
     certifier->tmp_map.x509_cert = tmp;

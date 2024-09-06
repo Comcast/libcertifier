@@ -181,6 +181,23 @@ typedef enum CERTIFIER_OPT
      */
     CERTIFIER_OPT_AUTORENEW_CERTS_PATH_LIST,
 
+    /**
+     * @brief if non NULL, an allocated X509_CERT certificate will be
+     * placed here
+     *
+     * @note value type: X509_CERT *
+     */
+    CERTIFIER_OPT_CERT_X509_OUT,
+
+    /**
+     * @brief optional fields to set mTLS certificate (P12)
+     * and its password
+     *
+     * @note value type: string
+     */
+    CERTIFIER_OPT_MTLS_P12_PATH,
+    CERTIFIER_OPT_MTLS_P12_PASSWORD,
+
 } CERTIFIER_OPT;
 
 typedef enum

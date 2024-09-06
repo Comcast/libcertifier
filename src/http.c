@@ -31,6 +31,8 @@ static void set_curl_options(CURL * curl, CertifierPropMap * prop_map)
     int is_trace_http_enabled = property_is_option_set(prop_map, CERTIFIER_OPTION_TRACE_HTTP);
     long http_timeout         = (long) property_get(prop_map, CERTIFIER_OPT_HTTP_TIMEOUT);
     long http_connect_timeout = (long) property_get(prop_map, CERTIFIER_OPT_HTTP_CONNECT_TIMEOUT);
+    char * mtls_p12           = property_get(prop_map, CERTIFIER_OPT_MTLS_P12_PATH);
+    char * mtls_password      = property_get(prop_map, CERTIFIER_OPT_MTLS_P12_PASSWORD);
 
     log_debug("[set_curl_options] - Host Validation=%i", host_validation);
     log_debug("[set_curl_options] - Peer Validation=%i", peer_validation);
@@ -40,8 +42,19 @@ static void set_curl_options(CURL * curl, CertifierPropMap * prop_map)
     // First set the URL that is about to receive our POST.
     http_set_curlopt(curl, CURLOPT_ACCEPT_ENCODING, "");
     http_set_curlopt(curl, CURLOPT_VERBOSE, is_debug_http_enabled);
-    http_set_curlopt(curl, CURLOPT_CAINFO, property_get(prop_map, CERTIFIER_OPT_CA_INFO));
-    http_set_curlopt(curl, CURLOPT_CAPATH, property_get(prop_map, CERTIFIER_OPT_CA_PATH));
+
+    if ((mtls_p12) && (mtls_password))
+    {
+        http_set_curlopt(curl, CURLOPT_SSLCERT, mtls_p12);
+        http_set_curlopt(curl, CURLOPT_SSLCERTTYPE, "P12");
+        http_set_curlopt(curl, CURLOPT_SSLCERTPASSWD, mtls_password);
+    }
+    else
+    {
+        http_set_curlopt(curl, CURLOPT_CAINFO, property_get(prop_map, CERTIFIER_OPT_CA_INFO));
+        http_set_curlopt(curl, CURLOPT_CAPATH, property_get(prop_map, CERTIFIER_OPT_CA_PATH));
+    }
+
     http_set_curlopt(curl, CURLOPT_SSL_VERIFYHOST, host_validation);
     http_set_curlopt(curl, CURLOPT_SSL_VERIFYPEER, peer_validation);
     http_set_curlopt(curl, CURLOPT_FAILONERROR, 1L);

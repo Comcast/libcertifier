@@ -56,7 +56,7 @@ CertifierPropMap * _certifier_get_properties(Certifier * certifier);
 /**
  * Set the x509 certificate
  * @param certifier
- * @param der_cert
+ * @param der_cert - address of x509 certificate (will be freed)
  * @note for unit testing only!
  */
 void _certifier_set_x509_cert(Certifier * certifier, const X509_CERT * cert);

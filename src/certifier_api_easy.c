@@ -882,6 +882,9 @@ static int process_command_line(CERTIFIER * easy)
         case 'w':
             return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PASSWORD, optarg);
             break;
+        case 'Q':
+            return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_MTLS_P12_PASSWORD, optarg);
+            break;
         case 'L':
             return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_CFG_FILENAME, optarg);
             break;
@@ -925,6 +928,14 @@ static int process_command_line(CERTIFIER * easy)
                 break;
             }
             return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_OUTPUT_P12_PATH, optarg);
+
+            break;
+        case 'q':
+            if (optarg == NULL)
+            {
+                break;
+            }
+            return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_MTLS_P12_PATH, optarg);
 
             break;
         case 'P':
