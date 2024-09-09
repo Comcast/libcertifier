@@ -45,7 +45,7 @@ static CERTIFIER_LOG_callback logger;
 
 typedef struct Map
 {
-    char node_address[VERY_SMALL_STRING_SIZE];
+    char node_address[SMALL_STRING_SIZE];
     char * base64_public_key;
     unsigned char * der_public_key;
     int der_public_key_len;
@@ -1409,7 +1409,7 @@ CertifierPropMap * certifier_easy_api_get_props(Certifier * certifier)
 
 void certifier_easy_api_get_node_address(Certifier * certifier, char * node_address)
 {
-    memcpy(node_address, certifier->tmp_map.node_address, VERY_SMALL_STRING_SIZE);
+    memcpy(node_address, certifier->tmp_map.node_address, SMALL_STRING_SIZE);
 }
 
 char * certifier_create_csr_post_data(CertifierPropMap * props, const unsigned char * csr, const char * node_address,
