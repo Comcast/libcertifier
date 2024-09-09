@@ -1434,7 +1434,7 @@ char * certifier_create_csr_post_data(CertifierPropMap * props, const unsigned c
     const char * authenticated_tag_1 = property_get(props, CERTIFIER_OPT_AUTH_TAG_1);
     size_t num_days                  = (size_t) property_get(props, CERTIFIER_OPT_VALIDITY_DAYS);
     bool is_certificate_lite         = property_is_option_set(props, CERTIFIER_OPTION_CERTIFICATE_LITE);
-    bool use_scopes                  = property_is_option_set(props, CERTIFIER_OPT_USE_SCOPES);
+    bool use_scopes                  = property_is_option_set(props, CERTIFIER_OPTION_USE_SCOPES);
 
     json_object_set_string(root_object, "csr", (const char *) csr);
 
