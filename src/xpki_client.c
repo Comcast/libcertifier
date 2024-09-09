@@ -344,7 +344,7 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     if (params->product_id != 0)
     {
         char product_id[sizeof(uint16_t) * 2 + 1] = { 0 };
-        snprintf(product_id, sizeof(product_id), "%" PRIx16, params->product_id);
+        snprintf(product_id, sizeof(product_id), "%04" PRIx16, params->product_id);
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_PRODUCT_ID, (void *) product_id));
     }
     if (params->fabric_id != 0)
