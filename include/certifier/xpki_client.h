@@ -142,6 +142,7 @@ typedef struct
     uint32_t case_auth_tag;
     // optional parameters below
     bool static_certifier;
+    bool use_scopes;
     const char * mac_address;
     const char * serial_number;
     const char * dns_san;

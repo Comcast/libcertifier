@@ -182,6 +182,11 @@ typedef enum CERTIFIER_OPT
     CERTIFIER_OPT_AUTORENEW_CERTS_PATH_LIST,
 
     /**
+     * @note value type: bool
+     */
+    CERTIFIER_OPT_USE_SCOPES,
+
+    /**
      * @brief if non NULL, an allocated X509_CERT certificate will be
      * placed here
      *
@@ -207,6 +212,7 @@ typedef enum
     CERTIFIER_OPTION_FORCE_REGISTRATION  = 4,
     CERTIFIER_OPTION_MEASURE_PERFORMANCE = 8,
     CERTIFIER_OPTION_CERTIFICATE_LITE    = 16,
+    CERTIFIER_OPTION_USE_SCOPES          = 32,
     // 32, 64, 128, 256, 512, 1024 are unused
 } CERTIFIER_OPT_OPTION;
 

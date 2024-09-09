@@ -1434,6 +1434,7 @@ char * certifier_create_csr_post_data(CertifierPropMap * props, const unsigned c
     const char * authenticated_tag_1 = property_get(props, CERTIFIER_OPT_AUTH_TAG_1);
     size_t num_days                  = (size_t) property_get(props, CERTIFIER_OPT_VALIDITY_DAYS);
     bool is_certificate_lite         = property_is_option_set(props, CERTIFIER_OPTION_CERTIFICATE_LITE);
+    bool use_scopes                  = property_get(props, CERTIFIER_OPT_USE_SCOPES);
 
     json_object_set_string(root_object, "csr", (const char *) csr);
 
@@ -1518,6 +1519,12 @@ char * certifier_create_csr_post_data(CertifierPropMap * props, const unsigned c
     {
         log_debug("CertificateLite=1");
         json_object_set_string(root_object, "certificateLite", "true");
+    }
+
+    if (use_scopes)
+    {
+        log_debug("UseScopes=1");
+        json_object_set_bool(root_object, "useScopes", true);
     }
 
     serialized_string = json_serialize_to_string_pretty(root_value);
