@@ -1025,6 +1025,7 @@ int property_set_defaults_from_cfg_file(CertifierPropMap * propMap)
     int validity_days;
     const char * source = NULL;
     int certificate_lite_value;
+    int certificate_scopes_value;
     const char * cn_prefix                       = NULL;
     const char * ext_key_usage_value             = NULL;
     const char * autorenew_certs_path_list_value = NULL;
