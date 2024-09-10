@@ -533,6 +533,14 @@ int property_set(CertifierPropMap * prop_map, CERTIFIER_OPT name, const void * v
         break;
     }
 
+    case CERTIFIER_OPT_USE_SCOPES: {
+        unsigned int bit = name - CERTIFIER_OPT_BOOL_FIRST;
+
+        CERTIFIER_OPT_OPTION option = 1U << bit;
+        property_set_option(prop_map, option, value != 0);
+        break;
+    }
+
     default:
         /* some unknown property type */
         log_warn("property_set: unrecognized property [%d]", name);
@@ -748,6 +756,14 @@ void * property_get(CertifierPropMap * prop_map, CERTIFIER_OPT name)
     case CERTIFIER_OPT_FORCE_REGISTRATION:
     case CERTIFIER_OPT_MEASURE_PERFORMANCE:
     case CERTIFIER_OPT_CERTIFICATE_LITE: {
+        unsigned int bit = name - CERTIFIER_OPT_BOOL_FIRST;
+
+        CERTIFIER_OPT_OPTION option = 1U << bit;
+        retval                      = (void *) property_is_option_set(prop_map, option);
+        break;
+    }
+
+    case CERTIFIER_OPT_USE_SCOPES: {
         unsigned int bit = name - CERTIFIER_OPT_BOOL_FIRST;
 
         CERTIFIER_OPT_OPTION option = 1U << bit;
@@ -1009,6 +1025,7 @@ int property_set_defaults_from_cfg_file(CertifierPropMap * propMap)
     int validity_days;
     const char * source = NULL;
     int certificate_lite_value;
+    int certificate_scopes_value;
     const char * cn_prefix                       = NULL;
     const char * ext_key_usage_value             = NULL;
     const char * autorenew_certs_path_list_value = NULL;
@@ -1223,6 +1240,13 @@ int property_set_defaults_from_cfg_file(CertifierPropMap * propMap)
         log_info("Loaded certificate.lite: %i from cfg file.", certificate_lite_value);
         print_warning("certificate.lite");
         propMap->options |= (CERTIFIER_OPTION_CERTIFICATE_LITE);
+    }
+    certificate_scopes_value = json_object_get_number(json_object(json), "libcertifier.certificate.scopes");
+    if (certificate_scopes_value == 1)
+    {
+        log_info("Loaded certificate.scopes: %i from cfg file.", certificate_scopes_value);
+        print_warning("certificate.scopes");
+        propMap->options |= (CERTIFIER_OPTION_USE_SCOPES);
     }
     cn_prefix = json_object_get_string(json_object(json), "libcertifier.cn.name");
     if (cn_prefix != NULL)

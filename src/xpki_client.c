@@ -177,6 +177,9 @@ XPKI_CLIENT_ERROR_CODE xc_get_default_cert_param(get_cert_param_t * params)
     param        = certifier_get_property(certifier, CERTIFIER_OPT_CERTIFICATE_LITE);
     params->lite = (bool) param; // bool value
 
+    param              = certifier_get_property(certifier, CERTIFIER_OPT_USE_SCOPES);
+    params->use_scopes = (bool) param;
+
     param               = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
     params->common_name = param ? (const char *) param : NULL;
 
@@ -329,6 +332,8 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     ReturnErrorOnFailure(
         certifier_set_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS, (const void *) (size_t) params->validity_days));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFICATE_LITE, (void *) params->lite));
+
+    ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_USE_SCOPES, (void *) params->use_scopes));
 
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_PROFILE_NAME, params->profile_name));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_AUTH_TYPE, xpki_auth_type_to_string(params->auth_type)));

@@ -17,6 +17,7 @@
   "libcertifier.measure.performance": 0,
   "libcertifier.source.id": "libcertifier-opensource",
   "libcertifier.certificate.lite": 1,
+  "libcertifier.certificate.scopes": 0,
   "libcertifier.system.id":"BBBBBBBBBBBBBBBB",
   "libcertifier.fabric.id":"DDDDDDDDDDDDDDDD",
   "libcertifier.product.id":"1101",
