@@ -148,6 +148,11 @@ typedef enum CERTIFIER_OPT
     CERTIFIER_OPT_CERTIFICATE_LITE,
 
     /**
+     * @note value type: bool
+     */
+    CERTIFIER_OPT_USE_SCOPES,
+
+    /**
      * @note value type: string
      */
 
@@ -180,11 +185,6 @@ typedef enum CERTIFIER_OPT
      * @note value type: string
      */
     CERTIFIER_OPT_AUTORENEW_CERTS_PATH_LIST,
-
-    /**
-     * @note value type: bool
-     */
-    CERTIFIER_OPT_USE_SCOPES,
 
     /**
      * @brief if non NULL, an allocated X509_CERT certificate will be
