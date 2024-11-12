@@ -105,12 +105,9 @@ static void  test_get_seed_cert_auth_token()
 
     params.auth_type           = XPKI_AUTH_SAT;
     params.auth_token          = token;
-    params.fabric_id           = 0xABCDABCDABCDABCD;
-    params.node_id             = 0x1234123412341234;
     params.output_p12_password = "newpass";
     params.output_p12_path     = "output-xc-auth-token-test-seed-cert-renewable.p12";
     params.overwrite_p12       = true;
-    params.product_id          = 0xABCD;
     params.profile_name        = "Xfinity_Subscriber_Issuing_ECC_ICA";
     params.validity_days       = 90;
     params.lite                = false;
