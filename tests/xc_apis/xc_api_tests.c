@@ -96,6 +96,30 @@ static void test_get_cert_auth_token()
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
 }
 
+static void  test_get_seed_cert_auth_token()
+{
+    XPKI_CLIENT_ERROR_CODE error;
+    get_cert_param_t params = { 0 };
+
+    xc_get_default_cert_param(&params);
+
+    params.auth_type           = XPKI_AUTH_SAT;
+    params.auth_token          = token;
+    params.output_p12_password = "newpass";
+    params.output_p12_path     = "output-xc-auth-token-test-seed-cert-renewable.p12";
+    params.overwrite_p12       = true;
+    params.profile_name        = "Xfinity_Subscriber_Issuing_ECC_ICA";
+    params.validity_days       = 90;
+    params.lite                = false;
+    params.use_scopes          = true;
+    params.common_name         = "X9c0XXBqIosRCg35keK8XsWC2PAdjQrG";
+    params.source_id           = "libcertifier-opensource";
+    params.mac_address         = "00:B0:D0:63:C2:26";
+
+    error = xc_get_cert(&params);
+    TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
+}
+
 static void test_get_cert_status()
 {
     XPKI_CLIENT_ERROR_CODE error;
@@ -223,6 +247,7 @@ int main(int argc, char ** argv)
     {
         token = argv[1];
         RUN_TEST(test_get_cert_auth_token);
+        RUN_TEST(test_get_seed_cert_auth_token);
         RUN_TEST(test_renew_cert_auth_token);
     }
     RUN_TEST(test_get_cert_status);
