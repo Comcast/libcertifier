@@ -400,7 +400,9 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     if (params->crt == NULL)
     {
         ReturnErrorOnFailure(xc_create_crt(params->auth_type));
-    } // TODO: else
+    } else {
+        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CRT, params->crt));
+    } 
     if (params->static_certifier == true)
     {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
