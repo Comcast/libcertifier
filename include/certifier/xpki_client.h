@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-#define CERTIFIER_STATIC_URL "https://cert-static.xpki.io/v1/certifier"
+#define CERTIFIER_STATIC_URL "https://certifier-p01.xpki.io/v1/certifier"
 #define DEFAULT_CERTIFIER_URL "https://certifier.xpki.io/v1/certifier"
 
 typedef enum
