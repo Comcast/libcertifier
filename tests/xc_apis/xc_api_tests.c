@@ -18,7 +18,7 @@
 
 #include <certifier/certifier.h>
 #include <certifier/xpki_client.h>
-
+#include <certifier/sectigo_client.h>
 #include <unity.h>
 
 static const char * token = NULL;
@@ -237,7 +237,36 @@ static void test_get_cert_validity()
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_CERT_ABOUT_TO_EXPIRE, status);
 }
+static void test_get_sectigo_cert()
+{
+    SECTIGO_CLIENT_ERROR_CODE error;
+    get_cert_sectigo_param_t params = { 0 };
 
+    // Fill parameters (simulate config or CLI)
+    params.sectigo_auth_token           = "eyJraWQiOiJlZGY1MDliZi1lNDM3LTQyNjctYjA5YS05ZGMxOTNiZTc0MDkiLCJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ4MTp0ZWNobmljb2xvcl9jbGllbnQ6ZTVkZGQyIiwibmJmIjoxNzUzNTgzMTM0LCJjYXBhYmlsaXRpZXMiOlsieDE6Y2VydGlmaWVyOng1MDk6cHJvZmlsZTp4ZmluaXR5X3N1YnNjcmliZXJfaXNzdWluZ19lY2NfaWNhIiwieDE6Y2VydGlmaWVyOng1MDk6cmVuZXciLCJ4MTpjZXJ0aWZpZXI6eDUwOTpyZXEiLCJ4MTpjZXJ0aWZpZXI6eDUwOTpyZXZva2UiLCJ4MTpjZXJ0aWZpZXI6eDUwOTpzZWVkIiwieDE6eHBraTpzZWN0aWdvOmNyZWF0ZSIsIngxOnhwa2k6c2VjdGlnbzpmZXRjaCIsIngxOnhwa2k6c2VjdGlnbzpyZXZva2UiXSwiaXNzIjoic2F0cy1wcm9kdWN0aW9uIiwiYWxsb3dlZFJlc291cmNlcyI6eyJhbGxvd2VkUGFydG5lcnMiOlsiY29tY2FzdCJdfSwiZXhwIjoxNzUzNjY5NTM3LCJpYXQiOjE3NTM1ODMxMzQsInZlcnNpb24iOiIyLjAiLCJqdGkiOiIwMTk4NDliMy0zMGIzLTcyZmEtODE5NS00MzgxZTkxNmZlZmMifQ.u5Rv58qJy26284A2aqhXOyIbS0XM_pH9HyIYnCMZA41V7SangpsJM4N8efq5AOJ-e2w4HkIv4Qrc8p5sYSWVJl33dHEcA8Qe0gbtA7iu6ZhQZQ1cKnKVjlSCsYU-oWs8QvhSACUWeyfGJs8HtuGPEDD8mLKFnkMh06peXyAvsn_rYeFwD7NzedPhlOnhs5XtC_HX5-9h42nYAFpVICA4eVcojiSVYdvj9W0E2BIXItQ1qqe7Q8b9vea7YEMbCXsI1grdwVGX4y2AsijNek51_tZAmpUJgOWiLkty4CwHxrWcR50OuS4S7Nd_B9cdwiVtCfFBdvcmc_QsvrG2nrPV7w";
+    params.sectigo_common_name          = "sectigotest.comcast.com";
+    params.sectigo_group_name           = "[CHQ -- IoT Security]";
+    params.sectigo_group_email          = "iot_security@comcast.com";
+    params.sectigo_id                   = "pchamk499";
+    params.sectigo_owner_fname          = "Preetam";
+    params.sectigo_owner_lname          = "Chamkura";
+    params.sectigo_employee_type        = "associate";
+    params.sectigo_server_platform      = "other";
+    params.sectigo_sensitive            = "false";
+    params.sectigo_project_name         = "Testing create with SAT";
+    params.sectigo_business_justification = "Testing create with SAT";
+    params.sectigo_subject_alt_names    = "*";
+    params.sectigo_ip_addresses         = "*";
+    params.sectigo_cert_type            = "comodo";
+    params.sectigo_owner_phonenum       = "2670000000";
+    params.sectigo_owner_email          = "preetam_chamkura@comcast.com";
+    params.sectigo_url                  = "https://certs-dev.xpki.io/api/createCertificate";
+
+    // Call the API
+    error = xc_sectigo_get_cert(&params);
+
+    TEST_ASSERT_EQUAL_INT(SECTIGO_CLIENT_SUCCESS, error);
+}
 int main(int argc, char ** argv)
 {
     UNITY_BEGIN();
@@ -254,6 +283,7 @@ int main(int argc, char ** argv)
     RUN_TEST(test_renew_cert);
     RUN_TEST(test_print_cert_validity);
     RUN_TEST(test_get_cert_validity);
+    RUN_TEST(test_get_sectigo_cert);
 
     return UNITY_END();
 }
