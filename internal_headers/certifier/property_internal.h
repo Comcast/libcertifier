@@ -49,6 +49,8 @@ typedef struct _PropMap CertifierPropMap;
  */
 CertifierPropMap * property_new(void);
 
+CertifierPropMap * property_new_sectigo(void);
+
 CertifierPropMap * property_ext(void);
 
 int property_destroy(CertifierPropMap * prop_map);
@@ -76,11 +78,15 @@ int property_set_ext(CertifierPropMap * prop_map);
 
 int property_set(CertifierPropMap * prop_map, CERTIFIER_OPT name, const void * value);
 
+int sectigo_property_set(CertifierPropMap * prop_map, int name, const void * value);
+
 int property_set_int(CertifierPropMap * prop_map, CERTIFIER_OPT name, int value);
 
 void * property_get(CertifierPropMap * prop_map, CERTIFIER_OPT name);
 
 int property_set_defaults_from_cfg_file(CertifierPropMap * propMap);
+
+int property_set_sectigo_defaults_from_cfg_file(CertifierPropMap * propMap);
 
 const char * get_default_cfg_filename();
 

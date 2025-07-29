@@ -1,8 +1,8 @@
 {
   "libcertifier.certifier.url": "https://certifier.xpki.io/v1/certifier",
-  "libcertifier.profile.name": "XFN_Matter_OP_Class_3_ICA",
+  "libcertifier.profile.name": "Xfinity_Default_Issuing_ECC_ICA",
   "libcertifier.validity.days": 365,
-  "libcertifier.auth.type": "X509",
+  "libcertifier.auth.type": "x509",
   "libcertifier.ecc.curve.id": "prime256v1",
   "libcertifier.http.connect.timeout": 20,
   "libcertifier.http.timeout": 20,
@@ -23,5 +23,27 @@
   "libcertifier.product.id":"1101",
   "libcertifier.cn.name":"AAAAAAAA",
   "libcertifier.node.id":"CCCCCCCCCCCCCCCC",
-  "libcertifier.ext.key.usage":"critical,clientAuth,serverAuth"
+  "libcertifier.ext.key.usage":"critical,clientAuth,serverAuth",
+
+  "libcertifier.sectigo.certifier.url": "https://certs.xpki.io/api/createCertificate",
+  "libcertifier.sectigo.auth.token": "",
+  "libcertifier.sectigo.common.name": "example.com",
+  "libcertifier.sectigo.group.name": "Example Group",
+  "libcertifier.sectigo.group.email": "group@example.com",
+  "libcertifier.sectigo.id": "user123",
+  "libcertifier.sectigo.owner.fname": "First",
+  "libcertifier.sectigo.owner.lname": "Last",
+  "libcertifier.sectigo.employee.type": "associate",
+  "libcertifier.sectigo.server.platform": "Other",
+  "libcertifier.sectigo.sensitive": false,
+  "libcertifier.sectigo.project.name": "ExampleProject",
+  "libcertifier.sectigo.business.justification": "Testing",
+  "libcertifier.sectigo.subject.alt.names": [],
+  "libcertifier.sectigo.ip.addresses": [],
+  "libcertifier.sectigo.cert.type": "comodo",
+  "libcertifier.sectigo.owner.phonenum": "1234567890",
+  "libcertifier.sectigo.owner.email": "owner@example.com",
+  "libcertifier.sectigo.tracking.id": "1234",
+  "libcertifier.sectigo.source": "libcertifier"
+
 }

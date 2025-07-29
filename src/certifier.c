@@ -31,6 +31,16 @@
 #include "certifier/timer.h"
 #include "curl/curl.h"
 
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+#include <openssl/pem.h>
+#include <openssl/evp.h>
+#include <openssl/bio.h>
+#include <openssl/buffer.h>
+#include "certifier/log.h"
+#include "certifier/error.h"
+#include "certifier/property.h"
+
 #ifndef CERTIFIER_VERSION
 #define CERTIFIER_VERSION "0.1-071320 (opensource)"
 #endif
@@ -43,22 +53,8 @@
 
 static CERTIFIER_LOG_callback logger;
 
-typedef struct Map
-{
-    char node_address[SMALL_STRING_SIZE];
-    char * base64_public_key;
-    unsigned char * der_public_key;
-    int der_public_key_len;
-    ECC_KEY * private_ec_key;
-    X509_CERT * x509_cert;
-} Map;
 
-struct Certifier
-{
-    CertifierPropMap * prop_map;
-    Map tmp_map;
-    CertifierError last_error;
-};
+
 
 static inline void free_tmp(Certifier * certifier);
 
@@ -1014,50 +1010,51 @@ int certifier_set_property(Certifier * certifier, int name, const void * value)
     int return_code        = 0;
     const void * origValue = property_get(certifier->prop_map, name);
 
-    return_code = property_set(certifier->prop_map, name, value);
+    if (certifier->sectigo_mode) {
+        // Only set Sectigo properties for Sectigo flows
+        return_code = sectigo_property_set(certifier->prop_map, name, value);
+    } else {
+        // Only set XPKI properties for XPKI flows
+        return_code = property_set(certifier->prop_map, name, value);
+    }
     if (return_code != 0)
     {
         return CERTIFIER_ERR_PROPERTY_SET + return_code;
     }
 
-    switch (name)
-    {
+   switch (name)
+{
     case CERTIFIER_OPT_CFG_FILENAME: {
-        log_info("Configuration file changed; loading settings");
+    log_info("Configuration file changed; loading settings");
 
-        /* Blow away all settings and reload from config to avoid mixed configs */
-        CertifierPropMap * orig = certifier->prop_map;
-        certifier->prop_map     = property_new();
-        if (certifier->prop_map == NULL)
-        {
-            log_error("Could not allocate enough memory to construct certifier->prop_map");
-            return CERTIFIER_ERR_PROPERTY_SET_MEMORY;
-        }
-        property_set(certifier->prop_map, name, value);
+    CertifierPropMap *orig = certifier->prop_map;
+    int loader_result = 0;
 
-        if (value != NULL)
-        {
-            return_code = certifier_load_cfg_file(certifier);
+    if (value != NULL) {
+        if (certifier->sectigo_mode) {
+            
+            loader_result = sectigo_load_cfg_file(certifier);
+            if (loader_result != 0) {
+                log_warn("Failed to load Sectigo configuration!");
+                return CERTIFIER_ERR_PROPERTY_SET + loader_result;
+            }
+        } else {
+            loader_result = certifier_load_cfg_file(certifier);
+            if (loader_result == 0) {
+                
+                property_destroy(orig);
+                
+            } else {
+                property_destroy(certifier->prop_map);
+                certifier->prop_map = orig;
+                loader_result = property_set(certifier->prop_map, name, property_get(orig, name));
+                log_warn("Failed to load configuration (configuration unmodified)!");
+                return CERTIFIER_ERR_PROPERTY_SET + loader_result;
+            }
         }
-        else
-        {
-            return_code = 0;
-        }
-
-        if (return_code == 0)
-        {
-            property_destroy(orig);
-        }
-        else
-        {
-            property_destroy(certifier->prop_map);
-            certifier->prop_map = orig;
-            return_code         = property_set(certifier->prop_map, name, origValue);
-            log_warn("Failed to load configuration (configuration unmodified)!");
-        }
-
-        break;
     }
+    break;
+}
 
     case CERTIFIER_OPT_LOG_FUNCTION:
         certifier_set_log_callback(certifier, value);
@@ -1106,6 +1103,23 @@ int certifier_load_cfg_file(Certifier * certifier)
     int return_code = 0;
 
     return_code = property_set_defaults_from_cfg_file(certifier->prop_map);
+
+    if (return_code != 0)
+    {
+        return_code = CERTIFIER_ERR_PROPERTY_SET + return_code;
+    }
+
+    return return_code;
+}
+
+int sectigo_load_cfg_file(Certifier * certifier)
+{
+    NULL_CHECK(certifier);
+
+    int return_code = 0;
+
+    // Only set Sectigo keys from config
+    return_code = property_set_sectigo_defaults_from_cfg_file(certifier->prop_map);
 
     if (return_code != 0)
     {
@@ -1540,4 +1554,73 @@ char * certifier_create_csr_post_data(CertifierPropMap * props, const unsigned c
     XFREE(serialized_string);
 
     return json_csr;
+}
+
+CertifierError sectigo_generate_certificate_signing_request(Certifier *certifier, char **out_csr_pem) {
+    CertifierError rc = CERTIFIER_ERROR_INITIALIZER;
+    EVP_PKEY *pkey = NULL;
+    X509_REQ *req = NULL;
+    X509_NAME *name = NULL;
+    BIO *bio = NULL;
+    BUF_MEM *bptr = NULL;
+    char *common_name = (char *)certifier_get_property(certifier, CERTIFIER_OPT_SECTIGO_COMMON_NAME);
+
+    if (!common_name) {
+        set_last_error(certifier, 14, "Common Name not set");
+        rc.application_error_code = 14;
+        rc.application_error_msg = "Common Name not set";
+        return rc;
+    }
+
+    
+    pkey = EVP_PKEY_new();
+    RSA *rsa = RSA_new();
+    BIGNUM *bn = BN_new();
+    BN_set_word(bn, RSA_F4);
+
+    RSA_generate_key_ex(rsa, 2048, bn, NULL);
+    EVP_PKEY_assign_RSA(pkey, rsa);
+    BN_free(bn);
+
+    
+    req = X509_REQ_new();
+    X509_REQ_set_pubkey(req, pkey);
+
+    name = X509_NAME_new();
+    X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (unsigned char*)common_name, -1, -1, 0);
+    X509_REQ_set_subject_name(req, name);
+
+    if (!X509_REQ_sign(req, pkey, EVP_sha256())) {
+        set_last_error(certifier, 15, "Error signing CSR");
+        rc.application_error_code = 15;
+        rc.application_error_msg = "Error signing CSR";
+        goto cleanup;
+    }
+
+    //CSR to PEM
+    bio = BIO_new(BIO_s_mem());
+    PEM_write_bio_X509_REQ(bio, req);
+    BIO_get_mem_ptr(bio, &bptr);
+
+    *out_csr_pem = (char *)malloc(bptr->length + 1);
+    memcpy(*out_csr_pem, bptr->data, bptr->length);
+    (*out_csr_pem)[bptr->length] = '\0';
+
+    rc.application_error_code = 0;
+    rc.application_error_msg = NULL;
+
+cleanup:
+    if (bio) BIO_free(bio);
+    if (req) X509_REQ_free(req);
+    if (name) X509_NAME_free(name);
+    if (pkey) EVP_PKEY_free(pkey);
+    return rc;
+}
+
+CertifierPropMap * certifier_get_prop_map(Certifier * certifier)
+{
+    if (certifier == NULL) {
+        return NULL;
+    }
+    return certifier->prop_map;
 }
