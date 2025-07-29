@@ -26,6 +26,7 @@
 #include "certifier/security.h"
 #include "certifier/types.h"
 #include "certifier/util.h"
+#include "certifier/sectigo_client.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -56,6 +57,7 @@
 #define GET_CERT_SHORT_OPTIONS "fT:P:o:i:n:F:a:w:"
 #define VALIDITY_DAYS_SHORT_OPTION "t:"
 #define CA_PATH_SHORT_OPTION "c:"
+#define SECTIGO_GET_CERT_SHORT_OPTIONS "C:I:e:s:N:r:b:A:x:K:u:G:E:O:J:Z:U:T:l:W:"
 
 #define BASE_LONG_OPTIONS                                                                                                          \
     { "help", no_argument, NULL, 'h' }, { "input-p12-path", required_argument, NULL, 'k' },                                        \
@@ -90,6 +92,31 @@
         "ca-path", required_argument, NULL, 'c'                                                                                    \
     }
 
+#define SECTIGO_GET_CERT_LONG_OPTIONS                                                                                              \
+    { "common-name", required_argument, NULL, 'C' }, \
+    { "id", required_argument, NULL, 'I' }, \
+    { "employee-type", required_argument, NULL, 'e' }, \
+    { "server-platform", required_argument, NULL, 's' }, \
+    { "sensitive", no_argument, NULL, 'N' }, \
+    { "project-name", required_argument, NULL, 'r' }, \
+    { "business-justification", required_argument, NULL, 'b' }, \
+    { "subject-alt-names", required_argument, NULL, 'A' }, \
+    { "ip-addresses", required_argument, NULL, 'x' }, \
+    {"url", required_argument, NULL, 'u'}, \
+    { "auth-token", required_argument, NULL, 'K' }, \
+    { "group-name", required_argument, NULL, 'G' }, \
+    { "group-email", required_argument, NULL, 'E' }, \
+    { "owner-fname", required_argument, NULL, 'O' }, \
+    { "owner-lname", required_argument, NULL, 'J' }, \
+    { "owner-email", required_argument, NULL, 'Z' }, \
+    { "owner-phonenum", required_argument, NULL, 'U' }, \
+    { "cert-type", required_argument, NULL, 'T' }, \
+    { "config", required_argument, NULL, 'l' }, \
+    { "tracking-id", required_argument, NULL, 'W' }, \
+    { NULL, 0, NULL, 0 }
+    //make default arg '*' for san and ip 
+    //only take in choices=['fte', 'contractor', 'associate']
+    
 static void finish_operation(CERTIFIER * easy, int return_code, const char * operation_output);
 
 // Private data
@@ -304,6 +331,7 @@ CERTIFIER_MODE certifier_api_easy_get_mode(CERTIFIER * easy)
         { "renew-cert", CERTIFIER_MODE_RENEW_CERT },
         { "print-cert", CERTIFIER_MODE_PRINT_CERT },
         { "revoke", CERTIFIER_MODE_REVOKE_CERT },
+        { "sectigo-get-cert", CERTIFIER_MODE_SECTIGO_GET_CERT}
     };
 
     for (int i = 0; i < sizeof(command_map) / sizeof(command_map_t); ++i)
@@ -739,6 +767,61 @@ cleanup:
     return return_code;
 }
 
+static int do_sectigo_get_cert(CERTIFIER * easy)
+{
+    int return_code = 0;
+    char * csr_pem = NULL;
+    char * cert = NULL;
+
+    // Check for required Sectigo properties
+    const char *common_name = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_COMMON_NAME);
+    const char *employee_type = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_EMPLOYEE_TYPE);
+    const char *server_platform = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_SERVER_PLATFORM);
+    const char *project_name = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_PROJECT_NAME);
+    const char *business_justification = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_BUSINESS_JUSTIFICATION);
+
+    if (util_is_empty(common_name) || util_is_empty(employee_type) ||
+        util_is_empty(server_platform) || util_is_empty(project_name) ||
+        util_is_empty(business_justification)) {
+        finish_operation(easy, CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1,
+            "Missing required Sectigo flags (common-name, employee-type, server-platform, project-name, business-justification)");
+        return CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
+    }
+
+
+    return_code = certifier_setup_keys(easy->certifier);
+    if (return_code != 0) {
+        finish_operation(easy, return_code, NULL);
+        return return_code;
+    }
+
+    //Generate CSR 
+    CertifierError rc = sectigo_generate_certificate_signing_request(easy->certifier, &csr_pem);
+    if (rc.application_error_code != 0 || csr_pem == NULL) {
+        finish_operation(easy, rc.application_error_code, NULL);
+        return rc.application_error_code;
+    }
+    
+    // Call Sectigo client to request certificate
+    CertifierPropMap * props = certifier_easy_api_get_props(easy->certifier);
+    rc = sectigo_client_request_certificate(props, (unsigned char *)csr_pem, certifier_get_node_address(easy->certifier), NULL, &cert);
+
+    
+    XFREE(csr_pem);
+
+    //Handle result
+    if (rc.application_error_code == 0 && cert != NULL) {
+        finish_operation(easy, 0, cert);
+        XFREE(cert);
+        return 0;
+    } else {
+        finish_operation(easy, rc.application_error_code, rc.application_error_msg);
+        if (cert) XFREE(cert);
+        return rc.application_error_code;
+    }
+}
+
+
 char * certifier_api_easy_get_version(CERTIFIER * easy)
 {
     if (easy == NULL)
@@ -777,7 +860,8 @@ int certifier_api_easy_print_helper(CERTIFIER * easy)
                  "get-cert-status\n"
                  "renew-cert\n"
                  "print-cert\n"
-                 "revoke\n");
+                 "revoke\n"
+                 "get-sectigo-cert");
     }
 
     return 0;
@@ -826,7 +910,8 @@ static int process_command_line(CERTIFIER * easy)
     static const char * const get_cert_status_short_options = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
     static const char * const renew_cert_short_options      = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
     static const char * const print_cert_short_options      = BASE_SHORT_OPTIONS;
-    static const char * const revoke_cert_short_options     = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
+    static const char * const revoke_cert_short_options     = BASE_SHORT_OPTIONS;
+    static const char * const sectigo_get_cert_short_options      = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
 
     static const struct option get_cert_long_opts[]      = { BASE_LONG_OPTIONS,     GET_CRT_TOKEN_LONG_OPTIONS,
                                                              GET_CERT_LONG_OPTIONS, VALIDITY_DAYS_LONG_OPTION,
@@ -836,6 +921,7 @@ static int process_command_line(CERTIFIER * easy)
     static const struct option renew_cert_long_opts[]      = { BASE_LONG_OPTIONS, CA_PATH_LONG_OPTION, { NULL, 0, NULL, 0 } };
     static const struct option print_cert_long_opts[]      = { BASE_LONG_OPTIONS, { NULL, 0, NULL, 0 } };
     static const struct option revoke_cert_long_opts[]     = { BASE_LONG_OPTIONS, CA_PATH_LONG_OPTION, { NULL, 0, NULL, 0 } };
+    static const struct option sectigo_get_cert_long_opts[] = {BASE_LONG_OPTIONS, SECTIGO_GET_CERT_LONG_OPTIONS, {NULL, 0, NULL, 0}};
 
     static command_opt_lut_t command_opt_lut[] = {
         { CERTIFIER_MODE_REGISTER, get_cert_short_options, get_cert_long_opts },
@@ -844,6 +930,7 @@ static int process_command_line(CERTIFIER * easy)
         { CERTIFIER_MODE_RENEW_CERT, renew_cert_short_options, renew_cert_long_opts },
         { CERTIFIER_MODE_PRINT_CERT, print_cert_short_options, print_cert_long_opts },
         { CERTIFIER_MODE_REVOKE_CERT, revoke_cert_short_options, revoke_cert_long_opts },
+        {CERTIFIER_MODE_SECTIGO_GET_CERT, sectigo_get_cert_short_options, sectigo_get_cert_long_opts}
     };
 
     char * version_string = certifier_api_easy_get_version(easy);
@@ -1066,6 +1153,100 @@ static int process_command_line(CERTIFIER * easy)
             break;
         case 'v':
             return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_LOG_LEVEL, (void *) (size_t) 0);
+            break;
+        case 'C': // common-name
+        if (optarg) {
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_COMMON_NAME, optarg);
+        }
+            break;
+        case 'I': // id
+        if (optarg) {
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_ID, optarg);
+        }
+            break;
+        case 'e': // employee-type
+        if (optarg) {
+        // Validate allowed values: "fte", "contractor", "associate"
+        if (strcmp(optarg, "fte") && strcmp(optarg, "contractor") && strcmp(optarg, "associate")) {
+            log_error("Invalid employee-type: %s. Allowed: fte, contractor, associate.", optarg);
+            return_code = 1;
+            break;
+        }
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_EMPLOYEE_TYPE, optarg);
+        }
+            break;
+        case 's': // server-platform
+        if (optarg) {
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_SERVER_PLATFORM, optarg);
+        }
+            break;
+        case 'N': // sensitive
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_SENSITIVE, (void *)true);
+            break;
+        case 'r': // project-name
+        if (optarg) {
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_PROJECT_NAME, optarg);
+        }
+            break;
+        case 'b': // business-justification
+        if (optarg) {
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_BUSINESS_JUSTIFICATION, optarg);
+        }
+            break;
+        case 'A': // subject-alt-names
+        if (optarg) {
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_SUBJECT_ALT_NAMES, optarg);
+        }
+            break;
+        case 'x': // ip-addresses
+        if (optarg) {
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_IP_ADDRESSES, optarg);
+        }
+            break;
+        case 'K': // auth-token
+        if (optarg) {
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_AUTH_TOKEN, optarg);
+        }
+            break;
+        case 'u': // sectigo url
+        if (optarg) {
+        return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_CERTIFIER_URL, optarg);
+        }
+        case 'G': // group-name
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_GROUP_NAME, optarg);
+            }
+            break;
+        case 'E': // group-email
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_GROUP_EMAIL, optarg);
+            }
+            break;
+        case 'O': // owner-fname
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_OWNER_FNAME, optarg);
+            }
+            break;
+        case 'J': // owner-lname
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_OWNER_LNAME, optarg);
+            }
+            break;
+        case 'M': // owner-email
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_OWNER_EMAIL, optarg);
+            }
+            break;
+        case 'Z': // owner-phonenum
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_OWNER_PHONENUM, optarg);
+            }
+            break;
+        case 'U': // cert-type
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_CERT_TYPE, optarg);
+            }
+            break;
             break;
         case '?':
             /* Case when user enters the command as
@@ -1343,9 +1524,25 @@ int certifier_api_easy_perform(CERTIFIER * easy)
         break;
     }
 
+    //For SECTIGO MODE
+switch(easy -> mode){
+    case CERTIFIER_MODE_NONE:
+    break;
+
+    case CERTIFIER_MODE_SECTIGO_GET_CERT:
+        do_sectigo_get_cert(easy);
+        break;
+
+    default:
+        finish_operation(easy, -1, "Invalid mode");
+        break;
+}
+
 cleanup:
     return easy->last_info.error_code;
 }
+
+
 
 http_response * certifier_api_easy_http_post(const CERTIFIER * easy, const char * url, const char * http_headers[],
                                              const char * csr)
