@@ -139,6 +139,7 @@ const char * node_address, const char * certifier_id, char ** out_cert)
     JSON_Object * parsed_json_object_value       = NULL;
     JSON_Value * parsed_json_root_value          = NULL;
     char * serialized_string                     = NULL;
+    const char * certificate_chain               = NULL;
     http_response * resp                         = NULL;
     const char * tracking_id                     = property_get(props, CERTIFIER_OPT_SECTIGO_TRACKING_ID);
     const char * bearer_token                    = property_get(props, CERTIFIER_OPT_SECTIGO_AUTH_TOKEN);
