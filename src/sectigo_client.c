@@ -189,6 +189,7 @@ const char *headers[] = {
     "Accept: */*",
     "Connection: keep-alive",
     "cache-control: no-cache",
+    "Content-Type: application/json",
     source_header,
     tracking_header,
     "x-xpki-partner-id: comcast",
@@ -233,34 +234,21 @@ const char *headers[] = {
 
     json_object_set_string(root_obj, "certificateSigningRequest", serialized_string);
 
-    if (params.sectigo_common_name)
-        json_object_set_string(root_obj, "commonName", params.sectigo_common_name);
-    if (params.sectigo_group_name)
-        json_object_set_string(root_obj, "groupName", params.sectigo_group_name);
-    if (params.sectigo_group_email)
-        json_object_set_string(root_obj, "groupEmailAddress", params.sectigo_group_email);
-    if (params.sectigo_id)
-        json_object_set_string(root_obj, "id", params.sectigo_id);
-    if (params.sectigo_owner_fname)
-        json_object_set_string(root_obj, "ownerFirstName", params.sectigo_owner_fname);
-    if (params.sectigo_owner_lname)
-        json_object_set_string(root_obj, "ownerLastName", params.sectigo_owner_lname);
-    if (params.sectigo_employee_type)
-        json_object_set_string(root_obj, "employeeType", params.sectigo_employee_type);
-    if (params.sectigo_server_platform)
-        json_object_set_string(root_obj, "serverPlatform", params.sectigo_server_platform);
-    if (params.sectigo_project_name)
-        json_object_set_string(root_obj, "projectName", params.sectigo_project_name);
-    if (params.sectigo_business_justification)
-        json_object_set_string(root_obj, "businessJustification", params.sectigo_business_justification);
-    if (params.sectigo_cert_type)
-        json_object_set_string(root_obj, "certificateType", params.sectigo_cert_type);
-    if (params.sectigo_owner_phonenum)
-        json_object_set_string(root_obj, "ownerPhoneNumber", params.sectigo_owner_phonenum);
-    if (params.sectigo_owner_email)
-        json_object_set_string(root_obj, "ownerEmailAddress", params.sectigo_owner_email);
-    if(params.sectigo_sensitive)
-        json_object_set_value(root_obj, "sensitive", json_value_init_boolean(params.sectigo_sensitive));
+    json_object_set_string(root_obj, "commonName", params.sectigo_common_name ? params.sectigo_common_name : "");
+json_object_set_string(root_obj, "groupName", params.sectigo_group_name ? params.sectigo_group_name : "");
+json_object_set_string(root_obj, "groupEmailAddress", params.sectigo_group_email ? params.sectigo_group_email : "");
+json_object_set_string(root_obj, "id", params.sectigo_id ? params.sectigo_id : "");
+json_object_set_string(root_obj, "ownerFirstName", params.sectigo_owner_fname ? params.sectigo_owner_fname : "");
+json_object_set_string(root_obj, "ownerLastName", params.sectigo_owner_lname ? params.sectigo_owner_lname : "");
+json_object_set_string(root_obj, "employeeType", params.sectigo_employee_type ? params.sectigo_employee_type : "");
+json_object_set_string(root_obj, "serverPlatform", params.sectigo_server_platform ? params.sectigo_server_platform : "");
+json_object_set_string(root_obj, "projectName", params.sectigo_project_name ? params.sectigo_project_name : "");
+json_object_set_string(root_obj, "businessJustification", params.sectigo_business_justification ? params.sectigo_business_justification : "");
+json_object_set_string(root_obj, "certificateType", params.sectigo_cert_type ? params.sectigo_cert_type : "");
+json_object_set_string(root_obj, "ownerPhoneNumber", params.sectigo_owner_phonenum ? params.sectigo_owner_phonenum : "");
+json_object_set_string(root_obj, "ownerEmailAddress", params.sectigo_owner_email ? params.sectigo_owner_email : "");
+json_object_set_string(root_obj, "certifierUrl", params.sectigo_url ? params.sectigo_url : "");
+json_object_set_value(root_obj, "sensitive", json_value_init_boolean(params.sectigo_sensitive));
     // Always set subjectAltNames and ipAddresses, even if empty
 
 // subjectAltNames as array
@@ -316,8 +304,6 @@ json_object_set_value(root_obj, "ipAddresses", ip_array);
         goto cleanup;
     }
 
-    /* print result */
-    log_debug("CURL Returned: \n%s\n", resp->payload);
 
     parsed_json_root_value = json_parse_string_with_comments(resp->payload);
     if (json_value_get_type(parsed_json_root_value) != JSONObject)
@@ -338,19 +324,6 @@ json_object_set_value(root_obj, "ipAddresses", ip_array);
         goto cleanup;
     }
 
-    certificate_chain = json_object_get_string(parsed_json_object_value, "certificateChain");
-
-    if (certificate_chain == NULL)
-    {
-        rc.application_error_msg =
-            util_format_curl_error("sectigo_client_request_certificate", resp->http_code, resp->error,
-                                   "Could not parse JSON.  certificate_chain is NULL!", resp->payload, __FILE__, __LINE__);
-        goto cleanup;
-    }
-
-    log_debug("Certificate Chain=%s\n", certificate_chain);
-
-    *out_cert = XSTRDUP(certificate_chain);
 
 
 cleanup:
@@ -459,12 +432,7 @@ if (params->sectigo_url)
         &cert_output
     );
 
-    if (req_rc.application_error_code == 0 && cert_output != NULL) {
-        printf("%s\n", cert_output);
-        XFREE(cert_output);
-    } else {
-        log_error("Sectigo certificate request failed: %s", req_rc.application_error_msg);
-    }
+    
 
     // Cleanup
     if (csr_pem) XFREE(csr_pem);
