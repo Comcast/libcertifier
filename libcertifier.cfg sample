@@ -28,7 +28,7 @@
   "libcertifier.sectigo.certifier.url": "https://certs-dev.xpki.io/api/createCertificate",
   "libcertifier.sectigo.auth.token": "",
   "libcertifier.sectigo.common.name": "",
-  "libcertifier.sectigo.gn.name": "",
+  "libcertifier.sectigo.group.name": "",
   "libcertifier.sectigo.group.email": "",
   "libcertifier.sectigo.id": "",
   "libcertifier.sectigo.owner.fname": "",
