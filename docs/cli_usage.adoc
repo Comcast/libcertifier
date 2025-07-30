@@ -145,6 +145,12 @@ The certificate can be downloaded through the certificate ID returned as a resul
 
 | revoke
 | Revoke Certificate
+
+|sectigo-get-cert
+|Requests Certificate from Sectigo
+
+|sectigo-help
+|Provides information on implemented Sectigo commands
 |===
 
 == *certifierUtil get-cert options*
