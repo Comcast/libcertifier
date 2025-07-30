@@ -759,4 +759,89 @@ Note: 64-bit hex integer expected as input.
 | Mark request for a lite certificate. +
 Note: value type = `bool`
 
+| libcertifier.sectigo.certifier.url
+| "https://certs.xpki.io/api/createCertificate"
+| Sectigo API endpoint URL
+
+| libcertifier.sectigo.auth.token
+| ""
+| Sectigo API authentication token
+
+| libcertifier.sectigo.common.name
+| "example.com"
+| Certificate common name (CN)
+
+| libcertifier.sectigo.group.name
+| "Example Group"
+| Group name for the certificate request
+
+| libcertifier.sectigo.group.email
+| "group@example.com"
+| Group email for notifications
+
+| libcertifier.sectigo.id
+| "user123"
+| User or device ID
+
+| libcertifier.sectigo.owner.fname
+| "First"
+| Owner's first name
+
+| libcertifier.sectigo.owner.lname
+| "Last"
+| Owner's last name
+
+| libcertifier.sectigo.employee.type
+| "associate"
+| Employee type (e.g., associate, employee, contractor)
+
+| libcertifier.sectigo.server.platform
+| "Other"
+| Server platform name. +
+Note: Use any of the following options: Tomcat, Redhat Linux, Microsoft IIS 5.x and later, Apache/MODSSL, IBM HTTP server, Java Web Server (Javasoft/SUN), Oracle, SAP Web Application Server, Citrix, Other
+
+| libcertifier.sectigo.sensitive
+| false
+| Mark certificate as sensitive. +
+Note: value type = `bool`
+
+| libcertifier.sectigo.project.name
+| "ExampleProject"
+| Project name
+
+| libcertifier.sectigo.business.justification
+| "Testing"
+| Business justification for the request
+
+| libcertifier.sectigo.subject.alt.names
+| []
+| Subject alternative names. +
+Note: value type = `array of strings`
+
+| libcertifier.sectigo.ip.addresses
+| []
+| IP addresses. +
+Note: value type = `array of strings`
+
+| libcertifier.sectigo.cert.type
+| "comodo"
+| Certificate type. +
+Note: Always pass comodo for internet-facing apps
+
+| libcertifier.sectigo.owner.phonenum
+| "1234567890"
+| Owner's phone number
+
+| libcertifier.sectigo.owner.email
+| "owner@example.com"
+| Owner's email address
+
+| libcertifier.sectigo.tracking.id
+| "1234"
+| Tracking ID for the request
+
+| libcertifier.sectigo.source
+| "libcertifier"
+| Source identifier for the request
+
 |===
