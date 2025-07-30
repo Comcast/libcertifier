@@ -512,6 +512,139 @@ Disabled by default - Only error messages are shown.
 
 |===
 
+== *certifierUtil sectigo-get-cert options*
+
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+
+| common-name
+| C
+| --common-name <value> +
+-C <value>
+| Certificate common name
+
+| id
+| I
+| --id <value> +
+-I <value>
+| User or device ID
+
+| employee-type
+| e
+| --employee-type <value> +
+-e <value>
+| Employee type
+
+| server-platform
+| s
+| --server-platform <value> +
+-s <value>
+| Server platform
+
+| sensitive
+| N
+| --sensitive +
+-N
+| Mark as sensitive
+
+| project-name
+| r
+| --project-name <value> +
+-r <value>
+| Project name
+
+| business-justification
+| b
+| --business-justification <value> +
+-b <value>
+| Business justification
+
+| subject-alt-names
+| A
+| --subject-alt-names <value> +
+-A <value>
+| Subject alternative names (CSV)
+
+| ip-addresses
+| x
+| --ip-addresses <value> +
+-x <value>
+| IP addresses (CSV)
+
+| group-name
+| G
+| --group-name <value> +
+-G <value>
+| Group name
+
+| group-email
+| E
+| --group-email <value> +
+-E <value>
+| Group email
+
+| owner-fname
+| O
+| --owner-fname <value> +
+-O <value>
+| Owner first name
+
+| owner-lname
+| J
+| --owner-lname <value> +
+-J <value>
+| Owner last name
+
+| owner-email
+| Z
+| --owner-email <value> +
+-Z <value>
+| Owner email
+
+| owner-phonenum
+| U
+| --owner-phonenum <value> +
+-U <value>
+| Owner phone number
+
+| cert-type
+| T
+| --cert-type <value> +
+-T <value>
+| Certificate type
+
+| auth-token
+| K
+| --auth-token <value> +
+-K <value>
+| Sectigo API auth token
+
+| url
+| u
+| --url <value> +
+-u <value>
+| Sectigo API URL
+
+| config
+| l
+| --config <file> +
+-l <file>
+| Path to config file
+
+| tracking-id
+| W
+| --tracking-id <value> +
+-W <value>
+| Tracking ID
+
+| help
+| h
+| --help +
+-h
+| Display this summary
+
+|===
+
 *Configuration File*
 
 Configuration File is a file used to specify internal certifier util parameters such as timeouts, ecc curve types and other miscellaneous items. This file follows the JSON Format and can be manually editted from the `libcertifier.cfg.sample` template file present in the root directory.
