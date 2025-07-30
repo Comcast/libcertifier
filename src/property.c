@@ -1210,7 +1210,7 @@ if (strcmp(key, "libcertifier.sectigo.ip.addresses") == 0) {
                 sectigo_property_set(propMap, CERTIFIER_OPT_SECTIGO_AUTH_TOKEN, value_str);
             else if (strcmp(key, "libcertifier.sectigo.common.name") == 0)
                 sectigo_property_set(propMap, CERTIFIER_OPT_SECTIGO_COMMON_NAME, value_str);
-            else if (strcmp(key, "libcertifier.sectigo.gn.name") == 0)
+            else if (strcmp(key, "libcertifier.sectigo.group.name") == 0)
                 sectigo_property_set(propMap, CERTIFIER_OPT_SECTIGO_GROUP_NAME, value_str);
             else if (strcmp(key, "libcertifier.sectigo.group.email") == 0)
                 sectigo_property_set(propMap, CERTIFIER_OPT_SECTIGO_GROUP_EMAIL, value_str);
