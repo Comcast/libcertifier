@@ -550,7 +550,7 @@ XPKI_CLIENT_ERROR_CODE process(XPKI_MODE mode, xc_parameter_t * xc_parameter, in
 }
 
 // --- Sectigo Option Table ---
-static const char * const sectigo_get_cert_short_options = "C:I:e:s:N:r:b:A:x:K:u:G:E:O:J:Z:U:T:l:W:";
+static const char * const sectigo_get_cert_short_options = "C:I:e:s:N:r:b:A:x:K:u:G:E:O:J:Z:U:T:l:W:h";
 static const struct option sectigo_get_cert_long_opts[] = {
     { "common-name", required_argument, NULL, 'C' },
     { "id", required_argument, NULL, 'I' },
@@ -572,6 +572,7 @@ static const struct option sectigo_get_cert_long_opts[] = {
     { "cert-type", required_argument, NULL, 'T' },
     { "config", required_argument, NULL, 'l' },
     { "tracking-id", required_argument, NULL, 'W' },
+    { "help", no_argument, NULL, 'h' },
     { NULL, 0, NULL, 0 }
     //make default arg '*' for san and ip 
     //only take in choices=['fte', 'contractor', 'associate']
@@ -716,6 +717,7 @@ SECTIGO_CLIENT_ERROR_CODE sectigo_perform(int argc, char ** argv){
     {
     
     case SECTIGO_MODE_GET_CERT:
+    Certifier *certifier = NULL;
     for (int i = 1; i < argc - 1; ++i) {
         if ((strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--config") == 0) && (i + 1 < argc)) {
             config_path = argv[i + 1];
@@ -723,57 +725,17 @@ SECTIGO_CLIENT_ERROR_CODE sectigo_perform(int argc, char ** argv){
         }
     }
     if (config_path) {
-    Certifier *certifier = get_sectigo_certifier_instance();
+    certifier = get_sectigo_certifier_instance();
     certifier->sectigo_mode = true;
     certifier_set_property(certifier, CERTIFIER_OPT_CFG_FILENAME, config_path); 
-}
-    Certifier *certifier = get_sectigo_certifier_instance();
+    log_debug("Config loaded, certifier pointer: %p", (void*)certifier);
+    
+    }
     if (!certifier) {
     log_error("Certifier instance is NULL!");
     return SECTIGO_CLIENT_ERROR_INTERNAL;
 }
-if (!sectigo_parameter.sectigo_get_cert_param.sectigo_common_name ||
-    !sectigo_parameter.sectigo_get_cert_param.sectigo_employee_type ||
-    !sectigo_parameter.sectigo_get_cert_param.sectigo_server_platform ||
-    !sectigo_parameter.sectigo_get_cert_param.sectigo_project_name ||
-    !sectigo_parameter.sectigo_get_cert_param.sectigo_business_justification) {
-    log_error("Missing required Sectigo fields. Please provide all required options.");
-    return SECTIGO_CLIENT_INVALID_ARGUMENT;
-}
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_common_name)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_COMMON_NAME, sectigo_parameter.sectigo_get_cert_param.sectigo_common_name);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_employee_type)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_EMPLOYEE_TYPE, sectigo_parameter.sectigo_get_cert_param.sectigo_employee_type);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_server_platform)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_SERVER_PLATFORM, sectigo_parameter.sectigo_get_cert_param.sectigo_server_platform);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_project_name)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_PROJECT_NAME, sectigo_parameter.sectigo_get_cert_param.sectigo_project_name);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_business_justification)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_BUSINESS_JUSTIFICATION, sectigo_parameter.sectigo_get_cert_param.sectigo_business_justification);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_subject_alt_names)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_SUBJECT_ALT_NAMES, sectigo_parameter.sectigo_get_cert_param.sectigo_subject_alt_names);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_ip_addresses)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_IP_ADDRESSES, sectigo_parameter.sectigo_get_cert_param.sectigo_ip_addresses);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_group_name)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_GROUP_NAME, sectigo_parameter.sectigo_get_cert_param.sectigo_group_name);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_group_email)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_GROUP_EMAIL, sectigo_parameter.sectigo_get_cert_param.sectigo_group_email);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_owner_fname)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_OWNER_FNAME, sectigo_parameter.sectigo_get_cert_param.sectigo_owner_fname);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_owner_lname)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_OWNER_LNAME, sectigo_parameter.sectigo_get_cert_param.sectigo_owner_lname);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_owner_email)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_OWNER_EMAIL, sectigo_parameter.sectigo_get_cert_param.sectigo_owner_email);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_owner_phonenum)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_OWNER_PHONENUM, sectigo_parameter.sectigo_get_cert_param.sectigo_owner_phonenum);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_cert_type)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_CERT_TYPE, sectigo_parameter.sectigo_get_cert_param.sectigo_cert_type);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_auth_token)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_AUTH_TOKEN, sectigo_parameter.sectigo_get_cert_param.sectigo_auth_token);
-if (sectigo_parameter.sectigo_get_cert_param.sectigo_tracking_id)
-    certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_TRACKING_ID, sectigo_parameter.sectigo_get_cert_param.sectigo_tracking_id);
-certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_SENSITIVE, (const void *)(size_t)sectigo_parameter.sectigo_get_cert_param.sectigo_sensitive);
-certifier_set_property(certifier, CERTIFIER_OPT_SECTIGO_SOURCE, "libcertifier");
+
     return xc_sectigo_get_cert(&sectigo_parameter.sectigo_get_cert_param);
     break;
     case SECTIGO_MODE_NONE:
