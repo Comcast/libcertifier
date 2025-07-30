@@ -816,12 +816,12 @@ Note: value type = `bool`
 | libcertifier.sectigo.subject.alt.names
 | []
 | Subject alternative names. +
-Note: value type = `array of strings`
+Note: value type = `array of strings` . Pass empty array if you don't have.
 
 | libcertifier.sectigo.ip.addresses
 | []
 | IP addresses. +
-Note: value type = `array of strings`
+Note: value type = `array of strings` . Pass empty array if you don't have.
 
 | libcertifier.sectigo.cert.type
 | "comodo"
