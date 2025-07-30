@@ -517,6 +517,12 @@ Disabled by default - Only error messages are shown.
 |===
 | *Long Option* | *Short Option* | *Examples* | *Description*
 
+| help
+| h
+| --help +
+-h
+| Display this summary
+
 | common-name
 | C
 | --common-name <value> +
@@ -636,12 +642,6 @@ Disabled by default - Only error messages are shown.
 | --tracking-id <value> +
 -W <value>
 | Tracking ID
-
-| help
-| h
-| --help +
--h
-| Display this summary
 
 |===
 
