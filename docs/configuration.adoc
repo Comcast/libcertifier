@@ -24,9 +24,9 @@ xref:libcertifier.adoc[*Back to Manual*]
 | libcertifier.product.id   | 1101 |
 | libcertifier.tls.insecure.host   | 0 |  
 | libcertifier.tls.insecure.peer   | 0 |  
-| libcertifier.ext.key.usage   | clientAuth,serverAuth | (See notes below) |
+| libcertifier.ext.key.usage   | clientAuth,serverAuth | (See notes below) 
 | libcertifier.sectigo.certifier.url   | https://certs.xpki.io/api/createCertificate |
-| libcertifier.sectigo.auth.token   | |
+| libcertifier.sectigo.auth.token   | 
 | libcertifier.sectigo.common.name   | example.com |
 | libcertifier.sectigo.group.name   | ExampleGroup |
 | libcertifier.sectigo.group.email   | group@example.com |
