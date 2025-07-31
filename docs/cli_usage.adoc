@@ -108,6 +108,15 @@ Same command with SAT authentication:
 ./certifierUtil print-cert -k <pkcs12-file-path> -p <password>
 ----
 
+*Fetch Sectigo Certificate*
+
+The certificate can be downloaded through the certificate ID returned as a result of running the command.
+
+----
+./certifierUtil sectigo-get-cert -C <common-name> -I <ID> -e <employee-type> -s <server-platform> -N <sensitive> -r <project-name> -b <business-justification> -A <subject-alt-names> -x <ip-addresses> -G <group-name> -E <group-email> -O <owner-fname> -J <owner-lname> 
+-Z <owner-email> -U <owner-phonenum> -T <cert-type> -K <auth-token> -u <url> -l <config> -W <tracking-id>
+----
+
 == *certifierUtil commands*
 
 |===
@@ -136,6 +145,12 @@ Same command with SAT authentication:
 
 | revoke
 | Revoke Certificate
+
+|sectigo-get-cert
+|Requests Certificate from Sectigo
+
+|sectigo-help
+|Provides information on implemented Sectigo commands
 |===
 
 == *certifierUtil get-cert options*
@@ -497,6 +512,139 @@ Disabled by default - Only error messages are shown.
 
 |===
 
+== *certifierUtil sectigo-get-cert options*
+
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+
+| help
+| h
+| --help +
+-h
+| Display this summary
+
+| common-name
+| C
+| --common-name <value> +
+-C <value>
+| Certificate common name
+
+| id
+| I
+| --id <value> +
+-I <value>
+| User or device ID
+
+| employee-type
+| e
+| --employee-type <value> +
+-e <value>
+| Employee type
+
+| server-platform
+| s
+| --server-platform <value> +
+-s <value>
+| Server platform
+
+| sensitive
+| N
+| --sensitive +
+-N
+| Mark as sensitive
+
+| project-name
+| r
+| --project-name <value> +
+-r <value>
+| Project name
+
+| business-justification
+| b
+| --business-justification <value> +
+-b <value>
+| Business justification
+
+| subject-alt-names
+| A
+| --subject-alt-names <value> +
+-A <value>
+| Subject alternative names (CSV)
+
+| ip-addresses
+| x
+| --ip-addresses <value> +
+-x <value>
+| IP addresses (CSV)
+
+| group-name
+| G
+| --group-name <value> +
+-G <value>
+| Group name
+
+| group-email
+| E
+| --group-email <value> +
+-E <value>
+| Group email
+
+| owner-fname
+| O
+| --owner-fname <value> +
+-O <value>
+| Owner first name
+
+| owner-lname
+| J
+| --owner-lname <value> +
+-J <value>
+| Owner last name
+
+| owner-email
+| Z
+| --owner-email <value> +
+-Z <value>
+| Owner email
+
+| owner-phonenum
+| U
+| --owner-phonenum <value> +
+-U <value>
+| Owner phone number
+
+| cert-type
+| T
+| --cert-type <value> +
+-T <value>
+| Certificate type
+
+| auth-token
+| K
+| --auth-token <value> +
+-K <value>
+| Sectigo API auth token
+
+| url
+| u
+| --url <value> +
+-u <value>
+| Sectigo API URL
+
+| config
+| l
+| --config <file> +
+-l <file>
+| Path to config file
+
+| tracking-id
+| W
+| --tracking-id <value> +
+-W <value>
+| Tracking ID
+
+|===
+
 *Configuration File*
 
 Configuration File is a file used to specify internal certifier util parameters such as timeouts, ecc curve types and other miscellaneous items. This file follows the JSON Format and can be manually editted from the `libcertifier.cfg.sample` template file present in the root directory.
@@ -610,5 +758,90 @@ Note: 64-bit hex integer expected as input.
 | "critical,clientAuth,serverAuth"
 | Mark request for a lite certificate. +
 Note: value type = `bool`
+
+| libcertifier.sectigo.certifier.url
+| "https://certs.xpki.io/api/createCertificate"
+| Sectigo API endpoint URL
+
+| libcertifier.sectigo.auth.token
+| ""
+| Sectigo API authentication token
+
+| libcertifier.sectigo.common.name
+| "example.com"
+| Certificate common name (CN)
+
+| libcertifier.sectigo.group.name
+| "Example Group"
+| Group name for the certificate request
+
+| libcertifier.sectigo.group.email
+| "group@example.com"
+| Group email for notifications
+
+| libcertifier.sectigo.id
+| "user123"
+| User or device ID
+
+| libcertifier.sectigo.owner.fname
+| "First"
+| Owner's first name
+
+| libcertifier.sectigo.owner.lname
+| "Last"
+| Owner's last name
+
+| libcertifier.sectigo.employee.type
+| "associate"
+| Employee type (e.g., associate, employee, contractor)
+
+| libcertifier.sectigo.server.platform
+| "Other"
+| Server platform name. +
+Note: Use any of the following options: Tomcat, Redhat Linux, Microsoft IIS 5.x and later, Apache/MODSSL, IBM HTTP server, Java Web Server (Javasoft/SUN), Oracle, SAP Web Application Server, Citrix, Other
+
+| libcertifier.sectigo.sensitive
+| false
+| Mark certificate as sensitive. +
+Note: value type = `bool`
+
+| libcertifier.sectigo.project.name
+| "ExampleProject"
+| Project name
+
+| libcertifier.sectigo.business.justification
+| "Testing"
+| Business justification for the request
+
+| libcertifier.sectigo.subject.alt.names
+| []
+| Subject alternative names. +
+Note: value type = `array of strings`  Pass empty array if you don't have.
+
+| libcertifier.sectigo.ip.addresses
+| []
+| IP addresses. +
+Note: value type = `array of strings`  Pass empty array if you don't have.
+
+| libcertifier.sectigo.cert.type
+| "comodo"
+| Certificate type. +
+Note: Always pass comodo for internet-facing apps
+
+| libcertifier.sectigo.owner.phonenum
+| "1234567890"
+| Owner's phone number
+
+| libcertifier.sectigo.owner.email
+| "owner@example.com"
+| Owner's email address
+
+| libcertifier.sectigo.tracking.id
+| "1234"
+| Tracking ID for the request
+
+| libcertifier.sectigo.source
+| "libcertifier"
+| Source identifier for the request
 
 |===

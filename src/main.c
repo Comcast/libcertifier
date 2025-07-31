@@ -20,13 +20,10 @@
 #include "certifier/log.h"
 #include "certifier/xpki_client.h"
 #include "certifier/xpki_client_internal.h"
-
-XPKI_CLIENT_ERROR_CODE xpki_perform(int argc, char ** argv);
-
-int main(int argc, char ** argv)
-{
-    return xpki_perform(argc, argv);
-}
+#include "certifier/sectigo_client.h"
+#include "certifier/certifier_api_easy.h"
+#include "certifier/certifier_internal.h"
+#include "certifier/certifier.h"
 
 typedef enum
 {
@@ -40,12 +37,43 @@ typedef enum
     XPKI_MODE_REVOKE_CERT,
 } XPKI_MODE;
 
+typedef enum
+{
+    SECTIGO_MODE_NONE,
+    SECTIGO_MODE_GET_CERT,
+    SECTIGO_MODE_PRINT_HELP
+    
+} SECTIGO_MODE;
+
 typedef union
 {
     get_cert_param_t get_cert_param;
     get_cert_status_param_t get_cert_status_param;
     renew_cert_param_t renew_cert_param;
 } xc_parameter_t;
+
+typedef union 
+{
+  get_cert_sectigo_param_t sectigo_get_cert_param;  
+}sectigo_parameter_t;
+
+
+XPKI_CLIENT_ERROR_CODE process(XPKI_MODE mode, xc_parameter_t * xc_parameter, int argc, char ** argv);
+XPKI_CLIENT_ERROR_CODE xpki_perform(int argc, char ** argv);
+SECTIGO_CLIENT_ERROR_CODE sectigo_perform(int argc, char ** argv);
+
+int main(int argc, char **argv)
+{
+     pthread_mutex_init(&lock, NULL);
+    // check for "sectigo-get-cert" as the first argument
+    if (argc > 1 && strncmp(argv[1], "sectigo", strlen("sectigo")) == 0) {
+        // Call Sectigo mode
+        return sectigo_perform(argc, argv);
+    } else {
+        // Default to XPKI mode
+        return xpki_perform(argc, argv);
+    }
+}
 
 XPKI_MODE xpki_get_mode(int argc, char ** argv)
 {
@@ -77,6 +105,28 @@ XPKI_MODE xpki_get_mode(int argc, char ** argv)
 
     return XPKI_MODE_NONE;
 }
+
+SECTIGO_MODE sectigo_get_mode(int argc, char ** argv){
+    typedef struct{
+        char * name;
+        SECTIGO_MODE mode;
+    } command_map_t;
+
+    command_map_t command_map[] = {
+        {"sectigo-help", SECTIGO_MODE_PRINT_HELP},  {"sectigo-get-cert", SECTIGO_MODE_GET_CERT}
+    };
+    
+    for(int i = 0; i < sizeof(command_map) / sizeof(command_map_t); ++i){
+        if (strcmp(argv[1], command_map[i].name) == 0){
+            return command_map[i].mode;
+        }
+    
+    }
+    
+    
+    return SECTIGO_MODE_NONE;
+}
+
 
 XPKI_CLIENT_ERROR_CODE xpki_print_helper(XPKI_MODE mode)
 {
@@ -111,11 +161,25 @@ XPKI_CLIENT_ERROR_CODE xpki_print_helper(XPKI_MODE mode)
     return XPKI_CLIENT_SUCCESS;
 }
 
+SECTIGO_CLIENT_ERROR_CODE sectigo_print_helper(SECTIGO_MODE mode){
+    if (mode == SECTIGO_MODE_PRINT_HELP || mode == SECTIGO_MODE_NONE)
+    {
+        XFPRINTF(stdout,
+                 "Usage:  certifierUtil [COMMANDS] [OPTIONS]\n"
+                 "Commands:\n"
+                 "help\n"
+                 "sectigo-get-cert\n");
+    }
+
+    return SECTIGO_CLIENT_SUCCESS;
+}
+
 #define BASE_SHORT_OPTIONS "hp:L:k:vm"
 #define GET_CRT_TOKEN_SHORT_OPTIONS "X:S:"
 #define GET_CERT_SHORT_OPTIONS "fT:P:o:i:n:F:a:w:"
 #define VALIDITY_DAYS_SHORT_OPTION "t:"
 #define CA_PATH_SHORT_OPTION "c:"
+#define SECTIGO_GET_CERT_SHORT_OPTIONS "C:I:e:s:N:r:b:A:x:K:u:G:E:O:J:Z:U:T:l:W"
 
 #define BASE_LONG_OPTIONS                                                                                                          \
     { "help", no_argument, NULL, 'h' }, { "input-p12-path", required_argument, NULL, 'k' },                                        \
@@ -150,12 +214,45 @@ XPKI_CLIENT_ERROR_CODE xpki_print_helper(XPKI_MODE mode)
         "ca-path", required_argument, NULL, 'c'                                                                                    \
     }
 
+#define SECTIGO_GET_CERT_LONG_OPTIONS                                                                                              \
+    { "common-name", required_argument, NULL, 'C' },                                                          \
+    { "id", required_argument, NULL, 'I' }, \
+    { "employee-type", required_argument, NULL, 'e' }, \
+    { "server-platform", required_argument, NULL, 's' }, \
+    { "sensitive", no_argument, NULL, 'N' }, \
+    { "project-name", required_argument, NULL, 'r' }, \
+    { "business-justification", required_argument, NULL, 'b' }, \
+    { "subject-alt-names", required_argument, NULL, 'A' }, \
+    { "ip-addresses", required_argument, NULL, 'x' }, \
+    {"url", required_argument, NULL, 'u'}, \
+    { "auth-token", required_argument, NULL, 'K' }, \
+    { "group-name", required_argument, NULL, 'G' }, \
+    { "group-email", required_argument, NULL, 'E' }, \
+    { "owner-fname", required_argument, NULL, 'O' }, \
+    { "owner-lname", required_argument, NULL, 'J' }, \
+    { "owner-email", required_argument, NULL, 'Z' }, \
+    { "owner-phonenum", required_argument, NULL, 'U' }, \
+    { "cert-type", required_argument, NULL, 'T' }, \
+    { "config", required_argument, NULL, 'l' }, \
+    { "tracking-id", required_argument, NULL, 'W' }, \
+    { NULL, 0, NULL, 0 }                                                                                       \
+    //make default arg '*' for san and ip 
+    //only take in choices=['fte', 'contractor', 'associate']
+
 typedef struct
 {
     XPKI_MODE mode;
     const char * short_opts;
     const struct option * long_opts;
 } command_opt_lut_t;
+
+typedef struct 
+{
+    SECTIGO_MODE mode;
+    const char * short_opts;
+    const struct option * long_opts;
+} sectigo_command_opt_lut_t;
+
 
 static size_t get_command_opt_index(command_opt_lut_t * command_opt_lut, size_t n_entries, XPKI_MODE mode)
 {
@@ -216,6 +313,8 @@ static const char * get_command_opt_helper(XPKI_MODE mode)
     }
 }
 
+
+
 XPKI_CLIENT_ERROR_CODE process(XPKI_MODE mode, xc_parameter_t * xc_parameter, int argc, char ** argv)
 {
     VerifyOrReturnError(xc_parameter != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
@@ -234,8 +333,7 @@ XPKI_CLIENT_ERROR_CODE process(XPKI_MODE mode, xc_parameter_t * xc_parameter, in
         break;
     default:
         return XPKI_CLIENT_NOT_IMPLEMENTED;
-    }
-
+    }   
     static const char * const get_cert_short_options =
         BASE_SHORT_OPTIONS GET_CRT_TOKEN_SHORT_OPTIONS GET_CERT_SHORT_OPTIONS VALIDITY_DAYS_SHORT_OPTION CA_PATH_SHORT_OPTION;
     static const char * const get_cert_status_short_options = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
@@ -451,6 +549,204 @@ XPKI_CLIENT_ERROR_CODE process(XPKI_MODE mode, xc_parameter_t * xc_parameter, in
     return error_code;
 }
 
+// --- Sectigo Option Table ---
+static const char * const sectigo_get_cert_short_options = "C:I:e:s:N:r:b:A:x:K:u:G:E:O:J:Z:U:T:l:W:h";
+static const struct option sectigo_get_cert_long_opts[] = {
+    { "common-name", required_argument, NULL, 'C' },
+    { "id", required_argument, NULL, 'I' },
+    { "employee-type", required_argument, NULL, 'e' },
+    { "server-platform", required_argument, NULL, 's' },
+    { "sensitive", no_argument, NULL, 'N' },
+    { "project-name", required_argument, NULL, 'r' },
+    { "business-justification", required_argument, NULL, 'b' },
+    { "subject-alt-names", required_argument, NULL, 'A' },
+    { "ip-addresses", required_argument, NULL, 'x' },
+    {"url", required_argument, NULL, 'u'},
+    { "auth-token", required_argument, NULL, 'K' },
+    { "group-name", required_argument, NULL, 'G' },
+    { "group-email", required_argument, NULL, 'E' },
+    { "owner-fname", required_argument, NULL, 'O' },
+    { "owner-lname", required_argument, NULL, 'J' },
+    { "owner-email", required_argument, NULL, 'Z' },
+    { "owner-phonenum", required_argument, NULL, 'U' },
+    { "cert-type", required_argument, NULL, 'T' },
+    { "config", required_argument, NULL, 'l' },
+    { "tracking-id", required_argument, NULL, 'W' },
+    { "help", no_argument, NULL, 'h' },
+    { NULL, 0, NULL, 0 }
+    //make default arg '*' for san and ip 
+    //only take in choices=['fte', 'contractor', 'associate']
+};
+
+// --- Sectigo Option Parsing ---
+SECTIGO_CLIENT_ERROR_CODE sectigo_process(SECTIGO_MODE mode, sectigo_parameter_t * sectigo_parameter, int argc, char ** argv)
+{
+    VerifyOrReturnError(sectigo_parameter != NULL, SECTIGO_CLIENT_INVALID_ARGUMENT);
+    VerifyOrReturnError(argv != NULL, SECTIGO_CLIENT_INVALID_ARGUMENT);
+
+    SECTIGO_CLIENT_ERROR_CODE error_code = SECTIGO_CLIENT_SUCCESS;
+    memset(&sectigo_parameter->sectigo_get_cert_param, 0, sizeof(get_cert_sectigo_param_t));
+    sectigo_parameter->sectigo_get_cert_param.sectigo_subject_alt_names = "";
+    sectigo_parameter->sectigo_get_cert_param.sectigo_ip_addresses = "";
+    for (;;)
+    {
+        int option_index;
+        int opt = XGETOPT_LONG(argc, argv, sectigo_get_cert_short_options,
+                               sectigo_get_cert_long_opts, &option_index);
+
+        if (opt == -1 || error_code != SECTIGO_CLIENT_SUCCESS)
+        {
+            break;
+        }
+
+        switch (opt)
+        {
+        case 'h':
+            XFPRINTF(stdout,
+    "Usage:  certifierUtil sectigo-get-cert [OPTIONS]\n"
+    "--common-name [value] (-C)\n"
+    "--id [value] (-I)\n"
+    "--employee-type [value] (-e)\n"
+    "--server-platform [value] (-s)\n"
+    "--sensitive (-N)\n"
+    "--project-name [value] (-r)\n"
+    "--business-justification [value] (-b)\n"
+    "--subject-alt-names [value] (-A)\n"
+    "--ip-addresses [value] (-x)\n"
+    "--group-name [value] (-G)\n"
+    "--group-email [value] (-E)\n"
+    "--owner-fname [value] (-O)\n"
+    "--owner-lname [value] (-J)\n"
+    "--owner-email [value] (-Z)\n"
+    "--owner-phonenum [value] (-U)\n"
+    "--cert-type [value] (-T)\n"
+    "--auth-token [value] (-K)\n"
+    "--url [value] (-u)\n"
+    "--config [value] (-l)\n"
+    "--tracking-id [value] (-W)\n"
+);
+            exit(0);
+            break;
+        case 'C':
+            sectigo_parameter->sectigo_get_cert_param.sectigo_common_name = optarg;
+            break;
+        case 'I':
+            sectigo_parameter->sectigo_get_cert_param.sectigo_id = optarg;
+            break;
+        case 'e':
+            sectigo_parameter->sectigo_get_cert_param.sectigo_employee_type = optarg;
+            break;
+        case 's':
+            sectigo_parameter->sectigo_get_cert_param.sectigo_server_platform = optarg;
+            break;
+        case 'N':
+            sectigo_parameter->sectigo_get_cert_param.sectigo_sensitive = true;
+            break;
+        case 'r':
+            sectigo_parameter->sectigo_get_cert_param.sectigo_project_name = optarg;
+            break;
+        case 'b':
+            sectigo_parameter->sectigo_get_cert_param.sectigo_business_justification = optarg;
+            break;
+        case 'A':
+            sectigo_parameter->sectigo_get_cert_param.sectigo_subject_alt_names = optarg;
+            break;
+        case 'x':
+            sectigo_parameter->sectigo_get_cert_param.sectigo_ip_addresses = optarg;
+            break;
+        case 'l':
+            // config file path, handled in sectigo_perform
+            break;
+        case 'G':
+        sectigo_parameter->sectigo_get_cert_param.sectigo_group_name = optarg;
+        break;
+    case 'E':
+        sectigo_parameter->sectigo_get_cert_param.sectigo_group_email = optarg;
+        break;
+    case 'O':
+        sectigo_parameter->sectigo_get_cert_param.sectigo_owner_fname = optarg;
+        break;
+    case 'J':
+        sectigo_parameter->sectigo_get_cert_param.sectigo_owner_lname = optarg;
+        break;
+    case 'Z':
+        sectigo_parameter->sectigo_get_cert_param.sectigo_owner_email = optarg;
+        break;
+    case 'U':
+        sectigo_parameter->sectigo_get_cert_param.sectigo_owner_phonenum = optarg;
+        break;
+    case 'T':
+        sectigo_parameter->sectigo_get_cert_param.sectigo_cert_type = optarg;
+        break;
+    case 'K':
+        sectigo_parameter->sectigo_get_cert_param.sectigo_auth_token = optarg;
+        break;
+    case 'u':
+        sectigo_parameter->sectigo_get_cert_param.sectigo_url = optarg;
+        break;
+    case 'W':
+        sectigo_parameter->sectigo_get_cert_param.sectigo_tracking_id = optarg;
+        break;
+    case '?':
+            log_info("Invalid or missing Sectigo option");
+            error_code = SECTIGO_CLIENT_INVALID_ARGUMENT;
+            break;
+        default:
+            log_info("Unknown Sectigo option: %c", opt);
+            error_code = SECTIGO_CLIENT_INVALID_ARGUMENT;
+            break;
+        }
+    }
+
+    return error_code;
+}
+SECTIGO_CLIENT_ERROR_CODE sectigo_perform(int argc, char ** argv){
+    SECTIGO_MODE mode = sectigo_get_mode(argc, argv);
+    const char *config_path = NULL;
+    if (mode == SECTIGO_MODE_NONE || mode == SECTIGO_MODE_PRINT_HELP)
+    {
+        return sectigo_print_helper(mode);
+    }
+    if (argc <= 2) {
+        fprintf(stderr, "Error: No arguments provided after 'sectigo-get-cert'.\n");
+        return SECTIGO_CLIENT_INVALID_ARGUMENT;
+    }
+    sectigo_parameter_t sectigo_parameter;
+    ReturnErrorOnFailure(sectigo_process(mode, &sectigo_parameter, argc - 1, &argv[1]));
+    switch (mode)
+    {
+    
+    case SECTIGO_MODE_GET_CERT:
+    Certifier *certifier = NULL;
+    for (int i = 1; i < argc - 1; ++i) {
+        if ((strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--config") == 0) && (i + 1 < argc)) {
+            config_path = argv[i + 1];
+            break;
+        }
+    }
+    if (config_path) {
+    certifier = get_sectigo_certifier_instance();
+    certifier->sectigo_mode = true;
+    certifier_set_property(certifier, CERTIFIER_OPT_CFG_FILENAME, config_path); 
+    log_debug("Config loaded, certifier pointer: %p", (void*)certifier);
+    
+    }
+    if (!certifier) {
+    log_error("Certifier instance is NULL!");
+    return SECTIGO_CLIENT_ERROR_INTERNAL;
+}
+
+    return xc_sectigo_get_cert(&sectigo_parameter.sectigo_get_cert_param);
+    break;
+    case SECTIGO_MODE_NONE:
+    case SECTIGO_MODE_PRINT_HELP:
+        return sectigo_print_helper(mode);
+        break;
+    default:
+        break;
+    }
+    return SECTIGO_CLIENT_SUCCESS;
+}
 XPKI_CLIENT_ERROR_CODE xpki_perform(int argc, char ** argv)
 {
     XPKI_MODE mode = xpki_get_mode(argc, argv);

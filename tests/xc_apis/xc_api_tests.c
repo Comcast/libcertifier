@@ -18,7 +18,7 @@
 
 #include <certifier/certifier.h>
 #include <certifier/xpki_client.h>
-
+#include <certifier/sectigo_client.h>
 #include <unity.h>
 
 static const char * token = NULL;
@@ -237,7 +237,36 @@ static void test_get_cert_validity()
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_CERT_ABOUT_TO_EXPIRE, status);
 }
+static void test_get_sectigo_cert()
+{
+    SECTIGO_CLIENT_ERROR_CODE error;
+    get_cert_sectigo_param_t params = { 0 };
 
+    // Fill parameters (simulate config or CLI)
+    params.sectigo_auth_token           = "token";
+    params.sectigo_common_name          = "sectigotest.comcast.com";
+    params.sectigo_group_name           = "GroupName";
+    params.sectigo_group_email          = "example@comcast.com";
+    params.sectigo_id                   = "exid";
+    params.sectigo_owner_fname          = "First";
+    params.sectigo_owner_lname          = "Last";
+    params.sectigo_employee_type        = "associate";
+    params.sectigo_server_platform      = "other";
+    params.sectigo_sensitive            = "false";
+    params.sectigo_project_name         = "Testing create with SAT";
+    params.sectigo_business_justification = "Testing create with SAT";
+    params.sectigo_subject_alt_names    = "*";
+    params.sectigo_ip_addresses         = "*";
+    params.sectigo_cert_type            = "comodo";
+    params.sectigo_owner_phonenum       = "2670000000";
+    params.sectigo_owner_email          = "first_last@comcast.com";
+    params.sectigo_url                  = "https://certs-dev.xpki.io/api/createCertificate";
+
+    // Call the API
+    error = xc_sectigo_get_cert(&params);
+
+    TEST_ASSERT_EQUAL_INT(SECTIGO_CLIENT_SUCCESS, error);
+}
 int main(int argc, char ** argv)
 {
     UNITY_BEGIN();
@@ -254,6 +283,7 @@ int main(int argc, char ** argv)
     RUN_TEST(test_renew_cert);
     RUN_TEST(test_print_cert_validity);
     RUN_TEST(test_get_cert_validity);
+    RUN_TEST(test_get_sectigo_cert);
 
     return UNITY_END();
 }

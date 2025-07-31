@@ -25,6 +25,26 @@ xref:libcertifier.adoc[*Back to Manual*]
 | libcertifier.tls.insecure.host   | 0 |  
 | libcertifier.tls.insecure.peer   | 0 |  
 | libcertifier.ext.key.usage   | clientAuth,serverAuth | (See notes below) 
+| libcertifier.sectigo.certifier.url   | https://certs.xpki.io/api/createCertificate |
+| libcertifier.sectigo.auth.token   | |
+| libcertifier.sectigo.common.name   | example.com |
+| libcertifier.sectigo.group.name   | ExampleGroup |
+| libcertifier.sectigo.group.email   | group@example.com |
+| libcertifier.sectigo.id   | user123 |
+| libcertifier.sectigo.owner.fname   | First |
+| libcertifier.sectigo.owner.lname   | Last |
+| libcertifier.sectigo.employee.type | associate |
+| libcertifier.sectigo.server.platform   | Other |
+| libcertifier.sectigo.sensitive   | false |
+| libcertifier.sectigo.project.name   | ExampleProject |
+| libcertifier.sectigo.business.justification   | Testing |
+| libcertifier.sectigo.subject.alt.names   | [] |
+| libcertifier.sectigo.ip.addresses   | [] |
+| libcertifier.sectigo.cert.type   | comodo |
+| libcertifier.sectigo.owner.phonenum   | 1234567890 |
+| libcertifier.sectigo.owner.email   | owner@example.com |
+| libcertifier.sectigo.tracking.id   | 1234 |
+| libcertifier.sectigo.source   | libcertifier |
 |=======
 
 == Extended Key Usage values:
