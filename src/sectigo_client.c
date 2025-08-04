@@ -33,7 +33,6 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <pthread.h>
-pthread_mutex_t lock;
 
 Certifier * get_sectigo_certifier_instance()
 {
