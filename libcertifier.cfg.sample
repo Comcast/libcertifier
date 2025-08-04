@@ -1,6 +1,6 @@
 {
   "libcertifier.certifier.url": "https://certifier.xpki.io/v1/certifier",
-  "libcertifier.profile.name": "Xfinity_Default_Issuing_ECC_ICA",
+  "libcertifier.profile.name": "XFN_Matter_OP_Class_3_ICA",
   "libcertifier.validity.days": 365,
   "libcertifier.auth.type": "x509",
   "libcertifier.ecc.curve.id": "prime256v1",
