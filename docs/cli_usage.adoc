@@ -113,7 +113,7 @@ Same command with SAT authentication:
 The certificate can be downloaded through the certificate ID returned as a result of running the command.
 
 ----
-./certifierUtil sectigo-get-cert -C <common-name> -I <ID> -e <employee-type> -s <server-platform> -N <sensitive> -r <project-name> -b <business-justification> -A <subject-alt-names> -x <ip-addresses> -G <group-name> -E <group-email> -O <owner-fname> -J <owner-lname> 
+./certifierUtil sectigo-get-cert -C <common-name> -I <ID> -e [employee/associate/contractor] -s <server-platform> -N <sensitive> -r <project-name> -b <business-justification> -A <subject-alt-names> -x <ip-addresses> -G <group-name> -E <group-email> -O <owner-fname> -J <owner-lname> 
 -Z <owner-email> -U <owner-phonenum> -T <cert-type> -K <auth-token> -u <url> -l <config> -W <tracking-id>
 ----
 
