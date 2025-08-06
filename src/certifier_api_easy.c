@@ -57,7 +57,7 @@
 #define GET_CERT_SHORT_OPTIONS "fT:P:o:i:n:F:a:w:"
 #define VALIDITY_DAYS_SHORT_OPTION "t:"
 #define CA_PATH_SHORT_OPTION "c:"
-#define SECTIGO_GET_CERT_SHORT_OPTIONS "C:I:e:s:N:r:b:A:x:K:u:G:E:O:J:Z:U:T:l:W:"
+#define SECTIGO_GET_CERT_SHORT_OPTIONS "C:I:e:s:N:r:b:A:x:K:u:G:E:O:J:Z:U:T:l:W:S:h"
 
 #define BASE_LONG_OPTIONS                                                                                                          \
     { "help", no_argument, NULL, 'h' }, { "input-p12-path", required_argument, NULL, 'k' },                                        \
@@ -1247,7 +1247,10 @@ static int process_command_line(CERTIFIER * easy)
                 return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_CERT_TYPE, optarg);
             }
             break;
-            break;
+        case 'Y': //source
+            if(optarg){
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_SOURCE, optarg);
+            }
         case '?':
             /* Case when user enters the command as
              * $ ./libCertifier -p
