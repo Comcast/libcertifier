@@ -155,7 +155,9 @@ XPKI_CLIENT_ERROR_CODE xpki_print_helper(XPKI_MODE mode)
                  "get-cert-status\n"
                  "renew-cert\n"
                  "print-cert\n"
-                 "revoke\n");
+                 "revoke\n"
+                 "sectigo-get-cert\n"
+                 "sectigo-help\n");
     }
 
     return XPKI_CLIENT_SUCCESS;
@@ -235,6 +237,7 @@ SECTIGO_CLIENT_ERROR_CODE sectigo_print_helper(SECTIGO_MODE mode){
     { "cert-type", required_argument, NULL, 'T' }, \
     { "config", required_argument, NULL, 'l' }, \
     { "tracking-id", required_argument, NULL, 'W' }, \
+    {"source", required_argument, NULL, 'Y'}  \
     { NULL, 0, NULL, 0 }                                                                                       \
     //make default arg '*' for san and ip 
     //only take in choices=['fte', 'contractor', 'associate']
@@ -550,7 +553,7 @@ XPKI_CLIENT_ERROR_CODE process(XPKI_MODE mode, xc_parameter_t * xc_parameter, in
 }
 
 // --- Sectigo Option Table ---
-static const char * const sectigo_get_cert_short_options = "C:I:e:s:N:r:b:A:x:K:u:G:E:O:J:Z:U:T:l:W:h";
+static const char * const sectigo_get_cert_short_options = "C:I:e:s:N:r:b:A:x:K:u:G:E:O:J:Z:U:T:l:W:Y:h";
 static const struct option sectigo_get_cert_long_opts[] = {
     { "common-name", required_argument, NULL, 'C' },
     { "id", required_argument, NULL, 'I' },
@@ -572,6 +575,7 @@ static const struct option sectigo_get_cert_long_opts[] = {
     { "cert-type", required_argument, NULL, 'T' },
     { "config", required_argument, NULL, 'l' },
     { "tracking-id", required_argument, NULL, 'W' },
+    {"source", required_argument, NULL, 'Y'},
     { "help", no_argument, NULL, 'h' },
     { NULL, 0, NULL, 0 }
     //make default arg '*' for san and ip 
@@ -624,68 +628,92 @@ SECTIGO_CLIENT_ERROR_CODE sectigo_process(SECTIGO_MODE mode, sectigo_parameter_t
     "--url [value] (-u)\n"
     "--config [value] (-l)\n"
     "--tracking-id [value] (-W)\n"
+    "--source [value] (-Y)\n"
 );
             exit(0);
             break;
         case 'C':
             sectigo_parameter->sectigo_get_cert_param.sectigo_common_name = optarg;
+            certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_COMMON_NAME, optarg);
             break;
         case 'I':
             sectigo_parameter->sectigo_get_cert_param.sectigo_id = optarg;
+            certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_ID, optarg);
             break;
         case 'e':
             sectigo_parameter->sectigo_get_cert_param.sectigo_employee_type = optarg;
+            certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_EMPLOYEE_TYPE, optarg);
             break;
         case 's':
             sectigo_parameter->sectigo_get_cert_param.sectigo_server_platform = optarg;
+            certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_SERVER_PLATFORM, optarg);
             break;
         case 'N':
             sectigo_parameter->sectigo_get_cert_param.sectigo_sensitive = true;
+            certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_SENSITIVE, optarg);
             break;
         case 'r':
             sectigo_parameter->sectigo_get_cert_param.sectigo_project_name = optarg;
+            certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_PROJECT_NAME, optarg);
             break;
         case 'b':
             sectigo_parameter->sectigo_get_cert_param.sectigo_business_justification = optarg;
+            certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_BUSINESS_JUSTIFICATION, optarg);
             break;
         case 'A':
             sectigo_parameter->sectigo_get_cert_param.sectigo_subject_alt_names = optarg;
+            certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_SUBJECT_ALT_NAMES, optarg);
             break;
         case 'x':
             sectigo_parameter->sectigo_get_cert_param.sectigo_ip_addresses = optarg;
+            certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_IP_ADDRESSES, optarg);
             break;
         case 'l':
             // config file path, handled in sectigo_perform
             break;
         case 'G':
         sectigo_parameter->sectigo_get_cert_param.sectigo_group_name = optarg;
+        certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_GROUP_NAME, optarg);
         break;
     case 'E':
         sectigo_parameter->sectigo_get_cert_param.sectigo_group_email = optarg;
+        certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_GROUP_EMAIL, optarg);
         break;
     case 'O':
         sectigo_parameter->sectigo_get_cert_param.sectigo_owner_fname = optarg;
+        certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_OWNER_FNAME, optarg);
         break;
     case 'J':
         sectigo_parameter->sectigo_get_cert_param.sectigo_owner_lname = optarg;
+        certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_OWNER_LNAME, optarg);
         break;
     case 'Z':
         sectigo_parameter->sectigo_get_cert_param.sectigo_owner_email = optarg;
+        certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_OWNER_EMAIL, optarg);
         break;
     case 'U':
         sectigo_parameter->sectigo_get_cert_param.sectigo_owner_phonenum = optarg;
+        certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_OWNER_PHONENUM, optarg);
         break;
     case 'T':
         sectigo_parameter->sectigo_get_cert_param.sectigo_cert_type = optarg;
+        certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_CERT_TYPE, optarg);
         break;
     case 'K':
         sectigo_parameter->sectigo_get_cert_param.sectigo_auth_token = optarg;
+        certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_AUTH_TOKEN, optarg);
         break;
     case 'u':
         sectigo_parameter->sectigo_get_cert_param.sectigo_url = optarg;
+        certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_CERTIFIER_URL, optarg);
         break;
     case 'W':
         sectigo_parameter->sectigo_get_cert_param.sectigo_tracking_id = optarg;
+        certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_TRACKING_ID, optarg);
+        break;
+    case 'Y':
+        sectigo_parameter->sectigo_get_cert_param.sectigo_source = optarg;
+        certifier_set_property(get_sectigo_certifier_instance(), CERTIFIER_OPT_SECTIGO_SOURCE, optarg);
         break;
     case '?':
             log_info("Invalid or missing Sectigo option");
@@ -731,10 +759,7 @@ SECTIGO_CLIENT_ERROR_CODE sectigo_perform(int argc, char ** argv){
     log_debug("Config loaded, certifier pointer: %p", (void*)certifier);
     
     }
-    if (!certifier) {
-    log_error("Certifier instance is NULL!");
-    return SECTIGO_CLIENT_ERROR_INTERNAL;
-}
+    
 
     return xc_sectigo_get_cert(&sectigo_parameter.sectigo_get_cert_param);
     break;
