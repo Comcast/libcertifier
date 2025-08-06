@@ -261,6 +261,7 @@ static void test_get_sectigo_cert()
     params.sectigo_owner_phonenum       = "2670000000";
     params.sectigo_owner_email          = "first_last@comcast.com";
     params.sectigo_url                  = "https://certs-dev.xpki.io/api/createCertificate";
+    params.sectigo_source               = "libcertifier";
 
     // Call the API
     error = xc_sectigo_get_cert(&params);
