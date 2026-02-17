@@ -38,6 +38,9 @@ typedef struct
     char * library_error_msg;
 } CertifierError;
 
+/* NOTE: After assign_last_error(certifier, &tmp_err), do not call error_clear(&tmp_err) for the message pointers (they no longer belong to tmp_err). 
+ * It’s safe to reuse tmp_err for codes, but not to free its message fields because they were moved.
+ */
 void error_clear(CertifierError * error);
 
 enum
