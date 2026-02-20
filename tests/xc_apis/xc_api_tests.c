@@ -18,7 +18,7 @@
 
 #include <certifier/certifier.h>
 #include <certifier/xpki_client.h>
-
+#include <certifier/sectigo_client.h>
 #include <unity.h>
 
 static const char * token = NULL;
@@ -237,7 +237,33 @@ static void test_get_cert_validity()
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_SUCCESS, error);
     TEST_ASSERT_EQUAL_INT(XPKI_CLIENT_CERT_ABOUT_TO_EXPIRE, status);
 }
+static void test_get_sectigo_cert()
+{
+    SECTIGO_CLIENT_ERROR_CODE error;
+    sectigo_get_cert_param_t params = { 0 };
 
+    // Fill parameters (simulate config or CLI)
+    params.auth_token           = "token";
+    params.common_name          = "sectigotest.comcast.com";
+    params.group_name           = "GroupName";
+    params.group_email          = "example@comcast.com";
+    params.id                   = "exid";
+    params.owner_first_name     = "First";
+    params.owner_last_name      = "Last";
+    params.project_name         = "Testing create with SAT";
+    params.business_justification = "Testing create with SAT";
+    params.subject_alt_names    = "*";
+    params.owner_email          = "first_last@comcast.com";
+    params.sectigo_url          = "https://certs-dev.xpki.io/api/createCertificate";
+    params.devhub_id            = "12345";
+    params.validity_days        = 90;
+    params.key_type             = "RSA-8192";
+
+    // Call the API
+    error = xc_sectigo_get_cert(&params);
+
+    TEST_ASSERT_EQUAL_INT(SECTIGO_CLIENT_SUCCESS, error);
+}
 int main(int argc, char ** argv)
 {
     UNITY_BEGIN();
@@ -254,6 +280,7 @@ int main(int argc, char ** argv)
     RUN_TEST(test_renew_cert);
     RUN_TEST(test_print_cert_validity);
     RUN_TEST(test_get_cert_validity);
+    RUN_TEST(test_get_sectigo_cert);
 
     return UNITY_END();
 }

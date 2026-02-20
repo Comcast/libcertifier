@@ -19,6 +19,7 @@
 #include "certifier/http.h"
 #include "certifier/httpdebug.h"
 #include "certifier/log.h"
+#include "certifier/parson.h"
 #include "certifier/property.h"
 #include "certifier/types.h"
 #include <curl/curl.h>
@@ -34,10 +35,10 @@ static void set_curl_options(CURL * curl, CertifierPropMap * prop_map)
     char * mtls_p12           = property_get(prop_map, CERTIFIER_OPT_MTLS_P12_PATH);
     char * mtls_password      = property_get(prop_map, CERTIFIER_OPT_MTLS_P12_PASSWORD);
 
-    log_debug("[set_curl_options] - Host Validation=%i", host_validation);
-    log_debug("[set_curl_options] - Peer Validation=%i", peer_validation);
-    log_debug("[set_curl_options] - Debug HTTP Enabled=%i", is_debug_http_enabled);
-    log_debug("[set_curl_options] - Trace HTTP Enabled=%i", is_trace_http_enabled);
+    log_debug("[set_curl_options] - Host Validation=%i\n", host_validation);
+    log_debug("[set_curl_options] - Peer Validation=%i\n", peer_validation);
+    log_debug("[set_curl_options] - Debug HTTP Enabled=%i\n", is_debug_http_enabled);
+    log_debug("[set_curl_options] - Trace HTTP Enabled=%i\n", is_trace_http_enabled);
 
     // First set the URL that is about to receive our POST.
     http_set_curlopt(curl, CURLOPT_ACCEPT_ENCODING, "");
@@ -57,7 +58,6 @@ static void set_curl_options(CURL * curl, CertifierPropMap * prop_map)
 
     http_set_curlopt(curl, CURLOPT_SSL_VERIFYHOST, host_validation);
     http_set_curlopt(curl, CURLOPT_SSL_VERIFYPEER, peer_validation);
-    http_set_curlopt(curl, CURLOPT_FAILONERROR, 1L);
 
     http_set_curlopt(curl, CURLOPT_TIMEOUT, http_timeout);
     http_set_curlopt(curl, CURLOPT_CONNECTTIMEOUT, http_connect_timeout);
@@ -119,11 +119,12 @@ static http_response * http_error_response(const char * msg, int error_code, int
         resp->error     = error_code;
         resp->error_msg = XSTRDUP(msg);
         resp->http_code = http_code;
+        resp->payload_len = 0;
     }
     return resp;
 }
 
-static http_response * http_success_response(const char * payload, int http_code, const char * errbuf, int err_code)
+static http_response * http_success_response(const char * payload, size_t payload_len, int http_code, const char * errbuf, int err_code)
 {
     http_response * resp = XCALLOC(1, sizeof(http_response));
     if (resp != NULL)
@@ -132,11 +133,12 @@ static http_response * http_success_response(const char * payload, int http_code
         resp->error_msg = XSTRDUP(errbuf);
         resp->http_code = http_code;
         resp->payload   = payload; // struct takes ownership of payload
+        resp->payload_len = payload_len;
     }
     return resp;
 }
 
-static http_response * do_http(const CertifierPropMap * props, const char * url, const char * http_headers[], const char * body)
+static http_response * do_http(const CertifierPropMap * props, const char * url, const char * http_headers[], const char * body, const char * http_method)
 {
     char errbuf[CURL_ERROR_SIZE] = { 0 };
 
@@ -176,6 +178,11 @@ static http_response * do_http(const CertifierPropMap * props, const char * url,
     errbuf[0] = 0;
 
     http_set_curlopt(curl, CURLOPT_URL, url);
+
+    if (http_method != NULL)
+    {
+        http_set_curlopt(curl, CURLOPT_CUSTOMREQUEST, http_method);
+    }
 
     // post
     if ((body != NULL) && (XSTRLEN(body) > 0))
@@ -220,8 +227,23 @@ static http_response * do_http(const CertifierPropMap * props, const char * url,
     }
     else
     {
-        log_debug("do_http returned: %s", cf->payload);
-        return http_success_response(cf->payload, http_code, errbuf, res);
+        // Try to parse and pretty-print if it's JSON
+        JSON_Value *parsed_json = json_parse_string_with_comments(cf->payload);
+        if (parsed_json != NULL) {
+            char *pretty_json = json_serialize_to_string_pretty(parsed_json);
+            if (pretty_json) {
+                log_debug("do_http returned: %s", pretty_json);
+                json_free_serialized_string(pretty_json);
+            } else {
+                log_debug("do_http returned: %s", cf->payload);
+            }
+            json_value_free(parsed_json);
+        } else {
+            log_debug("do_http returned: %s", cf->payload);
+        }
+        return http_success_response(cf->payload, cf->size, http_code, errbuf, res);
+        // log_debug("do_http returned: %s", cf->payload);
+        // return http_success_response(cf->payload, http_code, errbuf, res);
     }
 }
 
@@ -237,13 +259,18 @@ int http_destroy()
 
 http_response * http_get(const CertifierPropMap * props, const char * url, const char * http_headers[])
 {
-    return do_http(props, url, http_headers, NULL);
+    return do_http(props, url, http_headers, NULL, "GET");
 }
 
 http_response * http_post(const CertifierPropMap * props, const char * url, const char * http_headers[], const char * body)
 {
 
-    return do_http(props, url, http_headers, body);
+    return do_http(props, url, http_headers, body, "POST");
+}
+
+http_response * http_put(const CertifierPropMap * props, const char * url, const char * http_headers[], const char * body)
+{
+    return do_http(props, url, http_headers, body, "PUT");
 }
 
 void http_free_response(http_response * resp)

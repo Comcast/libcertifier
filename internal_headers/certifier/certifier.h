@@ -21,6 +21,10 @@
 
 #include "certifier/property.h"
 #include "certifier/types.h"
+#include "certifier/error.h"
+#include "certifier/property_internal.h"
+
+#define SMALL_STRING_SIZE 64
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,7 +32,6 @@ extern "C" {
 
 /* CHUNK is the size of the memory chunk used by the zlib routines. */
 #define CHUNK 10000
-
 #define ALLOWABLE_CHARACTERS "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnpqrstuvwxyz0123456879"
 
 #define CERTIFIER_ERR_INIT_CERTIFIER 1000
@@ -138,7 +141,23 @@ typedef enum
     CERTIFIER_LOG_FATAL
 } CertifierLogPriority;
 
-typedef struct Certifier Certifier;
+typedef struct Map
+{
+    char node_address[SMALL_STRING_SIZE];
+    char * base64_public_key;
+    unsigned char * der_public_key;
+    int der_public_key_len;
+    ECC_KEY * private_ec_key;
+    X509_CERT * x509_cert;
+} Map;
+
+typedef struct Certifier
+{
+    CertifierPropMap * prop_map;
+    Map tmp_map;
+    CertifierError last_error;
+    bool sectigo_mode;
+} Certifier;
 
 Certifier * certifier_new(void);
 
@@ -164,6 +183,8 @@ bool certifier_is_option_set(Certifier * certifier, int name);
  * @return 0 on success, or an error code
  */
 int certifier_load_cfg_file(Certifier * certifier);
+
+int sectigo_load_cfg_file(Certifier * certifier);
 
 char * certifier_get_version(Certifier * certifier);
 
@@ -249,6 +270,10 @@ char * certifier_get_x509_pem(Certifier * certifier);
 void certifier_print_certificate(Certifier * certifier, const char * pem, int pem_len);
 
 void certifier_print_certificate_validity(Certifier * certifier);
+
+CertifierError sectigo_generate_certificate_signing_request(Certifier *certifier, char **out_csr_pem);
+
+CertifierPropMap * certifier_get_prop_map(Certifier * certifier);
 
 #ifdef __cplusplus
 }

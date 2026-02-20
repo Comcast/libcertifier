@@ -136,6 +136,22 @@ Same command with SAT authentication:
 
 | revoke
 | Revoke Certificate
+
+| sectigo-get-cert
+| Fetch Certificate from Sectigo
+
+| sectigo-search-cert
+| Search for certificates issued by Sectigo using various filters
+
+| sectigo-renew-cert
+| Renew a Sectigo certificate if not expired, and meets renew requirements
+
+| sectigo-revoke-cert
+| Revoke a Sectigo certificate
+
+| sectigo-ocsp-status
+| Check OCSP status of a Sectigo certificate
+
 |===
 
 == *certifierUtil get-cert options*
@@ -497,6 +513,358 @@ Disabled by default - Only error messages are shown.
 
 |===
 
+== *certifierUtil sectigo-get-cert options*
+
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+
+| help
+| h
+| --help +
+-h
+| Display this summary
+
+| common-name
+| C
+| --common-name <value> +
+-C <value>
+| Certificate common name
+
+| id
+| I
+| --id <value> +
+-I <value>
+| User or device ID
+
+| project-name
+| r
+| --project-name <value> +
+-r <value>
+| Project name
+
+| business-justification
+| b
+| --business-justification <value> +
+-b <value>
+| Business justification
+
+| subject-alt-names
+| A
+| --subject-alt-names <value> +
+-A <value>
+| Subject alternative names (CSV)
+
+| group-name
+| G
+| --group-name <value> +
+-G <value>
+| Group name
+
+| group-email
+| E
+| --group-email <value> +
+-E <value>
+| Group email
+
+| owner-first-name
+| O
+| --owner-first-name <value> +
+-O <value>
+| Owner first name
+
+| owner-last-name
+| J
+| --owner-last-name <value> +
+-J <value>
+| Owner last name
+
+| owner-email
+| Z
+| --owner-email <value> +
+-Z <value>
+| Owner email
+
+| devhub-id
+| D
+| --devhub-id <value> +
+-D <value>
+| DevHub ID
+
+| validity-days
+| V
+| --validity-days <value> +
+-V <value>
+| Validity days for the certificate
+
+| key-type
+| W
+| --key-type <value> +
+-W <value>
+| Key type for the certificate. Supported key types: [RSA-2048, RSA-3072, RSA-4096, RSA-8192, ECC-PRIME256V1, ECC-SECP384R1]
+
+| auth-token
+| K
+| --auth-token <value> +
+-K <value>
+| Auth token to authenticate with API 
+
+| url
+| u
+| --url <value> +
+-u <value>
+| Sectigo API URL
+
+| config
+| l
+| --config <file> +
+-l <file>
+| Path to config file
+|===
+
+== *certifierUtil sectigo-search-cert options*
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+| help
+| h
+| --help +
+-h
+| Display this summary
+
+| auth-token
+| K
+| --auth-token <value> +
+-K <value>
+| Auth token to authenticate with API
+
+| group-name
+| G
+| --group-name <value> +
+-G <value>
+| Group name to filter the search results
+
+| group-email
+| E
+| --group-email <value> +
+-E <value>
+| Group email to filter the search results
+
+| status
+| S
+| --status <value> +
+-S <value>
+| Status to filter the search results
+
+| common-name
+| C
+| --common-name <value> +
+-C <value>
+| Common name of certificate to filter the search results
+
+| offset
+| o
+| --offset <value> +
+-o <value>
+| Offset value for paginated results 
+
+| limit
+| L
+| --limit <value> +
+-L <value>
+| Limit value for paginated results
+
+| start-date
+| f
+| --start-date <value> +
+-f <value>
+| Start date to filter the search results (Format: YYYY-MM-DD)
+
+| end-date
+| t
+| --end-date <value> +
+-t <value>
+| End date to filter the search results (Format: YYYY-MM-DD)
+
+| certificate-id
+| e 
+| --certificate-id <value> +
+-e <value>
+| Certificate ID to filter the search results
+
+| validity-start-date
+| p
+| --validity-start-date <value> +
+-p <value>
+| Validity start date to filter the search results (Format: YYYY-MM-DD)
+
+| validity-end-date
+| q
+| --validity-end-date <value> +
+-q <value>
+| Validity end date to filter the search results (Format: YYYY-MM-DD)
+
+| cert-order
+| c
+| --cert-order <value> +
+-c <value>
+| To fetch the certificate order leaf and the ICA and Root order, pass leaf 
+
+| is-cn-in-san
+| a
+| --is-cn-in-san +
+-a
+| To check if the common name is also present in the subject alternative names, pass this flag
+
+| request-type
+| y
+| --request-type <value> +
+-y <value>
+| To fetch certificates based on requests. Ex. ACME, API, WEB, XCM
+
+| timestamp
+| m
+| --timestamp <value> +
+-m <value>
+| To fetch certificates based on timestamp types. Ex. createdTimestamp, approvedTimestamp, signedTimestamp, rejectedTimestamp, revokedTimestamp
+
+| devhub-id
+| D
+| --devhub-id <value> +
+-D <value>
+| To fetch certificates based on DevHub ID
+
+| key-type
+| W
+| --key-type <value> +
+-W <value>
+| To fetch certificate(s) that match this public key type/algorithm. Supported key types: [RSA-2048, RSA-3072, RSA-4096, RSA-8192, ECC-PRIME256V1, ECC-SECP384R1]
+
+| config
+| l
+| --config <file> +
+-l <file>
+| Path to config file
+|===
+
+== *certifierUtil sectigo-renew-cert options*
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+| help
+| h
+| --help +
+-h
+| Display this summary
+
+| auth-token
+| K
+| --auth-token <value> +
+-K <value>
+| Auth token to authenticate with API
+
+| common-name
+| C
+| --common-name <value> +
+-C <value>
+| Certificate common name (required for renewal)
+
+| serial-number
+| N
+| --serial-number <value> +
+-N <value>
+| Certificate serial number (either this or certificate ID is required for renewal)
+
+| certificate-id
+| e 
+| --certificate-id <value> +
+-e <value>
+| Certificate ID (either this or serial number is required for renewal)
+
+| requestor-email
+| s
+| --requestor-email <value> +
+-s <value>
+| Requestor email (required for renewal)
+
+| config
+| l
+| --config <file> +
+-l <file>
+| Path to config file
+|===
+
+== *certifierUtil sectigo-revoke-cert options*
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+| help
+| h
+| --help +
+-h
+| Display this summary
+
+| auth-token
+| K
+| --auth-token <value> +
+-K <value>
+| Auth token to authenticate with API
+
+| common-name
+| C
+| --common-name <value> +
+-C <value>
+| Certificate common name
+
+| serial-number
+| N
+| --serial-number <value> +
+-N <value>
+| Certificate serial number (either this or certificate ID is required for revocation)
+
+| certificate-id
+| e
+| --certificate-id <value> +
+-e <value>
+| Certificate ID (either this or serial number is required for revocation)
+
+| requestor-email
+| s
+| --requestor-email <value> +
+-s <value>
+| Requestor email (required for revocation)
+
+| revocation-request-reason
+| R 
+| --revocation-request-reason <value> +
+-R <value>
+| Revocation reason
+
+| config
+| l
+| --config <file> +
+-l <file>
+| Path to config file
+|===
+
+== *certifierUtil sectigo-ocsp-status options*
+|===
+| *Long Option* | *Short Option* | *Examples* | *Description*
+| help
+| h
+| --help +
+-h
+| Display this summary
+
+| cert-path
+| j
+| --cert-path <value> +
+-j <value>
+| Path to the certificate file (PEM format)
+
+| config
+| l
+| --config <file> +
+-l <file> +
+| Path to config file
+|===
+
 *Configuration File*
 
 Configuration File is a file used to specify internal certifier util parameters such as timeouts, ecc curve types and other miscellaneous items. This file follows the JSON Format and can be manually editted from the `libcertifier.cfg.sample` template file present in the root directory.
@@ -610,5 +978,54 @@ Note: 64-bit hex integer expected as input.
 | "critical,clientAuth,serverAuth"
 | Mark request for a lite certificate. +
 Note: value type = `bool`
+
+| libcertifier.sectigo.url
+| "https://certs.xpki.io/api/createCertificate"
+| Sectigo URL
+
+| libcertifier.sectigo.auth.token
+| ""
+| Sectigo API authentication token
+
+| libcertifier.sectigo.common.name
+| "example.com"
+| Certificate common name (CN)
+
+| libcertifier.sectigo.group.name
+| "Example Group"
+| Group name for the certificate request
+
+| libcertifier.sectigo.group.email
+| "group@example.com"
+| Group email for notifications
+
+| libcertifier.sectigo.id
+| "user123"
+| User or device ID
+
+| libcertifier.sectigo.owner.first.name
+| "First"
+| Owner's first name
+
+| libcertifier.sectigo.owner.last.name
+| "Last"
+| Owner's last name
+
+| libcertifier.sectigo.business.justification
+| "Testing"
+| Business justification for the request
+
+| libcertifier.sectigo.subject.alt.names
+| []
+| Subject alternative names. +
+Note: value type = `array of strings`  Pass empty array if you don't have.
+
+| libcertifier.sectigo.owner.email
+| "owner@example.com"
+| Owner's email address
+
+| libcertifier.sectigo.tracking.id
+| "1234"
+| Tracking ID for the request
 
 |===

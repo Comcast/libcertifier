@@ -41,6 +41,7 @@ typedef struct http_response
 {
     const char * error_msg;
     const char * payload;
+    size_t payload_len;
     int http_code;
     int error;
 } http_response;
@@ -52,6 +53,8 @@ int http_destroy(void);
 http_response * http_get(const CertifierPropMap * props, const char * url, const char * http_headers[]);
 
 http_response * http_post(const CertifierPropMap * props, const char * url, const char * http_headers[], const char * body);
+
+http_response * http_put(const CertifierPropMap * props, const char * url, const char * http_headers[], const char * body);
 
 void http_free_response(http_response * resp);
 

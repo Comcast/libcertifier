@@ -26,6 +26,8 @@
 #include "certifier/security.h"
 #include "certifier/types.h"
 #include "certifier/util.h"
+#include "certifier/sectigo_client.h"
+#include "certifier/property_internal.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -90,6 +92,67 @@
         "ca-path", required_argument, NULL, 'c'                                                                                    \
     }
 
+#define SECTIGO_GET_CERT_LONG_OPTIONS                                                                                              \
+    { "common-name", required_argument, NULL, 'C' }, \
+    { "id", required_argument, NULL, 'I' }, \
+    { "project-name", required_argument, NULL, 'r' }, \
+    { "business-justification", required_argument, NULL, 'b' }, \
+    { "subject-alt-names", required_argument, NULL, 'A' }, \
+    {"url", required_argument, NULL, 'u'}, \
+    { "auth-token", required_argument, NULL, 'K' }, \
+    { "group-name", required_argument, NULL, 'G' }, \
+    { "group-email", required_argument, NULL, 'E' }, \
+    { "owner-first-name", required_argument, NULL, 'O' }, \
+    { "owner-last-name", required_argument, NULL, 'J' }, \
+    { "owner-email", required_argument, NULL, 'Z' }, \
+    { "config", required_argument, NULL, 'l' }, \
+    { NULL, 0, NULL, 0 }
+    //make default arg '*' for san and ip 
+    //only take in choices=['fte', 'contractor', 'associate']
+
+#define SECTIGO_SEARCH_CERT_LONG_OPTIONS            \
+    { "group-name", required_argument, NULL, 'G' }, \
+    { "group-email", required_argument, NULL, 'E' }, \
+    { "status", required_argument, NULL, 'S' }, \
+    { "common-name", required_argument, NULL, 'C' }, \
+    { "offset", required_argument, NULL, 'o' }, \
+    { "limit", required_argument, NULL, 'L' }, \
+    { "start-date", required_argument, NULL, 'f' }, \
+    { "end-date", required_argument, NULL, 't' }, \
+    { "certificate-id", required_argument, NULL, 'i' }, \
+    { "validity-start-date", required_argument, NULL, 'p' }, \
+    { "validity-end-date", required_argument, NULL, 'q' }, \
+    { "cert-order", required_argument, NULL, 'c' }, \
+    { "is-cn-in-san", required_argument, NULL, 'a' }, \
+    { "request-type", required_argument, NULL, 'y' }, \
+    { "timestamp", required_argument, NULL, 'm' }, \
+    { "devhub-id", required_argument, NULL, 'D' }, \
+    { "key-type", required_argument, NULL, 'K' }, \
+    { "config", required_argument, NULL, 'l' }, \
+    { NULL, 0, NULL, 0 }
+
+#define SECTIGO_RENEW_CERT_LONG_OPTIONS \
+    { "common-name", required_argument, NULL, 'C' }, \
+    { "serial-number", required_argument, NULL, 'N' }, \
+    { "certificate-id", required_argument, NULL, 'e' }, \
+    { "requestor-email", required_argument, NULL, 's' }, \
+    { "config", required_argument, NULL, 'l' }, \
+    { NULL, 0, NULL, 0 }
+
+#define SECTIGO_REVOKE_CERT_LONG_OPTIONS \
+    { "common-name", required_argument, NULL, 'C' }, \
+    { "serial-number", required_argument, NULL, 'N' }, \
+    { "certificate-id", required_argument, NULL, 'e' }, \
+    { "requestor-email", required_argument, NULL, 's' }, \
+    { "revocation-request-reason", required_argument, NULL, 'R' }, \
+    { "config", required_argument, NULL, 'l' }, \
+    { NULL, 0, NULL, 0 }
+
+#define SECTIGO_OCSP_STATUS_LONG_OPTIONS \
+    { "cert-path", required_argument, NULL, 'j' }, \
+    { "config", required_argument, NULL, 'l' }, \
+    { NULL, 0, NULL, 0 }
+    
 static void finish_operation(CERTIFIER * easy, int return_code, const char * operation_output);
 
 // Private data
@@ -130,7 +193,7 @@ static size_t get_command_opt_index(command_opt_lut_t * command_opt_lut, size_t 
     return -1;
 }
 
-static const char * get_command_opt_helper(CERTIFIER_MODE mode)
+static const char * get_xpki_command_opt_helper(CERTIFIER_MODE mode)
 {
 #define BASE_HELPER                                                                                                                \
     "Usage:  certifierUtil %s [OPTIONS]\n"                                                                                         \
@@ -304,6 +367,11 @@ CERTIFIER_MODE certifier_api_easy_get_mode(CERTIFIER * easy)
         { "renew-cert", CERTIFIER_MODE_RENEW_CERT },
         { "print-cert", CERTIFIER_MODE_PRINT_CERT },
         { "revoke", CERTIFIER_MODE_REVOKE_CERT },
+        { "sectigo-get-cert", CERTIFIER_MODE_SECTIGO_GET_CERT},
+        { "sectigo-search-cert", CERTIFIER_MODE_SECTIGO_SEARCH_CERT},
+        { "sectigo-renew-cert", CERTIFIER_MODE_SECTIGO_RENEW_CERT},
+        { "sectigo-revoke-cert", CERTIFIER_MODE_SECTIGO_REVOKE_CERT},
+        { "sectigo-ocsp-status", CERTIFIER_MODE_SECTIGO_OCSP_STATUS}
     };
 
     for (int i = 0; i < sizeof(command_map) / sizeof(command_map_t); ++i)
@@ -739,6 +807,156 @@ cleanup:
     return return_code;
 }
 
+static int do_sectigo_get_cert(CERTIFIER * easy)
+{
+    int return_code = 0;
+    char * csr_pem = NULL;
+    char * cert = NULL;
+
+    // Check for required Sectigo properties
+    const char *common_name = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_COMMON_NAME);
+    const char *project_name = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_PROJECT_NAME);
+    const char *business_justification = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_BUSINESS_JUSTIFICATION);
+
+    if (util_is_empty(common_name) || util_is_empty(business_justification) || util_is_empty(project_name)) {
+
+        finish_operation(easy, CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1,
+            "Missing required Sectigo flags (common-name, project-name, business-justification)");
+        return CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
+    }
+
+    return_code = certifier_setup_keys(easy->certifier);
+    if (return_code != 0) {
+        finish_operation(easy, return_code, NULL);
+        return return_code;
+    }
+
+    //Generate CSR 
+    CertifierError rc = sectigo_generate_certificate_signing_request(easy->certifier, &csr_pem);
+    if (rc.application_error_code != 0 || csr_pem == NULL) {
+        finish_operation(easy, rc.application_error_code, NULL);
+        return rc.application_error_code;
+    }
+    
+    // Call Sectigo API to request certificate
+    CertifierPropMap * props = certifier_easy_api_get_props(easy->certifier);
+    rc = sectigo_client_request_certificate(props, (unsigned char *)csr_pem, certifier_get_node_address(easy->certifier), NULL, &cert);
+    
+    XFREE(csr_pem);
+
+    //Handle result
+    if (rc.application_error_code == 0 && cert != NULL) {
+        finish_operation(easy, 0, cert);
+        XFREE(cert);
+        return 0;
+    } else {
+        finish_operation(easy, rc.application_error_code, rc.application_error_msg);
+        if (cert) XFREE(cert);
+        return rc.application_error_code;
+    }
+}
+
+static int do_sectigo_search_cert(CERTIFIER * easy)
+{
+    // Check for required Sectigo properties
+    const char *auth_token = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_AUTH_TOKEN);
+    
+    if (util_is_empty(auth_token)) {
+        finish_operation(easy, CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1, "Missing required Sectigo flag: auth-token");
+        return CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
+    }
+
+    // Call Sectigo API to search for certificates
+    CertifierPropMap * props = certifier_easy_api_get_props(easy->certifier);
+    CertifierError rc = sectigo_client_search_certificates(props);
+
+    //Handle result
+    if (rc.application_error_code == 0) {
+        finish_operation(easy, 0, rc.application_error_msg);
+        return 0;
+    } else {
+        finish_operation(easy, rc.application_error_code, rc.application_error_msg);
+        return rc.application_error_code;
+    }
+}
+
+static int do_sectigo_renew_cert(CERTIFIER * easy)
+{
+    // Check for required Sectigo properties
+    const char *common_name = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_COMMON_NAME);
+    const char *serial_number = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_SERIAL_NUMBER);
+    const char *certificate_id = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_CERTIFICATE_ID);
+    const char *requestor_email = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_REQUESTOR_EMAIL);
+    if (util_is_empty(common_name) || (util_is_empty(serial_number) && util_is_empty(certificate_id)) || util_is_empty(requestor_email)) {
+        finish_operation(easy, CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1,
+            "Missing required Sectigo flag: (common-name, (serial-number or certificate-id), requestor-email)");
+        return CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
+    }
+
+    // Call Sectigo API to renew certificate
+    CertifierPropMap * props = certifier_easy_api_get_props(easy->certifier);
+    CertifierError rc = sectigo_client_renew_certificate(props);
+
+    //Handle result
+    if (rc.application_error_code == 0) {
+        finish_operation(easy, 0, "Certificate renewed successfully");
+        return 0;
+    } else {
+        finish_operation(easy, rc.application_error_code, rc.application_error_msg);
+        return rc.application_error_code;
+    }
+}
+
+static int do_sectigo_revoke_cert(CERTIFIER * easy)
+{
+    // Check for required Sectigo properties
+    const char *common_name = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_COMMON_NAME);
+    const char *requestor_email = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_REQUESTOR_EMAIL);
+    const char *revocation_reason = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_REVOCATION_REQUEST_REASON);
+    if (util_is_empty(common_name) || util_is_empty(requestor_email) || util_is_empty(revocation_reason)) {
+        finish_operation(easy, CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1,
+            "Missing required Sectigo flag: (common-name, requestor-email, revocation-request-reason)");
+        return CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
+    }
+
+    // Call Sectigo API to revoke certificate
+    CertifierPropMap * props = certifier_easy_api_get_props(easy->certifier);
+    CertifierError rc = sectigo_client_revoke_certificate(props);
+
+    //Handle result
+    if (rc.application_error_code == 0) {
+        finish_operation(easy, 0, "Certificate revoked successfully");
+        return 0;
+    } else {
+        finish_operation(easy, rc.application_error_code, rc.application_error_msg);
+        return rc.application_error_code;
+    }
+}
+
+static int do_sectigo_ocsp_status(CERTIFIER * easy)
+{
+    // Check for required Sectigo properties
+    const char *cert_path = certifier_get_property(easy->certifier, CERTIFIER_OPT_SECTIGO_CERT_PATH);
+    if (util_is_empty(cert_path)) {
+        finish_operation(easy, CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1, "Missing required Sectigo flag: cert-path");
+        return CERTIFIER_ERR_EMPTY_OR_INVALID_PARAM_1;
+    }
+
+    // Call Sectigo API to check OCSP status
+    CertifierPropMap * props = certifier_easy_api_get_props(easy->certifier);
+    CertifierError rc = sectigo_client_ocsp_status(props);
+
+    //Handle result
+    if (rc.application_error_code == 0) {
+        finish_operation(easy, 0, rc.application_error_msg);
+        return 0;
+    } else {
+        finish_operation(easy, rc.application_error_code, rc.application_error_msg);
+        return rc.application_error_code;
+    }
+}
+
+
 char * certifier_api_easy_get_version(CERTIFIER * easy)
 {
     if (easy == NULL)
@@ -777,7 +995,13 @@ int certifier_api_easy_print_helper(CERTIFIER * easy)
                  "get-cert-status\n"
                  "renew-cert\n"
                  "print-cert\n"
-                 "revoke\n");
+                 "revoke\n"
+                 "sectigo-get-cert\n"
+                 "sectigo-search-cert\n"
+                 "sectigo-renew-cert\n"
+                 "sectigo-revoke-cert\n"
+                 "sectigo-ocsp-status\n"
+                );
     }
 
     return 0;
@@ -826,7 +1050,12 @@ static int process_command_line(CERTIFIER * easy)
     static const char * const get_cert_status_short_options = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
     static const char * const renew_cert_short_options      = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
     static const char * const print_cert_short_options      = BASE_SHORT_OPTIONS;
-    static const char * const revoke_cert_short_options     = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
+    static const char * const revoke_cert_short_options     = BASE_SHORT_OPTIONS;
+    static const char * const sectigo_get_cert_short_options      = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
+    static const char * const sectigo_search_cert_short_options   = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
+    static const char * const sectigo_renew_cert_short_options    = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
+    static const char * const sectigo_revoke_cert_short_options   = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
+    static const char * const sectigo_ocsp_status_short_options   = BASE_SHORT_OPTIONS CA_PATH_SHORT_OPTION;
 
     static const struct option get_cert_long_opts[]      = { BASE_LONG_OPTIONS,     GET_CRT_TOKEN_LONG_OPTIONS,
                                                              GET_CERT_LONG_OPTIONS, VALIDITY_DAYS_LONG_OPTION,
@@ -836,6 +1065,11 @@ static int process_command_line(CERTIFIER * easy)
     static const struct option renew_cert_long_opts[]      = { BASE_LONG_OPTIONS, CA_PATH_LONG_OPTION, { NULL, 0, NULL, 0 } };
     static const struct option print_cert_long_opts[]      = { BASE_LONG_OPTIONS, { NULL, 0, NULL, 0 } };
     static const struct option revoke_cert_long_opts[]     = { BASE_LONG_OPTIONS, CA_PATH_LONG_OPTION, { NULL, 0, NULL, 0 } };
+    static const struct option sectigo_get_cert_long_opts[] = {BASE_LONG_OPTIONS, SECTIGO_GET_CERT_LONG_OPTIONS, {NULL, 0, NULL, 0}};
+    static const struct option sectigo_search_cert_long_opts[] = {BASE_LONG_OPTIONS, SECTIGO_SEARCH_CERT_LONG_OPTIONS, {NULL, 0, NULL, 0}};
+    static const struct option sectigo_renew_cert_long_opts[] = {BASE_LONG_OPTIONS, SECTIGO_RENEW_CERT_LONG_OPTIONS, {NULL, 0, NULL, 0}};
+    static const struct option sectigo_revoke_cert_long_opts[] = {BASE_LONG_OPTIONS, SECTIGO_REVOKE_CERT_LONG_OPTIONS, {NULL, 0, NULL, 0}};
+    static const struct option sectigo_ocsp_status_long_opts[] = {BASE_LONG_OPTIONS, SECTIGO_OCSP_STATUS_LONG_OPTIONS, {NULL, 0, NULL, 0}};
 
     static command_opt_lut_t command_opt_lut[] = {
         { CERTIFIER_MODE_REGISTER, get_cert_short_options, get_cert_long_opts },
@@ -844,6 +1078,11 @@ static int process_command_line(CERTIFIER * easy)
         { CERTIFIER_MODE_RENEW_CERT, renew_cert_short_options, renew_cert_long_opts },
         { CERTIFIER_MODE_PRINT_CERT, print_cert_short_options, print_cert_long_opts },
         { CERTIFIER_MODE_REVOKE_CERT, revoke_cert_short_options, revoke_cert_long_opts },
+        { CERTIFIER_MODE_SECTIGO_GET_CERT, sectigo_get_cert_short_options, sectigo_get_cert_long_opts},
+        { CERTIFIER_MODE_SECTIGO_SEARCH_CERT, sectigo_search_cert_short_options, sectigo_search_cert_long_opts},
+        { CERTIFIER_MODE_SECTIGO_RENEW_CERT, sectigo_renew_cert_short_options, sectigo_renew_cert_long_opts},
+        { CERTIFIER_MODE_SECTIGO_REVOKE_CERT, sectigo_revoke_cert_short_options, sectigo_revoke_cert_long_opts},
+        { CERTIFIER_MODE_SECTIGO_OCSP_STATUS, sectigo_ocsp_status_short_options, sectigo_ocsp_status_long_opts}
     };
 
     char * version_string = certifier_api_easy_get_version(easy);
@@ -869,7 +1108,7 @@ static int process_command_line(CERTIFIER * easy)
         switch (opt)
         {
         case 'h':
-            XFPRINTF(stdout, get_command_opt_helper(easy->mode), easy->argv[0]);
+            XFPRINTF(stdout, get_xpki_command_opt_helper(easy->mode), easy->argv[0]);
             exit(1);
         case 'c':
             return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_CA_PATH, optarg);
@@ -1066,6 +1305,116 @@ static int process_command_line(CERTIFIER * easy)
             break;
         case 'v':
             return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_LOG_LEVEL, (void *) (size_t) 0);
+            break;
+        case 'C': // common-name
+            if (optarg) 
+            {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_COMMON_NAME, optarg);
+            }
+            break;
+        case 'I': // id
+            if (optarg) 
+            {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_ID, optarg);
+            }
+            break;
+        case 'r': // project-name
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_PROJECT_NAME, optarg);
+            }
+            break;
+        case 'b': // business-justification
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_BUSINESS_JUSTIFICATION, optarg);
+            }
+            break;
+        case 'A': // subject-alt-names
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_SUBJECT_ALT_NAMES, optarg);
+            }
+            break;
+        case 'K': // auth-token
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_AUTH_TOKEN, optarg);
+            }
+            break;
+        case 'u': // sectigo url
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_URL, optarg);
+            }
+        case 'G': // group-name
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_GROUP_NAME, optarg);
+            }
+            break;
+        case 'E': // group-email
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_GROUP_EMAIL, optarg);
+            }
+            break;
+        case 'O': // owner-first-name
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_OWNER_FIRST_NAME, optarg);
+            }
+            break;
+        case 'J': // owner-last-name
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_OWNER_LAST_NAME, optarg);
+            }
+            break;
+        case 'M': // owner-email
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_OWNER_EMAIL, optarg);
+            }
+            break;
+        case 'D': // DevHub ID
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_DEVHUB_ID, optarg);
+            }
+            break;
+        case 'V': // Validity Days for Sectigo cert
+            if (optarg) {
+                if (atoi(optarg) > 0)
+                {
+                    return_code =
+                        certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_VALIDITY_DAYS, (const void *) (size_t) atoi(optarg));
+                }
+                else
+                {
+                    log_error("Expected input to be of positive integer type");
+                    return_code = 1;
+                }
+            }
+            break;
+        case 'W': // Key Type
+            if (!is_valid_sectigo_key_type(optarg)) {
+                log_error("Invalid key type. Supported key types: [RSA-2048, RSA-3072, RSA-4096, RSA-8192, ECC-PRIME256V1, ECC-SECP384R1]");
+                exit(0);
+            }
+            return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_KEY_TYPE, optarg);
+        case 'R': // Revocation reason
+            if (optarg) {
+                if (optarg == NULL) {
+                    log_error("Invalid revocation reason. Supported reasons: []");
+                    exit(0);
+                }
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_REVOCATION_REQUEST_REASON, optarg);
+            }
+            break;
+        case 's': // Revocation requestor email
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_REQUESTOR_EMAIL, optarg);
+            }
+            break;
+        case 'N': // Serial Number
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_SERIAL_NUMBER, optarg);
+            }
+            break;
+        case 'e': // Certificate ID
+            if (optarg) {
+                return_code = certifier_set_property(easy->certifier, CERTIFIER_OPT_SECTIGO_CERTIFICATE_ID, optarg);
+            }
             break;
         case '?':
             /* Case when user enters the command as
@@ -1343,9 +1692,41 @@ int certifier_api_easy_perform(CERTIFIER * easy)
         break;
     }
 
+    //For SECTIGO MODE
+switch(easy -> mode){
+    case CERTIFIER_MODE_NONE:
+    break;
+
+    case CERTIFIER_MODE_SECTIGO_GET_CERT:
+        do_sectigo_get_cert(easy);
+        break;
+
+    case CERTIFIER_MODE_SECTIGO_SEARCH_CERT:
+        do_sectigo_search_cert(easy);
+        break;
+
+    case CERTIFIER_MODE_SECTIGO_RENEW_CERT:
+        do_sectigo_renew_cert(easy);
+        break;
+
+    case CERTIFIER_MODE_SECTIGO_REVOKE_CERT:
+        do_sectigo_revoke_cert(easy);
+        break;
+
+    case CERTIFIER_MODE_SECTIGO_OCSP_STATUS:
+        do_sectigo_ocsp_status(easy);
+        break;
+
+    default:
+        finish_operation(easy, -1, "Invalid mode");
+        break;
+}
+
 cleanup:
     return easy->last_info.error_code;
 }
+
+
 
 http_response * certifier_api_easy_http_post(const CERTIFIER * easy, const char * url, const char * http_headers[],
                                              const char * csr)

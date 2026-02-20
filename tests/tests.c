@@ -54,7 +54,7 @@ static char * g_mock_http_expected_body      = NULL;
 static http_response g_mock_http_response;
 
 // FIXME: use cmocka object mocking for this instead of assert
-static http_response * do_http(const char * url, const char * http_headers[], const char * body)
+static http_response * do_http(const char * url, const char * http_headers[], const char * body, const char * http_method)
 {
     if (g_mock_http_expected_url != NULL)
         assert_string_equal(g_mock_http_expected_url, url);
@@ -72,13 +72,18 @@ static http_response * do_http(const char * url, const char * http_headers[], co
 
 http_response * http_get(const CertifierPropMap * props, const char * url, const char * http_headers[])
 {
-    return do_http(url, http_headers, NULL);
+    return do_http(url, http_headers, NULL, "GET");
 }
 
 http_response * http_post(const CertifierPropMap * props, const char * url, const char * http_headers[], const char * body)
 {
 
-    return do_http(url, http_headers, body);
+    return do_http(url, http_headers, body, "POST");
+}
+
+http_response * http_put(const CertifierPropMap * props, const char * url, const char * http_headers[], const char * body)
+{
+    return do_http(url, http_headers, body, "PUT");
 }
 
 void http_free_response(http_response * resp)
@@ -107,7 +112,8 @@ static void mock_http_set_response_success(const char * body, int status)
     g_mock_http_response.error     = 0;
 }
 
-static void mock_http_set_response_failure(const char * err, int status)
+// Add unused attribute marker to suppress warning
+__attribute__((unused)) static void mock_http_set_response_failure(const char * err, int status)
 {
     g_mock_http_response.payload   = NULL;
     g_mock_http_response.http_code = status;
@@ -115,7 +121,7 @@ static void mock_http_set_response_failure(const char * err, int status)
     g_mock_http_response.error     = status;
 }
 
-static void test_certifier_client_requests(void ** state)
+static void test_certifier_client_requests(void)
 {
 
     const char * csr           = "CSr";
@@ -163,9 +169,9 @@ static void test_certifier_client_requests(void ** state)
     certifier_set_property(certifier, CERTIFIER_OPT_PROFILE_NAME, profile_name);
     certifier_set_property(certifier, CERTIFIER_OPT_PRODUCT_ID, product_id);
 
-    int options = certifier_get_property(certifier, CERTIFIER_OPT_OPTIONS);
-    options |= CERTIFIER_OPT_CERTIFICATE_LITE;
-    certifier_set_property(certifier, CERTIFIER_OPT_OPTIONS, options);
+    int options = (int)(size_t)certifier_get_property(certifier, CERTIFIER_OPT_OPTIONS);
+    options |= CERTIFIER_OPTION_CERTIFICATE_LITE;
+    certifier_set_property(certifier, CERTIFIER_OPT_OPTIONS, (void *)(size_t)options);
 
     CertifierError rc = certifierclient_request_x509_certificate(_certifier_get_properties(certifier), (unsigned char *) csr,
                                                                  node_address, certifier_id, &ret);
@@ -181,7 +187,7 @@ static void test_certifier_client_requests(void ** state)
     }
 }
 
-static void test_certifier_client_requests1(void ** state)
+static void test_certifier_client_requests1(void)
 {
 
     const char * csr           = "CSr";
@@ -196,7 +202,7 @@ static void test_certifier_client_requests1(void ** state)
     const char * source        = "test_libledger";
     char * ret                 = NULL;
     char * cn_prefix           = NULL;
-    int icount = 0, return_code = 0;
+    int return_code = 0;
     unsigned int num_days = 0;
 
     JSON_Value * root_value   = json_value_init_object();
@@ -207,11 +213,11 @@ static void test_certifier_client_requests1(void ** state)
     return_code = certifier_set_property(certifier, CERTIFIER_OPT_CN_PREFIX, "xcal.tv");
     assert_int_equal(0, return_code);
 
-    return_code = certifier_set_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS, 730);
+    return_code = certifier_set_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS, (void *)(size_t)730);
     assert_int_equal(0, return_code);
 
     cn_prefix = certifier_get_property(certifier, CERTIFIER_OPT_CN_PREFIX);
-    num_days  = certifier_get_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS);
+    num_days  = (unsigned int)(size_t)certifier_get_property(certifier, CERTIFIER_OPT_VALIDITY_DAYS);
     assert_int_equal(730, num_days);
     if (cn_prefix)
     {
@@ -253,9 +259,9 @@ static void test_certifier_client_requests1(void ** state)
     certifier_set_property(certifier, CERTIFIER_OPT_PROFILE_NAME, profile_name);
     certifier_set_property(certifier, CERTIFIER_OPT_PRODUCT_ID, product_id);
 
-    int options = certifier_get_property(certifier, CERTIFIER_OPT_OPTIONS);
-    options |= CERTIFIER_OPT_CERTIFICATE_LITE;
-    certifier_set_property(certifier, CERTIFIER_OPT_OPTIONS, options);
+    int options = (int)(size_t)certifier_get_property(certifier, CERTIFIER_OPT_OPTIONS);
+    options |= CERTIFIER_OPTION_CERTIFICATE_LITE;
+    certifier_set_property(certifier, CERTIFIER_OPT_OPTIONS, (void *)(size_t)options);
 
     CertifierError rc = certifierclient_request_x509_certificate(_certifier_get_properties(certifier), (unsigned char *) csr,
                                                                  cn_prefix, ledger_id, &ret);
@@ -275,7 +281,7 @@ static void test_certifier_client_requests1(void ** state)
     }
 }
 
-static void test_certifier_create_crt1(void ** state)
+static void test_certifier_create_crt1(void)
 {
     int rc         = 0;
     char * out_crt = NULL;
@@ -294,7 +300,7 @@ static void test_certifier_create_crt1(void ** state)
     XFREE(out_crt);
 }
 
-static void test_certifier_create_node_address(void ** state)
+static void test_certifier_create_node_address(void)
 {
     int rc                      = 0;
     char * node_address         = NULL;
@@ -310,7 +316,7 @@ static void test_certifier_create_node_address(void ** state)
     XFREE(node_address);
 }
 
-static void test_certifier_get_version(void ** state)
+static void test_certifier_get_version(void)
 {
     char * out_version = certifier_get_version(certifier);
 
@@ -373,7 +379,7 @@ static int tearDown(void ** state)
 
 #endif
 
-static void test_base64(void ** state)
+static void test_base64(void)
 {
     char buf[64];
 
@@ -415,7 +421,7 @@ static void test_base64(void ** state)
     assert_memory_equal("\x01\x02\xFF\x80\x81\x7F\x42\x42", buf, 8);
 }
 
-static void test_base58(void ** state)
+static void test_base58(void)
 {
     char b58[128];
     uint8_t input[26];
@@ -449,7 +455,7 @@ static void test_base58(void ** state)
     assert_string_equal("1112", b58);
 }
 
-static void test_file_utils(void ** state)
+static void test_file_utils(void)
 {
     char temp_file[128];
     XSTRCPY(temp_file, "/tmp/certifier_test.XXXXXXX");
@@ -472,7 +478,7 @@ static void test_file_utils(void ** state)
     assert_int_equal(-1, util_delete_file("/tmp/moved_temp"));
 }
 
-void test_sha256_ripemd_b58(void ** state)
+void test_sha256_ripemd_b58(void)
 {
 
 #define NUM_HASH_INPUTS 180
@@ -556,7 +562,7 @@ void test_sha256_ripemd_b58(void ** state)
     }
 }
 
-static void test_set_curl_error(void ** state)
+static void test_set_curl_error(void)
 {
     char errbuf[1024] = { "some error" };
     int res           = 0;
@@ -566,7 +572,7 @@ static void test_set_curl_error(void ** state)
     XFREE(err);
 }
 
-static void test_str_utils(void ** state)
+static void test_str_utils(void)
 {
     char str[128] = { 0 };
 
@@ -629,7 +635,7 @@ static void test_str_utils(void ** state)
     assert_true(util_is_empty(line4));
 }
 
-static void test_random_val(void ** state)
+static void test_random_val(void)
 {
 
     char * str = util_generate_random_value(5, "");
@@ -661,7 +667,7 @@ static void test_random_val(void ** state)
     assert_true(b_cnt > 32);
 }
 
-static void test_ecc_key(void ** state)
+static void test_ecc_key(void)
 {
 
     // verify free(NULL) is ok
@@ -741,7 +747,7 @@ static void test_ecc_key(void ** state)
     XFREE(csr);
 }
 
-static void test_verify_signature_1(void ** state)
+static void test_verify_signature_1(void)
 {
 
     const char * pub_key_b64   = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPGYYPEBOW/v/Kori+9rkwyDLijQ+OyOcXWN/"
@@ -764,7 +770,7 @@ static void test_verify_signature_1(void ** state)
     security_free_eckey(deserialized_ecc_key);
 }
 
-static void test_verify_signature_2(void ** state)
+static void test_verify_signature_2(void)
 {
 
     int i = 0;
@@ -871,7 +877,7 @@ static void test_verify_signature_2(void ** state)
     }
 }
 
-void test_x509_cert(void ** state)
+void test_x509_cert(void)
 {
 
     const char * digicert_pem_pkcs7_blob = "-----BEGIN PKCS7-----\n"
@@ -1015,7 +1021,7 @@ void test_x509_cert(void ** state)
     char * cert3_ou       = NULL;
 
     // try cert only format
-    CertifierError rc = security_load_certs_from_pem(ejbca_with_hsm_pem_cert_only_blob, &cert_list);
+    CertifierError rc = security_load_certs_from_pem(ejbca_with_hsm_pem_cert_only_blob, &cert_list, false);
     assert_int_equal(0, rc.application_error_code);
     assert_non_null(cert_list);
     cert1 = security_cert_list_get(cert_list, 0);
@@ -1027,7 +1033,7 @@ void test_x509_cert(void ** state)
     cert_list = NULL;
 
     // try ejbca pkcs7 format
-    rc = security_load_certs_from_pem(ejbca_with_hsm_pem_pkcs7_blob, &cert_list);
+    rc = security_load_certs_from_pem(ejbca_with_hsm_pem_pkcs7_blob, &cert_list, false);
     assert_int_equal(0, rc.application_error_code);
     assert_non_null(cert_list);
     cert1 = security_cert_list_get(cert_list, 0);
@@ -1039,7 +1045,7 @@ void test_x509_cert(void ** state)
     cert_list = NULL;
 
     // try digicert pkcs7 format (original tests)
-    rc = security_load_certs_from_pem(digicert_pem_pkcs7_blob, &cert_list);
+    rc = security_load_certs_from_pem(digicert_pem_pkcs7_blob, &cert_list, false);
     assert_int_equal(0, rc.application_error_code);
     assert_non_null(cert_list);
 
@@ -1127,7 +1133,7 @@ void test_x509_cert(void ** state)
     security_free_cert_list(cert_list);
 }
 
-static void test_pkcs12(void ** state)
+static void test_pkcs12(void)
 {
     const char * pkcs12_blob_base64 =
         "MIII6AIBAzCCCK4GCSqGSIb3DQEHAaCCCJ8EggibMIIIlzCCB2oGCSqGSIb3DQEHAaCCB1sEggdXMIIHUzCCAz8GCyqGSIb3DQEMCgEDoIIC8DCCAuwGCiqGSI"
@@ -1172,7 +1178,6 @@ static void test_pkcs12(void ** state)
     XFILE pkcs12_file       = NULL;
     X509_LIST * certs       = NULL;
     ECC_KEY * key           = NULL;
-    ECC_KEY * dup_key       = NULL;
     X509_CERT * cert        = NULL;
     char * certifier_id     = NULL;
     char * generated_crt    = NULL;
@@ -1181,12 +1186,8 @@ static void test_pkcs12(void ** state)
     unsigned char * der_key = NULL;
     int der_key_len         = 0;
     int ret                 = 0;
-
-    char * tmp_crt = NULL;
-
     int rc               = 0;
-    const char * expires = "0";
-    const char * action  = "allow";
+
     certifier_set_property(certifier, CERTIFIER_OPT_OUTPUT_NODE, "dummy output node");
 
     blob_len = base64_decode(pkcs12_blob, pkcs12_blob_base64);
@@ -1387,7 +1388,7 @@ static void test_pkcs12(void ** state)
  * The Java equivalent test took ~ 5189 ms to complete 1 million iterations.
  * This took ~ 4852 ms seconds in C (using -Os compiler flag).
  */
-static void test_sha256_ripemd_b58_performance(void ** state)
+static void test_sha256_ripemd_b58_performance(void)
 {
 
     const char * value_prefix = "value12345678890000000000000000000000-0";
@@ -1438,7 +1439,7 @@ static void cleanup_logs(void)
 }
 
 // still a WIP - need more testing
-static void test_logging(void ** state)
+static void test_logging(void)
 {
 
     int i;
@@ -1464,7 +1465,7 @@ static void test_logging(void ** state)
     cleanup_logs();
 }
 
-static void test_options(void ** state)
+static void test_options(void)
 {
     CertifierPropMap * props = _certifier_get_properties(certifier);
 

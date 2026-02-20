@@ -2,6 +2,7 @@ xref:libcertifier.adoc[*Back to Manual*]
 
 == Configuration
 
+== xPKI Certificates
 |=======
 | *Property Name* | *Default Value* | *Description* 
 | libcertifier.certifier.url   | https://certifier.xpki.io/v1/certifier/certificate |  
@@ -25,6 +26,42 @@ xref:libcertifier.adoc[*Back to Manual*]
 | libcertifier.tls.insecure.host   | 0 |  
 | libcertifier.tls.insecure.peer   | 0 |  
 | libcertifier.ext.key.usage   | clientAuth,serverAuth | (See notes below) 
+|=======
+
+== Sectigo Certificates
+|=======
+| *Property Name* | *Default Value* | *Description* 
+| libcertifier.sectigo.url   | https://certs.xpki.io/api/createCertificate |
+| libcertifier.sectigo.auth.token   | |
+| libcertifier.sectigo.common.name   | |
+| libcertifier.sectigo.group.name   | |
+| libcertifier.sectigo.group.email   | |
+| libcertifier.sectigo.id   | user123 |
+| libcertifier.sectigo.owner.first.name   | |
+| libcertifier.sectigo.owner.last.name   | |
+| libcertifier.sectigo.project.name   | |
+| libcertifier.sectigo.business.justification   | |
+| libcertifier.sectigo.subject.alt.names   | [] |
+| libcertifier.sectigo.owner.email   | |
+| libcertifier.sectigo.devhub.id   | |
+| libcertifier.sectigo.validity.days   | 365 |
+| libcertifier.sectigo.key.type   | |
+| libcertifier.sectigo.serial.number   | |
+| libcertifier.sectigo.certificate.id   | |
+| libcertifier.sectigo.requestor.email   | |
+| libcertifier.sectigo.revocation.request.reason   | |
+| libcertifier.sectigo.status  | |
+| libcertifier.sectigo.offset   | |
+| libcertifier.sectigo.limit   | 10 |
+| libcertifier.sectigo.start.date   | |
+| libcertifier.sectigo.end.date   | |
+| libcertifier.sectigo.validity.start.date   | |
+| libcertifier.sectigo.validity.end.date   | |
+| libcertifier.sectigo.cert.order   | |
+| libcertifier.sectigo.is.cn.in.san   | |
+| libcertifier.sectigo.request.type   | |
+| libcertifier.sectigo.timestamp   | |
+| libcertifier.cert.path  | |
 |=======
 
 == Extended Key Usage values:

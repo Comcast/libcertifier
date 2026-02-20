@@ -51,6 +51,8 @@ XPKI_AUTH_TYPE map_to_xpki_auth_type(const char * str)
     {
         return XPKI_AUTH_SAT;
     }
+    
+    return XPKI_AUTH_X509; // Default to X509
 }
 
 const char * xpki_auth_type_to_string(XPKI_AUTH_TYPE auth_type)

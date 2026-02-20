@@ -199,7 +199,7 @@ X509_CERT * security_cert_list_get(X509_LIST * certs, int which);
  */
 X509_CERT * security_cert_list_pop(X509_LIST * certs, int which);
 
-CertifierError security_load_certs_from_pem(const char * pem, X509_LIST ** out);
+CertifierError security_load_certs_from_pem(const char * pem, X509_LIST ** out, bool load_all_certs);
 
 void security_print_certs_in_list(X509_LIST * certs, XFILE output);
 

@@ -1241,7 +1241,7 @@ cleanup:
     return result;
 }
 
-CertifierError load_certs_from_certificate(const char * pem, X509_LIST ** out)
+CertifierError load_certs_from_certificate(const char * pem, X509_LIST ** out, bool load_all_certs)
 {
     CertifierError result = CERTIFIER_ERROR_INITIALIZER;
 
@@ -1259,20 +1259,38 @@ CertifierError load_certs_from_certificate(const char * pem, X509_LIST ** out)
 
     BIO * cert_bio = BIO_new(BIO_s_mem());
     BIO_write(cert_bio, pem, cert_len);
-    cert = PEM_read_bio_X509(cert_bio, NULL, NULL, NULL);
-    if (!cert)
-    {
-        result.application_error_msg = util_format_error(__func__, "Unable to parse certificate!", __FILE__, __LINE__);
-        goto cleanup;
-    }
-
+    
     certs = sk_X509_new_null();
     if (certs == NULL)
     {
         result.application_error_msg = util_format_error(__func__, "Unable to call sk_X509_new_null!", __FILE__, __LINE__);
         goto cleanup;
     }
-    sk_X509_push(certs, cert);
+    
+    if (load_all_certs)
+    {
+        // Read all certificates (i.e. for OCSP) 
+        while ((cert = PEM_read_bio_X509(cert_bio, NULL, NULL, NULL)) != NULL)
+        {
+            sk_X509_push(certs, cert);
+        }
+    }
+    else
+    {
+        // Legacy behavior loading only the first certificate from the chain
+        cert = PEM_read_bio_X509(cert_bio, NULL, NULL, NULL);
+        if (cert != NULL)
+        {
+            sk_X509_push(certs, cert);
+        }
+    }
+    
+    // Check if we read at least one certificate
+    if (sk_X509_num(certs) == 0)
+    {
+        result.application_error_msg = util_format_error(__func__, "Unable to parse any certificates!", __FILE__, __LINE__);
+        goto cleanup;
+    }
 
 cleanup:
     BIO_free(cert_bio);
@@ -1286,7 +1304,7 @@ cleanup:
     return result;
 }
 
-CertifierError security_load_certs_from_pem(const char * pem, X509_LIST ** out)
+CertifierError security_load_certs_from_pem(const char * pem, X509_LIST ** out, bool load_all_certs)
 {
     CertifierError result = CERTIFIER_ERROR_INITIALIZER;
     if (XSTRSTR(pem, "-----BEGIN PKCS7-----"))
@@ -1295,7 +1313,7 @@ CertifierError security_load_certs_from_pem(const char * pem, X509_LIST ** out)
     }
     else if (XSTRSTR(pem, "-----BEGIN CERTIFICATE-----"))
     {
-        result = load_certs_from_certificate(pem, out);
+        result = load_certs_from_certificate(pem, out, load_all_certs);
     }
     else
     {

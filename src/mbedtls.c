@@ -2422,7 +2422,7 @@ cleanup:
     return result;
 }
 
-CertifierError load_certs_from_certificate(const char * pem, X509_LIST ** out)
+CertifierError load_certs_from_certificate(const char * pem, X509_LIST ** out, bool load_all_certs)
 {
     CertifierError result = CERTIFIER_ERROR_INITIALIZER;
     error_clear(&result);
@@ -2432,6 +2432,10 @@ CertifierError load_certs_from_certificate(const char * pem, X509_LIST ** out)
         result.application_error_code = MBEDTLS_LOAD_CERTS_FROM_CERTIFICATE_1_E;
         return result;
     }
+
+    // Note: mbedtls implementation currently only supports single certificate loading
+    // The load_all_certs parameter is accepted for API compatibility but not yet implemented
+    (void)load_all_certs;
 
     X509_LIST * certs = NULL;
 
@@ -2488,7 +2492,7 @@ cleanup:
     return result;
 }
 
-CertifierError security_load_certs_from_pem(const char * pem, X509_LIST ** out)
+CertifierError security_load_certs_from_pem(const char * pem, X509_LIST ** out, bool load_all_certs)
 {
     CertifierError result = CERTIFIER_ERROR_INITIALIZER;
     if (XSTRSTR(pem, "-----BEGIN PKCS7-----"))
@@ -2497,7 +2501,7 @@ CertifierError security_load_certs_from_pem(const char * pem, X509_LIST ** out)
     }
     else if (XSTRSTR(pem, "-----BEGIN CERTIFICATE-----"))
     {
-        result = load_certs_from_certificate(pem, out);
+        result = load_certs_from_certificate(pem, out, load_all_certs);
     }
     else
     {
