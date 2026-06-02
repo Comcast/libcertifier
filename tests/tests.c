@@ -1129,38 +1129,32 @@ void test_x509_cert(void ** state)
 
 static void test_pkcs12(void ** state)
 {
-    const char * pkcs12_blob_base64 =
-        "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"
-        "QtAiAGHoLk2r8ToO26Q1WdL65RI1k+"
-        "R87OaSGwb2CocKKgIjCCAfcGCyqGSIb3DQEMCgEDoIIB5jCCAeIGCiqGSIb3DQEJFgGgggHSBIIBzjCCAcowggFwoAMCAQICFBZHVul2jw0A7Cd+"
-        "d9HkZIjrWG1kMAoGCCqGSM49BAMCMDAxLjAsBgNVBAMMJU5vbiBQcm9kdWN0aW9uIE9OTFkgLSBYRk4gUEFBIENsYXNzIDMwIBcNMjExMjE0MDMyNzM2WhgPMj"
-        "A1MTEyMDcwMzI3MzZaMDAxLjAsBgNVBAMMJU5vbiBQcm9kdWN0aW9uIE9OTFkgLSBYRk4gUEFBIENsYXNzIDMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQf"
-        "lJ6vCnTLkOsVhSrQFRq3gxsw5ci66bkiGfOnjLMILuMb44o2DeopY4mtR48VU00XYnkTmu5qaCw+6hFAuco5o2YwZDASBgNVHRMBAf8ECDAGAQH/"
-        "AgEBMB8GA1UdIwQYMBaAFPiZqdWtcXHkw4F/FBB/"
-        "ePDZ92LpMB0GA1UdDgQWBBT4manVrXFx5MOBfxQQf3jw2fdi6TAOBgNVHQ8BAf8EBAMCAYYwCgYIKoZIzj0EAwIDSAAwRQIgWCLI3mriNpw5J1NU4RA88hn4OB"
-        "fbS0pIrk60yRq+RKkCIQDBV28U84Dn8dET4KRFPLMhRGMlwgXL+"
-        "IVdeK1nXXNPBjCCASUGCSqGSIb3DQEHAaCCARYEggESMIIBDjCCAQoGCyqGSIb3DQEMCgECoIG8MIG5MBwGCiqGSIb3DQEMAQMwDgQIduVNwg4xPGACAggABIG"
-        "YnPIryTvSmAFIq9B9AcmOIK9ir9U8qO2wlPudLJbQtb1bvGQeEpC9/nF/GELq6xSfnsM3RJyhUN+ZxZuF0WYI6erkrdi9xzXPxunCBG3xLS12uE/"
-        "2w0IFR5MYDXUwtvb5nUVcoqm3BLDNHONqBs4FhCJVn2kCpg6Aq5FJKXglitDsAPRhGoPkoYUjcnBefBw7eOH+"
-        "Jj381qYxPDAjBgkqhkiG9w0BCRUxFgQUmxClG1Wn9THzXPyyiIlrktakuzkwFQYJKoZIhvcNAQkUMQgeBgBLAGUAeTAxMCEwCQYFKw4DAhoFAAQUQvDgZTxPep"
-        "6LVyiYwaMc8EfQaIAECMyAnLmnljCMAgIIAA==";
+    const char * pkcs12_blob_base64 = 
+        "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";
 
     const char * pkcs12_file_name   = "/tmp/test.p12";
     const char * pkcs12_file_name_2 = "/tmp/write_test.p12";
@@ -1191,7 +1185,7 @@ static void test_pkcs12(void ** state)
 
     blob_len = base64_decode(pkcs12_blob, pkcs12_blob_base64);
 
-    assert_int_equal(2284, blob_len);
+    assert_int_equal(2243, blob_len);
 
     // coverity[returned_null] assert_non_null() fail()s when this returns NULL
     pkcs12_file = XFOPEN(pkcs12_file_name, "w");
@@ -1221,7 +1215,7 @@ static void test_pkcs12(void ** state)
     assert_non_null(security_cert_list_get(certs, 1));
     assert_non_null(security_cert_list_get(certs, 2));
 
-    cert = security_cert_list_pop(certs, 2);
+    cert = security_cert_list_pop(certs, 0);
     assert_non_null(cert);
 
     // now, let's write out what we just read...
@@ -1254,6 +1248,7 @@ static void test_pkcs12(void ** state)
 
     // end positive case
 
+    // -ve case - Should fail PKCS12 parse with MAC verify failure
     result = security_get_X509_PKCS12_file(pkcs12_file_name, "fake_password", NULL, &cert, NULL);
     assert_true(result.application_error_code >= 1);
     error_clear(&result);
@@ -1355,6 +1350,7 @@ static void test_pkcs12(void ** state)
     XFREE(pem);
     pem = NULL;
 
+    // -ve case - Should fail  PKCS12 parse with MAC verify failure
     certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, pkcs12_passwd);
     certifier_set_property(certifier, CERTIFIER_OPT_ECC_CURVE_ID, "");
     ret = certifier_setup_keys(certifier);
@@ -1363,6 +1359,7 @@ static void test_pkcs12(void ** state)
     certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, pkcs12_file_name);
     certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, pkcs12_passwd);
     certifier_set_property(certifier, CERTIFIER_OPT_ECC_CURVE_ID, "prime256v1");
+
 
     ret = certifier_get_device_registration_status(certifier);
     assert_int_equal(0, ret);
