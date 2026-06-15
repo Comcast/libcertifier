@@ -889,6 +889,12 @@ static int pkcs5_parse_pbkdf2_params(const mbedtls_asn1_buf * params, mbedtls_as
     return (0);
 }
 
+/*
+ * This function is a derivative of mbedtls_pkcs5_pbes2() from the
+ * official Mbed TLS library. 
+ * Source: https://github.com/Mbed-TLS/mbedtls/blob/mbedtls-3.6/library/pkcs5.c
+ * License: Apache 2.0 (re-licensed by ARM from the original PolarSSL GPLv2)
+ */
 static int test_pkcs5_pbes2(const mbedtls_asn1_buf * pbe_params, int mode, const unsigned char * pwd, size_t pwdlen,
                             const unsigned char * data, size_t datalen, unsigned char * output)
 {
@@ -1699,38 +1705,15 @@ typedef struct IndefiniteItems
     int depth;
 } IndefiniteItems;
 
-/* ASN Tags   */
-enum ASN_Tags
-{
-    ASN_EOC              = 0x00,
-    ASN_BOOLEAN          = 0x01,
-    ASN_INTEGER          = 0x02,
-    ASN_BIT_STRING       = 0x03,
-    ASN_OCTET_STRING     = 0x04,
-    ASN_TAG_NULL         = 0x05,
-    ASN_OBJECT_ID        = 0x06,
-    ASN_ENUMERATED       = 0x0a,
-    ASN_UTF8STRING       = 0x0c,
-    ASN_SEQUENCE         = 0x10,
-    ASN_SET              = 0x11,
-    ASN_PRINTABLE_STRING = 0x13,
-    ASN_UTC_TIME         = 0x17,
-    ASN_OTHER_TYPE       = 0x00,
-    ASN_RFC822_TYPE      = 0x01,
-    ASN_DNS_TYPE         = 0x02,
-    ASN_DIR_TYPE         = 0x04,
-    ASN_URI_TYPE         = 0x06, /* the value 6 is from GeneralName OID */
-    ASN_GENERALIZED_TIME = 0x18,
-    CRL_EXTENSIONS       = 0xa0,
-    ASN_EXTENSIONS       = 0xa3,
-    ASN_LONG_LENGTH      = 0x80,
-    ASN_INDEF_LENGTH     = 0x80,
-
-    /* ASN_Flags - Bitmask */
-    ASN_CONSTRUCTED      = 0x20,
-    ASN_APPLICATION      = 0x40,
-    ASN_CONTEXT_SPECIFIC = 0x80,
-};
+/* ASN Tags   
+ * Derived from ITU-T X.690 and https://github.com/Mbed-TLS/mbedtls/blob/mbedtls-3.6/include/mbedtls/asn1.h
+ * License: Apache 2.0 (re-licensed by ARM from the original PolarSSL GPLv2) 
+ */
+#define ASN_EOC 0x00
+#define ASN_SEQUENCE 0x10
+#define ASN_SET 0x11
+#define ASN_CONSTRUCTED 0x20
+#define ASN_LONG_LENGTH 0x80
 
 enum
 {
