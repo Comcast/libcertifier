@@ -403,20 +403,10 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     } else {
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CRT, params->crt));
     } 
-    if (params->static_certifier == true)
-    {
-        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
-    }
-    else
-    {
-        /* Use DEFAULT_CERTIFIER_URL if the certifier.url is not present in the config file. */
-        const char * certifier_url = (char *) certifier_get_property(certifier, CERTIFIER_OPT_CERTIFIER_URL);
 
-        if ((NULL == certifier_url) || (0 == XSTRLEN(certifier_url)))
-        {
-            ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFIER_URL));
-        }
-    }
+    /* certifier.url must be present in the config file. */
+    const char * certifier_url = (char *) certifier_get_property(certifier, CERTIFIER_OPT_CERTIFIER_URL);
+    VerifyOrReturnError(certifier_url != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
 
     if (certifier_get_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH) != NULL)
     {
@@ -472,22 +462,10 @@ XPKI_CLIENT_ERROR_CODE xc_renew_cert(renew_cert_param_t * params)
     }
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, params->p12_path));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->p12_password));
-    if (params->static_certifier == true)
-    {
-        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
-    }
-    else
-    {
-        /**
-         * Use DEFAULT_CERTIFIER_URL if the certifier.url is not present in the config file.
-         */
-        const char * certifier_url = (char *) certifier_get_property(certifier, CERTIFIER_OPT_CERTIFIER_URL);
+    /* certifier.url must be present in the config file. */
+    const char * certifier_url = (char *) certifier_get_property(certifier, CERTIFIER_OPT_CERTIFIER_URL);
+    VerifyOrReturnError(certifier_url != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
 
-        if ((NULL == certifier_url) || (0 == XSTRLEN(certifier_url)))
-        {
-            ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFIER_URL));
-        }
-    }
     ReturnErrorOnFailure(xc_set_source_id(params->source_id));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_AUTH_TYPE, xpki_auth_type_to_string(params->auth_type)));
 
@@ -624,20 +602,9 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert_status(get_cert_status_param_t * params, XPKI
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->p12_password));
     ReturnErrorOnFailure(xc_set_source_id(params->source_id));
 
-    if (params->static_certifier == true)
-    {
-        ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, CERTIFIER_STATIC_URL));
-    }
-    else
-    {
-        /* Use DEFAULT_CERTIFIER_URL if the certifier.url is not present in the config file. */
-        const char * certifier_url = (char *) certifier_get_property(certifier, CERTIFIER_OPT_CERTIFIER_URL);
-
-        if ((NULL == certifier_url) || (0 == XSTRLEN(certifier_url)))
-        {
-            ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFIER_URL));
-        }
-    }
+    /* certifier.url must be present in the config file */
+    const char * certifier_url = (char *) certifier_get_property(certifier, CERTIFIER_OPT_CERTIFIER_URL);
+    VerifyOrReturnError(certifier_url != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
 
     return _xc_get_cert_status(status);
 }

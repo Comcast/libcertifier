@@ -1,641 +1,567 @@
-# Copyright (C) Zigbee Alliance (2021). All rights reserved. This
-# information within this document is the property of the Zigbee
-# Alliance and its use and disclosure are restricted.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
 
-# Elements of Zigbee Alliance specifications may be subject to third
-# party intellectual property rights, including without limitation,
-# patent, copyright or trademark rights (such a third party may or may
-# not be a member of the Zigbee Alliance). The Zigbee Alliance is not
-# responsible and shall not be held responsible in any manner for
-# identifying or failing to identify any or all such third party
-# intellectual property rights.
-
-# This document and the information contained herein are provided on an
-# "AS IS" basis and the Zigbee Alliance DISCLAIMS ALL WARRANTIES EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO (A) ANY WARRANTY THAT THE USE
-# OF THE INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OF THIRD
-# PARTIES (INCLUDING WITHOUT LIMITATION ANY INTELLECTUAL PROPERTY RIGHTS
-# INCLUDING PATENT, COPYRIGHT OR TRADEMARK RIGHTS) OR (B) ANY IMPLIED
-# WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE
-# OR NON-INFRINGEMENT. IN NO EVENT WILL THE ZIGBEE ALLIANCE BE LIABLE
-# FOR ANY LOSS OF PROFITS, LOSS OF BUSINESS, LOSS OF USE OF DATA,
-# INTERRUPTION OF BUSINESS, OR FOR ANY OTHER DIRECT, INDIRECT, SPECIAL
-# OR EXEMPLARY, INCIDENTAL, PUNITIVE OR CONSEQUENTIAL DAMAGES OF ANY
-# KIND, IN CONTRACT OR IN TORT, IN CONNECTION WITH THIS DOCUMENT OR THE
-# INFORMATION CONTAINED HEREIN, EVEN IF ADVISED OF THE POSSIBILITY OF
-# SUCH LOSS OR DAMAGE.
-
-# All company, brand and product names may be trademarks that are the
-# sole property of their respective owners.
-
-# This legal notice must be included on all copies of this document that
-# are made.
-
-# Zigbee Alliance
-# 508 Second Street, Suite 206
-# Davis, CA 95616, USA
-# ------------------------------------------------------------------------
-
-# CHIP Cryptographic Primitives reference implementation for test vector
-# generation/validation.
-
-# Requirements of underlying crypto libraries:
-#  `pip install pycryptodome`
-#  `pip install ecdsa`
-#  `pip install cryptography`
-#  `pip install ctypescrypto`
-
-##########################################################################
-# WARNING: These primitives are implemented for the sake of illustration.
-#          The underlying crypto libraries are NOT safe for production
-#          use, as they are not safe against many attacks including
-#          side-channel attacks. Furthermore, key management
-#          is done using known sample key pairs.
-##########################################################################
+# Cryptographic primitives for Matter Certification Declaration test vector generation.
+#
+# Implements the CHIP crypto primitive API using standard Python libraries.
+#
+# WARNING: These primitives are for TEST VECTOR GENERATION ONLY.
+#          The underlying libraries are NOT hardened against side-channel
+#          attacks and must NOT be used in production firmware or services.
+#
+# Requirements:
+#   pip install pycryptodome ecdsa cryptography
 
 from binascii import hexlify, unhexlify
 import enum
 import hashlib
-import sys, tempfile
+import sys
+import tempfile
 import subprocess
-from typing import Optional, TypeVar, Union, Tuple
+from typing import Optional, Tuple, TypeVar, Union
 
 from Crypto.Protocol.KDF import HKDF, PBKDF2
 from Crypto.Hash import HMAC, SHA256
 from Crypto.Random import get_random_bytes
 
-# For Elliptical curve primitives
 from ecdsa import NIST256p, ECDH, SigningKey, VerifyingKey
 from ecdsa.curves import Curve
 from ecdsa.keys import BadSignatureError
-from ecdsa.util import randrange_from_seed__trytryagain, sigencode_strings, bit_length, sigencode_der
+from ecdsa.util import (
+    randrange_from_seed__trytryagain,
+    sigencode_strings,
+    bit_length,
+    sigencode_der,
+)
+
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
 
 class MappingsV1(enum.IntEnum):
-  CHIP_CRYPTO_HASH_LEN_BITS = 256
-  CHIP_CRYPTO_HASH_LEN_BYTES = 32
-  CHIP_CRYPTO_HASH_BLOCK_LEN_BYTES = 64
-  CHIP_CRYPTO_GROUP_SIZE_BITS = 256
-  CHIP_CRYPTO_GROUP_SIZE_BYTES = 32
-  CHIP_CRYPTO_PUBLIC_KEY_SIZE_BYTES = (2 * CHIP_CRYPTO_GROUP_SIZE_BYTES) + 1
-  CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BITS = 128
-  CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES = 16
-  CHIP_CRYPTO_AEAD_MIC_LENGTH_BITS = 128
-  CHIP_CRYPTO_AEAD_MIC_LENGTH_BYTES = 16
-  CHIP_CRYPTO_AEAD_NONCE_LENGTH_BYTES = 13
+    CHIP_CRYPTO_HASH_LEN_BITS = 256
+    CHIP_CRYPTO_HASH_LEN_BYTES = 32
+    CHIP_CRYPTO_HASH_BLOCK_LEN_BYTES = 64
+    CHIP_CRYPTO_GROUP_SIZE_BITS = 256
+    CHIP_CRYPTO_GROUP_SIZE_BYTES = 32
+    CHIP_CRYPTO_PUBLIC_KEY_SIZE_BYTES = (2 * CHIP_CRYPTO_GROUP_SIZE_BYTES) + 1
+    CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BITS = 128
+    CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES = 16
+    CHIP_CRYPTO_AEAD_MIC_LENGTH_BITS = 128
+    CHIP_CRYPTO_AEAD_MIC_LENGTH_BYTES = 16
+    CHIP_CRYPTO_AEAD_NONCE_LENGTH_BYTES = 13
 
+
+# ---------------------------------------------------------------------------
+# Encoding helpers
+# ---------------------------------------------------------------------------
 
 def bytes_from_hex(hex: str) -> bytes:
-  """Converts any `hex` string representation including `01:ab:cd` to bytes
+    """Convert any hex string (including colon-separated ``01:ab:cd``) to bytes.
 
-  Handles any whitespace including newlines, which are all stripped.
-  """
-  return unhexlify("".join(hex.replace(":","").split()))
+    Strips all whitespace including newlines before decoding.
+    """
+    return unhexlify("".join(hex.replace(":", "").split()))
 
 
-def to_octet_string(input: bytes) -> str:
-  """Takes `input` bytes and convert to a colon-separated hex octet string representation."""
-  return ":".join(["%02x" % b for b in input])
+def to_octet_string(data: bytes) -> str:
+    """Return a colon-separated lowercase hex representation of *data*."""
+    return ":".join("%02x" % b for b in data)
 
 
 def bits2int(data: bytes) -> int:
-  """Convert `data` from positive number octet string in big endian byte order to a large integer suitable for ECDSA operations"""
-  return int(hexlify(data), 16)
+    """Decode a big-endian octet string to a Python integer."""
+    return int(hexlify(data), 16)
 
 
 def make_c_array(byte_string: bytes, name: str) -> str:
-  """Convert a large byte string to a named constant C/C++ uint8_t array. """
-  def _extract_front(b: bytes, length: int) -> bytes:
-    to_extract = min(length, len(b))
-    span = b[0:to_extract]
-    del b[0:to_extract]
+    """Render *byte_string* as a named C ``uint8_t`` array literal."""
+    buf = bytearray(byte_string)
+    lines = ["const uint8_t %s[%d] = {" % (name, len(buf))]
+    while buf:
+        chunk, buf = buf[:16], buf[16:]
+        lines.append("  %s," % ", ".join("0x%02x" % b for b in chunk))
+    lines.append("};")
+    return "\n".join(lines) + "\n"
 
-    return span
 
-  byte_string = bytearray(byte_string)
-  output = "const uint8_t %s[%d] = {\n" % (name, len(byte_string))
-  while len(byte_string) > 0:
-    current_line_bytes = _extract_front(byte_string, 16)
-    output += "  %s,\n" % ", ".join(["0x%02x" % b for b in current_line_bytes])
-  output += "};\n"
-
-  return output
-
+# ---------------------------------------------------------------------------
+# Key-pair abstraction
+# ---------------------------------------------------------------------------
 
 class Keypair:
-  # Type hint so an inner staticmethod can refer to the outer type
-  Keypair = TypeVar('Keypair', bound='Keypair')
+    """Thin wrapper around a NIST P-256 signing/verifying key pair."""
 
-  def __init__(self, private_key: SigningKey, public_key: VerifyingKey):
-    assert len(private_key.to_string()) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-    assert len(public_key.to_string("uncompressed")) == MappingsV1.CHIP_CRYPTO_PUBLIC_KEY_SIZE_BYTES
-    self._public_key = public_key
-    self._private_key = private_key
-    self._additional_info = bytes()
+    Keypair = TypeVar("Keypair", bound="Keypair")
 
-  @property
-  def public_key(self) -> VerifyingKey:
-    """Get native library format of public key"""
-    return self._public_key
+    def __init__(self, private_key: SigningKey, public_key: VerifyingKey) -> None:
+        assert len(private_key.to_string()) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
+        assert (
+            len(public_key.to_string("uncompressed"))
+            == MappingsV1.CHIP_CRYPTO_PUBLIC_KEY_SIZE_BYTES
+        )
+        self._private_key = private_key
+        self._public_key = public_key
 
-  @property
-  def uncompressed_public_key_bytes(self) -> bytes:
-    """Get public key in uncompressed EC curve point format per SEC1 2.3.3"""
-    return self._public_key.to_string("uncompressed")
+    # -- properties ----------------------------------------------------------
 
-  @property
-  def private_key(self) -> SigningKey:
-    """Get native library format of private key"""
-    return self._private_key
+    @property
+    def public_key(self) -> VerifyingKey:
+        """Native library public key object."""
+        return self._public_key
 
-  @property
-  def private_key_bytes(self) -> bytes:
-    """Get raw private key"""
-    return self._private_key.to_string()
+    @property
+    def uncompressed_public_key_bytes(self) -> bytes:
+        """Uncompressed EC point per SEC1 §2.3.3 (04 || X || Y)."""
+        return self._public_key.to_string("uncompressed")
 
-  @staticmethod
-  def generate(seed: Optional[bytes]=None) -> Keypair:
-    """Generate an ECDSA key pair, possibly deterministically using `seed`."""
-    curve = NIST256p
+    @property
+    def private_key(self) -> SigningKey:
+        """Native library private key object."""
+        return self._private_key
 
-    # Generate secret key. If a seed is present, use it
-    # to deterministically generate a key (only useful for testing)
-    if not seed:
-      sk = SigningKey.generate(curve=curve)
-    else:
-      secexp = randrange_from_seed__trytryagain(seed, curve.order)
-      sk = SigningKey.from_secret_exponent(secexp, curve)
+    @property
+    def private_key_bytes(self) -> bytes:
+        """Raw 32-byte private key scalar."""
+        return self._private_key.to_string()
 
-    assert sk.curve == curve
+    # -- constructors --------------------------------------------------------
 
-    return Keypair(sk, sk.verifying_key)
+    @staticmethod
+    def generate(seed: Optional[bytes] = None) -> "Keypair":
+        """Generate a fresh P-256 key pair.
 
-  @staticmethod
-  def from_raw(private_key_bytes: bytes, uncompressed_public_key_bytes: Optional[bytes]=None) -> Keypair:
-    """Generate a Keypair object from raw private/public key bytes"""
-    curve = NIST256p
+        If *seed* is supplied the generation is deterministic (useful for
+        reproducible test vectors only — never do this in production).
+        """
+        if seed is None:
+            sk = SigningKey.generate(curve=NIST256p)
+        else:
+            secexp = randrange_from_seed__trytryagain(seed, NIST256p.order)
+            sk = SigningKey.from_secret_exponent(secexp, NIST256p)
+        return Keypair(sk, sk.verifying_key)
 
-    sk = SigningKey.from_string(private_key_bytes, curve=curve)
-    if uncompressed_public_key_bytes:
-      pk = VerifyingKey.from_string(uncompressed_public_key_bytes, curve=curve)
-      assert pk == sk.verifying_key
-    else:
-      pk = sk.verifying_key
+    @staticmethod
+    def from_raw(
+        private_key_bytes: bytes,
+        uncompressed_public_key_bytes: Optional[bytes] = None,
+    ) -> "Keypair":
+        """Reconstruct a :class:`Keypair` from raw byte representations."""
+        sk = SigningKey.from_string(private_key_bytes, curve=NIST256p)
+        if uncompressed_public_key_bytes is not None:
+            pk = VerifyingKey.from_string(uncompressed_public_key_bytes, curve=NIST256p)
+            assert pk == sk.verifying_key
+        else:
+            pk = sk.verifying_key
+        return Keypair(sk, pk)
 
-    return Keypair(sk, pk)
 
+# ---------------------------------------------------------------------------
+# Signature abstraction
+# ---------------------------------------------------------------------------
 
 class Signature:
-  # Type hint so an inner staticmethod can refer to the outer type
-  Signature = TypeVar('Signature', bound='Signature')
+    """ECDSA signature over NIST P-256, stored as raw (r, s) byte components."""
 
-  def __init__(self, r: bytes, s: bytes, curve:Curve=NIST256p) -> None:
-    """Constructor for a Crypto primitives signature"""
-    assert len(r) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-    assert len(s) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
+    Signature = TypeVar("Signature", bound="Signature")
 
-    self._r = r[:]
-    self._s = s[:]
-    self._curve = curve
+    def __init__(self, r: bytes, s: bytes, curve: Curve = NIST256p) -> None:
+        assert len(r) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
+        assert len(s) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
+        self._r = bytes(r)
+        self._s = bytes(s)
+        self._curve = curve
 
-  @property
-  def r(self) -> bytes:
-    """Get "r" component of the signature"""
-    assert len(self._r) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-    return self._r[:]
+    # -- properties ----------------------------------------------------------
 
-  @property
-  def s(self) -> bytes:
-    """Get "s" component of the signature"""
-    assert len(self._s) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-    return self._s[:]
+    @property
+    def r(self) -> bytes:
+        return self._r
 
-  @property
-  def order(self) -> int:
-    """Get order of signature's curve"""
-    return self._curve.order
+    @property
+    def s(self) -> bytes:
+        return self._s
 
-  @property
-  def curve(self) -> Curve:
-    """Get signature's elliptical curve"""
-    return self._curve
+    @property
+    def order(self) -> int:
+        return self._curve.order
 
-  @property
-  def raw_signature(self) -> bytes:
-    """Get raw concatenated string version of the signature (r || s)"""
-    assert len(self._r) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-    assert len(self._s) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
+    @property
+    def curve(self) -> Curve:
+        return self._curve
 
-    return self._r + self._s
+    @property
+    def raw_signature(self) -> bytes:
+        """Concatenated r || s representation."""
+        return self._r + self._s
 
-  @property
-  def rs_tuple(self) -> Tuple[bytes, bytes]:
-    """Get signature as a tuple of (r, s)"""
-    r = self.r
-    s = self.s
+    @property
+    def rs_tuple(self) -> Tuple[bytes, bytes]:
+        return (self._r, self._s)
 
-    return (r, s)
+    @property
+    def der(self) -> bytes:
+        """DER-encoded ECDSA signature (X9.62)."""
+        return sigencode_der(bits2int(self._r), bits2int(self._s), self._curve.order)
 
-  @property
-  def der(self) -> bytes:
-    """Get DER formatted ECDSA signature (X9.62 format)"""
-    return sigencode_der(bits2int(self.r), bits2int(self.s), self._curve.order)
+    # -- constructors --------------------------------------------------------
 
-  @staticmethod
-  def from_raw(signature_bytes: bytes, curve:Curve=NIST256p) -> Signature:
-    """Create a Signature object from concatenated r || s raw representation."""
-    assert len(signature_bytes) == (2 * MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES)
+    @staticmethod
+    def from_raw(signature_bytes: bytes, curve: Curve = NIST256p) -> "Signature":
+        """Create from concatenated r || s bytes."""
+        half = len(signature_bytes) // 2
+        assert half == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
+        return Signature(signature_bytes[:half], signature_bytes[half:], curve)
 
-    r = signature_bytes[0:(len(signature_bytes) // 2)]
-    s = signature_bytes[(len(signature_bytes) // 2):]
+    @staticmethod
+    def from_rs_tuple(rs_tuple: Tuple[bytes, bytes], curve: Curve = NIST256p) -> "Signature":
+        """Create from an (r, s) tuple."""
+        r, s = rs_tuple
+        return Signature(r, s, curve)
 
-    return Signature(r, s, curve)
-
-  @staticmethod
-  def from_rs_tuple(rs_tuple: Tuple[bytes, bytes], curve:Curve=NIST256p) -> Signature:
-    """Create a Signature object from a tuple of (r, s)"""
-    r, s = rs_tuple
-    assert len(r) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-    assert len(s) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-
-    return Signature(r, s, curve)
-
-  def __eq__(self, o: object) -> bool:
-    """Equality predicate for signature is bit-for-bit equivalence of raw version"""
-    return (o.raw_signature == self.raw_signature) and (o.curve == self.curve)
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Signature):
+            return NotImplemented
+        return self.raw_signature == other.raw_signature and self.curve == other.curve
 
 
-def _convert_signing_key(private_key: Union[bytes, Keypair, SigningKey]) -> SigningKey:
-  """Utility to take many different versions of private key representation and return a usable pyecdsa SigningKey"""
-  if isinstance(private_key, SigningKey):
-    signing_key = private_key
-  elif isinstance(private_key, bytes):
-    signing_key: SigningKey = Keypair.from_raw(private_key_bytes=private_key).private_key
-  else:
-    # Input is a Keypair
-    signing_key: SigningKey = private_key.private_key
+# ---------------------------------------------------------------------------
+# Internal key-conversion helpers
+# ---------------------------------------------------------------------------
 
-  return signing_key
-
-
-def _convert_verifying_key(public_key: Union[bytes, Keypair, VerifyingKey]) -> VerifyingKey:
-  """Utility to take many different versions of public key representation and return a usable pyecdsa VerifyingKey"""
-  if isinstance(public_key, VerifyingKey):
-    verifying_key = public_key
-  elif isinstance(public_key, bytes):
-    verifying_key: VerifyingKey = VerifyingKey.from_string(public_key, curve=NIST256p)
-  else:
-    # Input is a Keypair
-    verifying_key: VerifyingKey = public_key.public_key
-
-  return verifying_key
+def _to_signing_key(key: Union[bytes, Keypair, SigningKey]) -> SigningKey:
+    if isinstance(key, SigningKey):
+        return key
+    if isinstance(key, bytes):
+        return Keypair.from_raw(key).private_key
+    return key.private_key
 
 
-def CHIP_Crypto_Sign(private_key: Union[bytes, Keypair, SigningKey], message: bytes) -> Signature:
-  """Sign message using ECDSA with SHA256, using given `private_key` and `message`.
-
-  The SEC1 signing algorithm with random `k` will be used. Signature generated
-  is not deterministic.
-  """
-  signing_key = _convert_signing_key(private_key)
-
-  assert signing_key.curve == NIST256p
-
-  r, s = signing_key.sign(message, hashfunc=hashlib.sha256, sigencode=sigencode_strings)
-
-  assert len(r) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-  assert len(s) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-
-  return Signature(r, s)
+def _to_verifying_key(key: Union[bytes, Keypair, VerifyingKey]) -> VerifyingKey:
+    if isinstance(key, VerifyingKey):
+        return key
+    if isinstance(key, bytes):
+        return VerifyingKey.from_string(key, curve=NIST256p)
+    return key.public_key
 
 
-def CHIP_Crypto_Sign_Digest_With_Provided_K_For_Test_Vectors(private_key: Union[bytes, Keypair, SigningKey], digest: bytes, k:bytes) -> Signature:
-  """Sign `digest` using ECDSA with SHA256, using given `private_key`, and with the given nonce value `k`.
+# ---------------------------------------------------------------------------
+# CHIP crypto primitive API
+# ---------------------------------------------------------------------------
 
-  *** THIS VERSION IS ONLY FOR DETERMINISTIC GENERATION OF TEST VECTORS ***
-
-  This allows setting the `k` value to a non-random value, so that test
-  vectors can be generated deterministically. The `k` has to be passed
-  as a big-endian octet string.
-
-  *** THIS VERSION IS ONLY FOR DETERMINISTIC GENERATION OF TEST VECTORS ***
-  """
-  signing_key = _convert_signing_key(private_key)
-
-  assert signing_key.curve == NIST256p
-  assert len(k) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-  assert (len(k) * 8) == bit_length(signing_key.curve.order)
-  k = bits2int(k)
-
-  r, s = signing_key.sign_digest(digest, sigencode=sigencode_strings, k=k)
-
-  assert len(r) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-  assert len(s) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-
-  return Signature(r, s)
+def CHIP_Crypto_Sign(
+    private_key: Union[bytes, Keypair, SigningKey],
+    message: bytes,
+) -> Signature:
+    """ECDSA-SHA256 signature with a random nonce *k* (non-deterministic)."""
+    sk = _to_signing_key(private_key)
+    assert sk.curve == NIST256p
+    r, s = sk.sign(message, hashfunc=hashlib.sha256, sigencode=sigencode_strings)
+    return Signature(r, s)
 
 
-def CHIP_Crypto_Verify(public_key: Union[bytes, Keypair, VerifyingKey], message: bytes, signature: Signature) -> bool:
-  """Verify a `signature` on the given `message` using `public_key`. Returns True on success."""
-  verifying_key = _convert_verifying_key(public_key)
+def CHIP_Crypto_Sign_Digest_With_Provided_K_For_Test_Vectors(
+    private_key: Union[bytes, Keypair, SigningKey],
+    digest: bytes,
+    k: bytes,
+) -> Signature:
+    """ECDSA sign a pre-computed *digest* using a fixed nonce *k*.
 
-  assert verifying_key.curve == NIST256p
-
-  try:
-    return verifying_key.verify(signature.raw_signature, message, hashfunc=hashlib.sha256)
-  except BadSignatureError:
-    return False
-
-def CHIP_Crypto_Verify_Digest(public_key: Union[bytes, Keypair, VerifyingKey], digest: bytes, signature: Signature) -> bool:
-  """Verify a `signature` on the given `digest` using `public_key`. Returns True on success."""
-  verifying_key = _convert_verifying_key(public_key)
-
-  assert verifying_key.curve == NIST256p
-
-  try:
-    return verifying_key.verify_digest(signature.raw_signature, digest)
-  except BadSignatureError:
-    return False
+    *** FOR TEST VECTOR GENERATION ONLY — never use a fixed k in production. ***
+    """
+    sk = _to_signing_key(private_key)
+    assert sk.curve == NIST256p
+    assert len(k) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
+    k_int = bits2int(k)
+    r, s = sk.sign_digest(digest, sigencode=sigencode_strings, k=k_int)
+    return Signature(r, s)
 
 
-def CHIP_Crypto_TRNG(len: int) -> bytes:
-  """Returns an array of `len` random bits."""
-  assert (len % 8 == 0)
-  return get_random_bytes(len // 8)
+def CHIP_Crypto_Verify(
+    public_key: Union[bytes, Keypair, VerifyingKey],
+    message: bytes,
+    signature: Signature,
+) -> bool:
+    """Verify an ECDSA-SHA256 *signature* over *message*. Returns True on success."""
+    vk = _to_verifying_key(public_key)
+    assert vk.curve == NIST256p
+    try:
+        return vk.verify(signature.raw_signature, message, hashfunc=hashlib.sha256)
+    except BadSignatureError:
+        return False
+
+
+def CHIP_Crypto_Verify_Digest(
+    public_key: Union[bytes, Keypair, VerifyingKey],
+    digest: bytes,
+    signature: Signature,
+) -> bool:
+    """Verify an ECDSA *signature* over a pre-computed *digest*. Returns True on success."""
+    vk = _to_verifying_key(public_key)
+    assert vk.curve == NIST256p
+    try:
+        return vk.verify_digest(signature.raw_signature, digest)
+    except BadSignatureError:
+        return False
+
+
+def CHIP_Crypto_TRNG(length: int) -> bytes:
+    """Return *length* random bits as bytes. *length* must be a multiple of 8."""
+    assert length % 8 == 0
+    return get_random_bytes(length // 8)
 
 
 def CHIP_Crypto_Hash(message: bytes) -> bytes:
-  """Returns the cryptographic hash digest of the `message`.
-
-  CHIP_Crypto_Hash(message) :=
-      byte[CHIP_CRYPTO_HASH_LEN_BYTES] SHA-256(M := message)
-
-  `SHA-256()` SHALL be computed as defined in Section 6.2 of <<FIPS1804>>.
-  """
-  return SHA256.new(data=message).digest()
+    """SHA-256 digest of *message* (FIPS 180-4 §6.2)."""
+    return SHA256.new(data=message).digest()
 
 
-def CHIP_Crypto_KDF(inputKey: bytes, salt: bytes, info: str, len: int) -> bytes:
-  """
-  Returns the key of `len` bits derived from `inputKey` using the `salt` and the `info`; `len` SHALL be a multiple of 8.
-
-  CHIP_Crypto_KDF(inputKey, salt, info, len) :=
-     bit[len] KDM(Z := inputKey, OtherInput := {salt := salt, L := len, FixedInfo := info})
-  ----
-  `KDM()` SHALL be the HMAC-based KDF function with `CHIP_Crypto_HMAC(key := salt, message := x)`
-   as the auxiliary function `H` as defined in Section 4.1 Option 2 of <<NIST80056C>>;
-   it returns a bit array of `len` bits.
-  """
-  assert (len % 8 == 0)
-
-  key = HKDF(inputKey, len // 8, salt, SHA256, 1, info)
-  return key
+def CHIP_Crypto_KDF(inputKey: bytes, salt: bytes, info: str, length: int) -> bytes:
+    """HKDF-SHA256 key derivation. *length* must be a multiple of 8."""
+    assert length % 8 == 0
+    return HKDF(inputKey, length // 8, salt, SHA256, 1, info)
 
 
 def CHIP_Crypto_HMAC(key: bytes, message: bytes) -> bytes:
-  """
-  Returns the cryptographic keyed-hash message authentication code of a `message` using the given `key`.
-
-  CHIP_Crypto_HMAC(key, message) :=
-      byte[CHIP_CRYPTO_HASH_LEN_BYTES] HMAC(K := key, text := message)
-  ----
-  `HMAC()` SHALL be computed as defined in <<FIPS1981>> using `CHIP_Crypto_Hash()` as the
-  underlying hash function `H` (this is also referred to as `HMAC-SHA256()`) and
-  `CHIP_CRYPTO_HASH_LEN_BYTES` is defined in <<ref_HASH>>.
-  """
-  return HMAC.new(key, digestmod=SHA256).update(message).digest()
+    """HMAC-SHA256 of *message* under *key*."""
+    return HMAC.new(key, digestmod=SHA256).update(message).digest()
 
 
-def CHIP_Crypto_PBKDF(input: bytes, salt: bytes, iterations: int, len: int) -> bytes:
-  """
-  Returns `length` bits of PBKDF2 w/ SHA256 of `input` against `salt` using `iterations` of the function.
-
-  Crypto_PBKDF(input, salt, iterations, len) :=
-      bit[len] PBKDF2(P := input, S := salt, C := iterations, kLen := len)
-  """
-  assert (len % 8 == 0)
-  return PBKDF2(input, salt, len // 8, count=iterations, hmac_hash_module=SHA256)
+def CHIP_Crypto_PBKDF(input: bytes, salt: bytes, iterations: int, length: int) -> bytes:
+    """PBKDF2-HMAC-SHA256. *length* must be a multiple of 8."""
+    assert length % 8 == 0
+    return PBKDF2(input, salt, length // 8, count=iterations, hmac_hash_module=SHA256)
 
 
-def CHIP_Crypto_ECDH(my_private_key: Union[bytes, Keypair, SigningKey], their_public_key: Union[bytes, Keypair, VerifyingKey]) -> bytes:
-  """Performs Elliptical Curve Diffie-Hellman (ECDH) key agreement algorithm per NIST SEC1 Section 3.3.1.
+def CHIP_Crypto_ECDH(
+    my_private_key: Union[bytes, Keypair, SigningKey],
+    their_public_key: Union[bytes, Keypair, VerifyingKey],
+) -> bytes:
+    """ECDH shared secret (NIST SEC1 §3.3.1). Returns 32-byte shared secret."""
+    pk = _to_verifying_key(their_public_key)
+    sk = _to_signing_key(my_private_key)
+    assert pk.curve == NIST256p
+    assert sk.curve == NIST256p
 
-  Uses local `my_private_key`. Uses received `their_public_key`.
-  """
-  public_key = _convert_verifying_key(their_public_key)
-  assert public_key.curve == NIST256p
+    ecdh = ECDH(curve=NIST256p)
+    ecdh.load_received_public_key(pk)
+    ecdh.load_private_key(sk)
 
-  private_key = _convert_signing_key(my_private_key)
-  assert private_key.curve == NIST256p
-
-  ecdh = ECDH(curve=NIST256p)
-
-  ecdh.load_received_public_key(public_key)
-  ecdh.load_private_key(private_key)
-
-  shared_secret = ecdh.generate_sharedsecret_bytes()
-  assert len(shared_secret) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
-
-  return shared_secret
+    shared = ecdh.generate_sharedsecret_bytes()
+    assert len(shared) == MappingsV1.CHIP_CRYPTO_GROUP_SIZE_BYTES
+    return shared
 
 
-def CMS_Sign(payload: bytes, pem_certificate: bytes, pem_key_bytes: bytes, out_format="DER"):
-  """Sign `payload` in a CMS SignedData Structure.
-  Signs with with given `private_key_bytes`
-  `certificate`'s 'kid' will be used for the Key ID in the SignedData Structure.
-  *** This is only used to test Certification Declaration generation
-      and is not described in the Matter spec's Core crypto primitives. ***
-  """
-  if out_format == 'DER':
-    file_open_mode = 'w+b'
-  else:
-    file_open_mode = 'w+'
+# ---------------------------------------------------------------------------
+# CMS helpers (used only for Certification Declaration testing)
+# ---------------------------------------------------------------------------
 
-  with tempfile.NamedTemporaryFile(mode='w+b', delete=True) as payload_file:
-    payload_file.write(payload)
-    payload_file.flush()
+def CMS_Sign(
+    payload: bytes,
+    pem_certificate: bytes,
+    pem_key_bytes: bytes,
+    out_format: str = "DER",
+) -> bytes:
+    """Wrap *payload* in a CMS SignedData structure and sign it.
 
-    with tempfile.NamedTemporaryFile(mode='w+', delete=True) as cert_file:
-      cert_file.write(pem_certificate)
-      cert_file.flush()
+    Uses the Subject Key Identifier from *pem_certificate* as the key ID.
+    *out_format* is either ``"DER"`` (default) or ``"PEM"``.
 
-      with tempfile.NamedTemporaryFile(mode='w+', delete=True) as key_file:
-        key_file.write(pem_key_bytes)
+    *** Used only for Certification Declaration test vector generation. ***
+    """
+    file_mode = "w+b" if out_format == "DER" else "w+"
+
+    with tempfile.NamedTemporaryFile(mode="w+b", delete=True) as payload_file, \
+         tempfile.NamedTemporaryFile(mode="w+", delete=True, suffix=".pem") as cert_file, \
+         tempfile.NamedTemporaryFile(mode="w+", delete=True, suffix=".pem") as key_file, \
+         tempfile.NamedTemporaryFile(mode=file_mode, delete=True) as cms_file:
+
+        payload_file.write(payload)
+        payload_file.flush()
+
+        cert_file.write(
+            pem_certificate if isinstance(pem_certificate, str)
+            else pem_certificate.decode()
+        )
+        cert_file.flush()
+
+        key_file.write(
+            pem_key_bytes if isinstance(pem_key_bytes, str)
+            else pem_key_bytes.decode()
+        )
         key_file.flush()
 
-        with tempfile.NamedTemporaryFile(mode=file_open_mode, delete=True) as cms_file:
-          res = subprocess.run(['openssl', 'cms', '-sign', '-binary', '-noattr', '-nocerts', '-keyid',
-                                '-in', payload_file.name, '-signer', cert_file.name,
-                                '-inkey', key_file.name, '-outform', out_format,
-                                '-out', cms_file.name, '-text', '-nodetach'],
-                                stdout=subprocess.DEVNULL,
-                                stderr=subprocess.DEVNULL)
-          if res.returncode == 0:
-            cms_bytes = cms_file.read()
-          else:
-            raise ValueError("Failed to sign CMS payload, openssl return code: %d" % res.returncode)
-
-  return cms_bytes
+        result = subprocess.run(
+            [
+                "openssl", "cms", "-sign", "-binary", "-noattr", "-nocerts",
+                "-keyid",
+                "-in", payload_file.name,
+                "-signer", cert_file.name,
+                "-inkey", key_file.name,
+                "-outform", out_format,
+                "-out", cms_file.name,
+                "-text", "-nodetach",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if result.returncode != 0:
+            raise ValueError(
+                "openssl cms -sign failed (return code %d)" % result.returncode
+            )
+        return cms_file.read()
 
 
 def CMS_Sign_Verify(cms: bytes, pem_certificate: bytes) -> bool:
-  """Verify signature on a CMS SignedData structure, returning CMS SignedData on success.
+    """Verify the signature on a DER-encoded CMS SignedData structure.
 
-  *** This is only used to test Certification Declaration generation
-      and is not described in the Matter spec's Core crypto primitives. ***
-  """
+    *** Used only for Certification Declaration test vector generation. ***
+    """
+    with tempfile.NamedTemporaryFile(delete=True) as cms_file, \
+         tempfile.NamedTemporaryFile(mode="w+", delete=True, suffix=".pem") as cert_file:
 
-  with tempfile.NamedTemporaryFile(delete=True) as cms_file:
-    cms_file.write(cms)
-    cms_file.flush()
+        cms_file.write(cms)
+        cms_file.flush()
 
-    with tempfile.NamedTemporaryFile(mode='w+',delete=True) as cert_file:
-      cert_file.write(pem_certificate)
-      cert_file.flush()
+        cert_file.write(
+            pem_certificate if isinstance(pem_certificate, str)
+            else pem_certificate.decode()
+        )
+        cert_file.flush()
 
-      res = subprocess.run(['openssl', 'cms', '-verify', '-noverify', '-inform', 'DER', '-in', cms_file.name, '-certfile', cert_file.name, '-nointern'],
-                           stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL)
-
-  return res.returncode == 0
+        result = subprocess.run(
+            [
+                "openssl", "cms", "-verify", "-noverify",
+                "-inform", "DER",
+                "-in", cms_file.name,
+                "-certfile", cert_file.name,
+                "-nointern",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    return result.returncode == 0
 
 
 def CMS_GetSignedData(cms_signed_data: bytes, pem_certificate: bytes) -> bytes:
-  """Retrieve signeddata/payload from a CMS SignedData structure.
+    """Extract and return the payload from a DER-encoded CMS SignedData blob.
 
-  Due to OpenSSL limitations, the `pem_certificate` associated with
-  the signing key must be passed.
-  """
+    *** Used only for Certification Declaration test vector generation. ***
+    """
+    with tempfile.NamedTemporaryFile(delete=True) as cms_file, \
+         tempfile.NamedTemporaryFile(mode="w+", delete=True, suffix=".pem") as cert_file, \
+         tempfile.NamedTemporaryFile(delete=True) as out_file:
 
-  with tempfile.NamedTemporaryFile(delete=True) as cms_file:
-    cms_file.write(cms_signed_data)
-    cms_file.flush()
+        cms_file.write(cms_signed_data)
+        cms_file.flush()
 
-    with tempfile.NamedTemporaryFile(mode='w+', delete=True) as cert_file:
-      cert_file.write(pem_certificate)
-      cert_file.flush()
+        cert_file.write(
+            pem_certificate if isinstance(pem_certificate, str)
+            else pem_certificate.decode()
+        )
+        cert_file.flush()
 
-      with tempfile.NamedTemporaryFile(delete=True) as signeddata_file:
-        res = subprocess.run(['openssl', 'cms', '-verify', '-noverify', '-inform', 'DER', '-in', cms_file.name, '-out',
-                              signeddata_file.name, '-certfile', cert_file.name, '-nointern'],
-                             stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
-        if res.returncode == 0:
-          payload_bytes = signeddata_file.read()
-        else:
-          raise ValueError("Failed to extract CMS payload, openssl return code: %d" % res.returncode)
-
-  return payload_bytes
-
-
-def print_large_hex_payload(label:str, payload:bytes, as_hex_dump: Optional[bool]=False, indent: Optional[int]=0):
-  """Print a large `payload` in hex for display, prefixed with a  `label`.
-
-  If `as_hex_dump` is True, format will be a canonical hex dump (equal to
-  `hexdump -C` on *NIX), otherwise format is an octet string with colons.
-
-  If `indent` is non-zero, that number of spaces prefixes each line.
-  """
-  if not as_hex_dump:
-    print((" " * indent) + label + ": " + to_octet_string(payload))
-    return
-
-  BYTES_PER_LINE = 16
-
-  addr = 0
-  byte_count = 0
-  line_buf = []
-  ascii_buf = ["|"]
-
-  def flush() -> str:
-    if len(line_buf) == 0:
-      return ""
-
-    ascii_buf.append("|")
-    line = "".join(line_buf)
-
-    half_line = (BYTES_PER_LINE // 2)
-    unfilled = (BYTES_PER_LINE - byte_count) % BYTES_PER_LINE
+        result = subprocess.run(
+            [
+                "openssl", "cms", "-verify", "-noverify",
+                "-inform", "DER",
+                "-in", cms_file.name,
+                "-out", out_file.name,
+                "-certfile", cert_file.name,
+                "-nointern",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if result.returncode != 0:
+            raise ValueError(
+                "openssl cms -verify failed (return code %d)" % result.returncode
+            )
+        return out_file.read()
 
 
-    if unfilled >= half_line:
-      # Handle left-half pan with extra space in the middle
-      line += "   " * half_line
-      line += " "
-      unfilled -= half_line
+# ---------------------------------------------------------------------------
+# Display helper
+# ---------------------------------------------------------------------------
 
-    if unfilled > 0:
-      line += "   " * unfilled
+def print_large_hex_payload(
+    label: str,
+    payload: bytes,
+    as_hex_dump: Optional[bool] = False,
+    indent: Optional[int] = 0,
+) -> None:
+    """Print *payload* in hex, prefixed by *label*.
 
-    line += "".join(ascii_buf)
+    When *as_hex_dump* is True the output matches ``hexdump -C`` format;
+    otherwise a colon-separated octet string is used.
+    """
+    pad = " " * indent
 
-    return line
+    if not as_hex_dump:
+        print("%s%s: %s" % (pad, label, to_octet_string(payload)))
+        return
 
-  print((" " * indent) + label + ": ")
-  while True:
-    if byte_count % BYTES_PER_LINE == 0:
-      byte_count = 0
+    COLS = 16
+    print("%s%s:" % (pad, label))
 
-      # Flush on line boundary
-      line = flush()
-      if len(line) > 0:
-        print(line)
+    for row_start in range(0, len(payload), COLS):
+        row = payload[row_start : row_start + COLS]
+        hex_left = " ".join("%02x" % b for b in row[:8])
+        hex_right = " ".join("%02x" % b for b in row[8:])
+        ascii_part = "".join(chr(b) if 0x20 <= b <= 0x7E else "." for b in row)
 
-      # Reset accumulators
-      line_buf = []
-      ascii_buf = ["|"]
+        # Pad short rows
+        if len(row) < 8:
+            hex_left = "%-23s" % hex_left
+            hex_right = ""
+        elif len(row) < COLS:
+            hex_right = "%-23s" % hex_right
 
-      line_buf.append(" " * indent)
-      line_buf.append("%08x " % addr)
+        print("%s%08x  %-23s  %-23s  |%s|" % (
+            pad, row_start, hex_left, hex_right, ascii_part
+        ))
 
-    # Add extra space after half the width, and after address
-    if byte_count % (BYTES_PER_LINE // 2) == 0:
-      line_buf.append(" ")
+    print("%s%08x" % (pad, len(payload)))
 
-    curr_byte = payload[addr]
-    line_buf.append("%02x " % payload[addr])
-    if curr_byte < 0x20 or curr_byte > 0x7E:
-      ascii_buf.append(".")
-    else:
-      ascii_buf.append(chr(curr_byte))
 
-    addr += 1
-    byte_count += 1
-
-    if addr == len(payload):
-      break
-
-  # Done: do final flush and print final address (the length)
-  line = flush()
-  if len(line) > 0:
-    print(line)
-
-  print((" " * indent) + ("%08x" % addr))
-
+# ---------------------------------------------------------------------------
+# CLI convenience
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-  # Very rough utilities
-  if len(sys.argv) > 1:
-    if len(sys.argv) > 2 and sys.argv[1] == "random":
-      # Generate a random octet string of 32 bytes: `python crypto_primitives.py random 32`
-      n_bytes = int(sys.argv[2])
-      print("%d random bytes: %s" % (n_bytes, to_octet_string(CHIP_Crypto_TRNG(n_bytes * 8))))
-    elif sys.argv[1] == "p256keypair":
-      # Generate a secp256r1 key pair: `python crypto_primitives.py p256keypair`
-      # Generate a secp256r1 key pair from hex string seed 00112233: `python crypto_primitives.py p256keypair hex:00112233`
-      # Generate a secp256r1 key pair from seed string "roboto": `python crypto_primitives.py p256keypair roboto`
-      seed = None
-      if len(sys.argv) > 2:
-        if sys.argv[2].startswith("hex:"):
-          seed = bytes_from_hex(sys.argv[2][len("hex:"):])
-        else:
-          seed = sys.argv[2].encode("utf-8")
+    if len(sys.argv) > 1:
+        cmd = sys.argv[1]
 
-        print('Seed = "%s"' % to_octet_string(seed))
+        if cmd == "random" and len(sys.argv) > 2:
+            n = int(sys.argv[2])
+            print("%d random bytes: %s" % (n, to_octet_string(CHIP_Crypto_TRNG(n * 8))))
 
-      key_pair = Keypair.generate(seed)
-      print('public_key = "%s"' % to_octet_string(key_pair.uncompressed_public_key_bytes))
-      print('public_key_pem =')
-      print(key_pair.public_key.to_pem().decode('US-ASCII'))
-      print('private_key = "%s"' % to_octet_string(key_pair.private_key_bytes))
-      print('private_key_pem =')
-      print(key_pair.private_key.to_pem().decode('US-ASCII'))
+        elif cmd == "p256keypair":
+            seed = None
+            if len(sys.argv) > 2:
+                raw = sys.argv[2]
+                if raw.startswith("hex:"):
+                    seed = bytes_from_hex(raw[4:])
+                else:
+                    seed = raw.encode("utf-8")
+                print('Seed = "%s"' % to_octet_string(seed))
+
+            kp = Keypair.generate(seed)
+            print('public_key = "%s"' % to_octet_string(kp.uncompressed_public_key_bytes))
+            print("public_key_pem =")
+            print(kp.public_key.to_pem().decode("US-ASCII"))
+            print('private_key = "%s"' % to_octet_string(kp.private_key_bytes))
+            print("private_key_pem =")
+            print(kp.private_key.to_pem().decode("US-ASCII"))

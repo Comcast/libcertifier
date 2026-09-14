@@ -951,6 +951,19 @@ Certifier * certifier_new(void)
     {
         /* This will reconfigure() automatically. */
         error_code = certifier_load_cfg_file(certifier);
+        if (error_code != 0)
+        {
+            goto exit;
+        }
+
+        /* certifier_url must be specified */
+        const char * url = certifier_get_property(certifier, CERTIFIER_OPT_CERTIFIER_URL);
+        if (url == NULL || XSTRLEN(url) == 0)
+        {
+            log_error("certifier_url must be set in config (libcertifier.certifier.url)");
+            error_code = CERTIFIER_ERR_INIT_CERTIFIER;
+            goto exit;
+        }
     }
     else
     {
