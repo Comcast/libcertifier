@@ -6,6 +6,9 @@
 # ./build
 build*/
 
+# ./Debug
+Debug
+
 ### macOS ###
 # General
 .DS_Store
