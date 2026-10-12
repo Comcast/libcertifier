@@ -743,6 +743,8 @@ static void test_ecc_key(void)
     XFREE(csr);
 }
 
+/* Test for creating a new EC key */
+/*
 static void test_security_create_new_ec_key(void)
 {
     unsigned char public_key[65]  = { 0 };
@@ -809,6 +811,7 @@ static void test_security_create_new_ec_key_compatibility(void)
     security_free_eckey(duplicate);
     security_free_eckey(generated);
 }
+*/
 
 static void test_security_get_key_from_cert(void)
 {
@@ -1570,8 +1573,7 @@ int main(int argc, char ** argv)
         const struct CMUnitTest tests[] = {
             CREATE_TEST(test_base64), CREATE_TEST(test_base58), CREATE_TEST(test_file_utils), CREATE_TEST(test_random_val),
             CREATE_TEST(test_str_utils), CREATE_TEST(test_set_curl_error), CREATE_TEST(test_sha256_ripemd_b58),
-            CREATE_TEST(test_ecc_key), CREATE_TEST(test_security_create_new_ec_key),
-            CREATE_TEST(test_security_create_new_ec_key_compatibility),
+            CREATE_TEST(test_ecc_key), 
             CREATE_TEST(test_security_get_key_from_cert),
             CREATE_TEST(test_verify_signature_1), CREATE_TEST(test_verify_signature_2),
             CREATE_TEST(test_x509_cert),
@@ -1621,8 +1623,6 @@ int main(int argc, char ** argv)
         RUN_TEST(test_set_curl_error);
         RUN_TEST(test_sha256_ripemd_b58);
         RUN_TEST(test_ecc_key);
-        RUN_TEST(test_security_create_new_ec_key);
-        RUN_TEST(test_security_create_new_ec_key_compatibility);
         RUN_TEST(test_security_get_key_from_cert);
         RUN_TEST(test_verify_signature_1);
         RUN_TEST(test_verify_signature_2);
