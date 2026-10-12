@@ -278,12 +278,15 @@ int add_ext(STACK_OF(X509_EXTENSION) * sk, int nid, char * value)
 int security_persist_pkcs_12_file(const char * filename, const char * pwd, ECC_KEY * prikey, X509_CERT * cert, X509_LIST * certs,
                                   CertifierError * result)
 {
-    int ppbe                         = 0;
+    int nid_key                      = 0;
+    int nid_cert                     = 0;
     unsigned long openssl_error_code = 0;
     PKCS12 * pkcs12bundle            = NULL;
     XFILE pkcs12file                 = NULL;
     EVP_PKEY * pkey                  = NULL;
     int bytes                        = 0;
+    int iter                         = 50000;
+    int mac_iter                     = 50000;
     char * tmpfilename               = util_format_str("%s.tmp", filename);
     char * error_message             = NULL;
 
@@ -324,8 +327,14 @@ int security_persist_pkcs_12_file(const char * filename, const char * pwd, ECC_K
     }
     */
 
-    ppbe = OBJ_txt2nid(DEFAULT_P12_ENC_ALGORITHM);
-    if (ppbe == NID_undef)
+    /*
+     * Keep the PKCS#12 format explicit across OpenSSL backends:
+     * PBES2/PBKDF2 with AES-128-CBC and 50,000 iterations for both
+     * certificate and private-key encryption, plus the outer MAC.
+     */
+    nid_key = OBJ_txt2nid(DEFAULT_P12_ENC_ALGORITHM);
+    nid_cert = nid_key;
+    if (nid_key == NID_undef)
     {
         log_error("\n<<< Unknown PBE algorithm. >>>\n");
         result->application_error_code = OPENSSL_ERR_3;
@@ -345,11 +354,11 @@ int security_persist_pkcs_12_file(const char * filename, const char * pwd, ECC_K
                                  pkey,         // the certificate private key
                                  cert,         // the main certificate
                                  certs,        // stack of CA cert chain
-                                 ppbe,         // int nid_key (default 3DES)
-                                 ppbe,         // int nid_cert (40bitRC2)
-                                 50000,        // int iter (default 2048)
-                                 50000,        // int mac_iter (default 1)
-                                 0);           // int keytype (default no flag)
+                                 nid_key,      // private-key encryption algorithm
+                                 nid_cert,     // certificate encryption algorithm
+                                 iter,         // encryption iteration count
+                                 mac_iter,     // MAC iteration count
+                                 0);           // no key-usage restriction
     if (pkcs12bundle == NULL)
     {
         log_error("\n<<< Error generating a valid PKCS12 certificate. >>>\n");
