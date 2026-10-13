@@ -837,7 +837,7 @@ void certifier_print_certificate(Certifier * certifier, const char * pem, int pe
 
 void certifier_print_certificate_validity(Certifier * certifier)
 {
-    char time[64];
+    char time[64] = {0};
     security_get_before_time_validity(get_cert(certifier), time, sizeof(time));
     XFPRINTF(stdout, "Valid from: \t%s\n", time);
     security_get_not_after_time_validity(get_cert(certifier), time, sizeof(time));

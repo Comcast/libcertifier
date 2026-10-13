@@ -1677,8 +1677,8 @@ CertifierError security_check_x509_valid_range(time_t current_time, long min_sec
 
     if (min_secs_left != 0)
     {
-        int diff_day;
-        int diff_sec;
+        int diff_day = 0;
+        int diff_sec = 0;
 
         if (ASN1_TIME_diff(&diff_day, &diff_sec, NULL, after_time))
         {
