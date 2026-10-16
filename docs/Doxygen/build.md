@@ -28,7 +28,7 @@ Prerequisites
 </tr>
 <tr class="odd">
 <td><p>OpenSSL</p></td>
-<td><p>1.1.1 (or higher)</p></td>
+<td><p>3.5 (or higher)</p></td>
 <td><p>Ubuntu 19.x - Consider using <code>sudo apt-get install libssl-dev</code></p></td>
 </tr>
 <tr class="even">
@@ -191,55 +191,22 @@ OSX
 
 Building/running on OSX is a bit tricky.
 
-### Open SSL 1.1.1f
+### OpenSSL 3.5
 
-If you already have `openssl` version 1.1.1 or higher, you can skip this
-section.
-
-In the Linux Ubuntu world, `openssl` is not the same as `libssl-dev`.
-The first one is for direct use, the second is for linking. On OSX, they
-are bundled in one package, if you use `brew install openssl` and there
-are some things you have to do to get it to work. Also, OSX comes with
-their own version of OpenSSL, which makes things even more complicated,
-i.e., DLL hell (Windows joke!).
-
-I prefer to compile and install OpenSSL on OSX myself. Here is what I
-did, and may have be tuned for your particular env -
-
-Step 1 - Get the source code for Open SSL 1.1.1f -
+libcertifier requires OpenSSL 3.5 or higher. If it is not already
+available on macOS, build and install OpenSSL 3.5.0 as follows:
 
     cd ~
-    curl --remote-name https://www.openssl.org/source/openssl-1.1.1f.tar.gz
-
-Step 2 - Extract the archive and move into the folder -
-
-    tar -xzvf openssl-1.1.1f.tar.gz
-    cd openssl-1.1.1f
-
-Step 3 - Configure, compile and install into
-`/usr/local/mac-dev-env/openssl-1.1.1f`
-
-The command below assumes you are using `64-Bit` OSX.
-
-    ./Configure darwin64-x86_64-cc shared enable-deprecated enable-ec_nistp_64_gcc_128 no-ssl2 no-ssl3 no-comp --prefix=/usr/local/mac-dev-env/openssl-1.1.1f --openssldir=/usr/local/mac-dev-env/openssl-1.1.1f --api=1.0.0
-    make depend
+    curl --remote-name https://www.openssl.org/source/openssl-3.5.0.tar.gz
+    tar -xzvf openssl-3.5.0.tar.gz
+    cd openssl-3.5.0
+    ./Configure darwin64-x86_64-cc shared enable-default-thread-pool --prefix=/usr/local/mac-dev-env/openssl-3.5.0 --openssldir=/usr/local/mac-dev-env/openssl-3.5.0
     make
     sudo make install
 
-If you are using `32-Bit` OSX -
-
-    ./Configure darwin-i386-cc shared enable-deprecated no-ssl2 no-ssl3 no-comp --prefix=/usr/local/mac-dev-env/openssl-1.1.1f --openssldir=/usr/local/mac-dev-env/openssl-1.1.1f --api=1.0.0
-    make depend
-    make
-    sudo make install
-
-Notice that the `enable-deprecated` flag is enabled. There are still
-places in our code, openssl.c, where older APIs in 1.0.x were used. They
-have been deprecated in OpenSSL 1.1.1. In the future, there should be a
-TODO to disable support for Open SSL 1.0.x and move to the supported
-APIs.
-
-Step 5 - OpenSSL should be installed.
+OpenSSL 3.5 includes support for the PQC algorithms ML-KEM, ML-DSA, and
+SLH-DSA. Set `OPENSSL_ROOT_DIR` to this installation when configuring
+libcertifier.
 
 ### cURL 7.69.1
 
@@ -286,7 +253,7 @@ Step 6 - Type the following command to see build output as shown below.
 Make sure output successfully finds openssl, curl and zlib
 
     cmake .
-    -- Found OpenSSL: /usr/local/lib/libcrypto.dylib (found suitable version "1.1.1f", minimum required is "1.1.1")
+    -- Found OpenSSL: /usr/local/lib/libcrypto.dylib (found suitable version "3.5.0", minimum required is "3.5")
     -- Found ZLIB: /usr/lib/libz.dylib (found suitable version "1.2.11", minimum required is "1.2.11")
     -- Found CURL: /usr/lib/libcurl.dylib (found suitable version "7.64.1", minimum required is "7.60")
     -- Performing Test HAS_SSP
@@ -304,9 +271,8 @@ the following contents -
 
     #!/bin/bash
     export CC=/usr/bin/clang
-    export OPENSSL_ROOT_DIR=/usr/local/mac-dev-env/openssl-1.1.1f
+    export OPENSSL_ROOT_DIR=/usr/local/mac-dev-env/openssl-3.5.0
     export CURL_ROOT_DIR=/usr/local/mac-dev-env/curl-7.69.1
-    export CFLAGS='-DOPENSSL_API_COMPAT=0x10000000L'
     export CURL_INCLUDE_DIR=${CURL_ROOT_DIR}/include
     export CURL_LIBRARY_RELEASE=${CURL_ROOT_DIR}/lib/libcurl.dylib
     cmake . -DENABLE_MBEDTLS=OFF -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_TESTS=ON -DOPENSSL_ROOT_DIR=${OPENSSL_ROOT_DIR} -DOPENSSL_INCLUDE_DIR=${OPENSSL_ROOT_DIR}/include -DCURL_INCLUDE_DIR=${CURL_INCLUDE_DIR} -DCURL_LIBRARY_RELEASE=${CURL_LIBRARY_RELEASE}
@@ -328,11 +294,9 @@ followed by -
 
     make
 
-If you get symbols that cannot be referenced, it’s most likely because
-something else is defined as in implicit include directory (like an
-older version of OpenSSL), such as
-`/opt/local/include/openssl/` so please be sure that older
-Open SSL include files do not exist.
+If you get symbols that cannot be referenced, check that CMake is using
+the intended OpenSSL 3.5 headers and libraries rather than conflicting
+include files (for example, under `/opt/local/include/openssl/`).
 
 \#\# cURL (alternative) An alternative to building cURL is running the
 following -

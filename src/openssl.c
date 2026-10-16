@@ -41,6 +41,7 @@
 #include <openssl/ripemd.h>
 
 #include <openssl/buffer.h>
+#include <openssl/core_names.h>
 #include <openssl/hmac.h>
 #include <openssl/opensslv.h>
 #include <openssl/x509.h>
@@ -69,19 +70,12 @@ int add_ext(STACK_OF(X509_EXTENSION) * sk, int nid, char * value);
 
 ECC_KEY * security_get_key_from_cert(X509_CERT * cert)
 {
-    EVP_PKEY * public_key;
-    ECC_KEY * ecc_key;
-
     if (cert == NULL)
     {
         return NULL;
     }
 
-    public_key = X509_get_pubkey(cert);
-    ecc_key    = EVP_PKEY_get1_EC_KEY(public_key);
-    EVP_PKEY_free(public_key);
-
-    return ecc_key;
+    return X509_get_pubkey(cert);
 }
 
 // Functions
@@ -155,22 +149,23 @@ unsigned char * security_generate_csr(ECC_KEY * eckey, size_t * retlen)
     CertifierPropMap * properties   = NULL;
     char * usage_values             = NULL;
 
-    if ((pk = EVP_PKEY_new()) == NULL)
+    if (eckey == NULL)
     {
-        log_error("EVP_PKEY_new failed.");
+        log_error("eckey is NULL.");
         goto cleanup;
     }
+
+    if (EVP_PKEY_up_ref((EVP_PKEY *) eckey) != 1)
+    {
+        log_error("EVP_PKEY_up_ref failed.");
+        goto cleanup;
+    }
+    pk = (EVP_PKEY *) eckey;
 
     // Create the request
     if ((x = X509_REQ_new()) == NULL)
     {
         log_error("X509_REQ_new failed.");
-        goto cleanup;
-    }
-
-    if (!EVP_PKEY_set1_EC_KEY(pk, eckey))
-    {
-        log_error("EVP_PKEY_set1_EC_KEY failed.");
         goto cleanup;
     }
 
@@ -237,12 +232,18 @@ int security_persist_pkcs_12_file(const char * filename, const char * pwd, ECC_K
     char * tmpfilename               = util_format_str("%s.tmp", filename);
     char * error_message             = NULL;
 
-    // Get the private key and convert from ECC to EVP_PKEY format
-    pkey = EVP_PKEY_new();
-    if (EVP_PKEY_set1_EC_KEY(pkey, prikey) == 0)
+    if (prikey == NULL)
     {
         result->application_error_code = OPENSSL_ERR_1;
-        result->application_error_msg  = util_format_error(__func__, "EVP_PKEY_set1_EC_KEY failed.", __FILE__, __LINE__);
+        result->application_error_msg  = util_format_error(__func__, "prikey was NULL.", __FILE__, __LINE__);
+        goto cleanup;
+    }
+
+    pkey = (EVP_PKEY *) prikey;
+    if (EVP_PKEY_up_ref(pkey) != 1)
+    {
+        result->application_error_code = OPENSSL_ERR_1;
+        result->application_error_msg  = util_format_error(__func__, "EVP_PKEY_up_ref failed.", __FILE__, __LINE__);
 
         error_message = ERR_error_string(ERR_get_error(), NULL);
         if (error_message != NULL)
@@ -412,14 +413,27 @@ cleanup:
 
 struct sha1_ctx_st
 {
-    SHA_CTX h;
+    EVP_MD_CTX * h;
 };
 
 sha1_ctx * security_sha1_init()
 {
     sha1_ctx * ctx = XMALLOC(sizeof(struct sha1_ctx_st)); /* */
-    if (SHA1_Init(&ctx->h) != 1)
+    if (ctx == NULL)
     {
+        return NULL;
+    }
+
+    ctx->h = EVP_MD_CTX_new();
+    if (ctx->h == NULL)
+    {
+        XFREE(ctx);
+        return NULL;
+    }
+
+    if (EVP_DigestInit_ex(ctx->h, EVP_sha1(), NULL) != 1)
+    {
+        EVP_MD_CTX_free(ctx->h);
         XFREE(ctx);
         return NULL;
     }
@@ -428,27 +442,49 @@ sha1_ctx * security_sha1_init()
 
 int security_sha1_update(sha1_ctx * ctx, const unsigned char input[], size_t len)
 {
-    return SHA1_Update(&ctx->h, input, len) == 1 ? 0 : -1;
+    if (ctx == NULL || ctx->h == NULL)
+    {
+        return -1;
+    }
+    return EVP_DigestUpdate(ctx->h, input, len) == 1 ? 0 : -1;
 }
 
 int security_sha1_finish(sha1_ctx * ctx, unsigned char * digest)
 {
-    int rc = 0;
-    rc     = SHA1_Final(digest, &ctx->h) == 1 ? 0 : -1;
+    unsigned int digest_len = 0;
+    int rc                  = -1;
+    if (ctx != NULL && ctx->h != NULL)
+    {
+        rc = EVP_DigestFinal_ex(ctx->h, digest, &digest_len) == 1 ? 0 : -1;
+        EVP_MD_CTX_free(ctx->h);
+    }
     XFREE(ctx);
     return rc;
 }
 
 struct sha256_ctx_st
 {
-    SHA256_CTX h;
+    EVP_MD_CTX * h;
 };
 
 sha256_ctx * security_sha256_init()
 {
     sha256_ctx * ctx = XMALLOC(sizeof(struct sha256_ctx_st)); /* */
-    if (SHA256_Init(&ctx->h) != 1)
+    if (ctx == NULL)
     {
+        return NULL;
+    }
+
+    ctx->h = EVP_MD_CTX_new();
+    if (ctx->h == NULL)
+    {
+        XFREE(ctx);
+        return NULL;
+    }
+
+    if (EVP_DigestInit_ex(ctx->h, EVP_sha256(), NULL) != 1)
+    {
+        EVP_MD_CTX_free(ctx->h);
         XFREE(ctx);
         return NULL;
     }
@@ -457,37 +493,62 @@ sha256_ctx * security_sha256_init()
 
 int security_sha256_update(sha256_ctx * ctx, const unsigned char input[], size_t len)
 {
-    return SHA256_Update(&ctx->h, input, len) == 1 ? 0 : -1;
+    if (ctx == NULL || ctx->h == NULL)
+    {
+        return -1;
+    }
+    return EVP_DigestUpdate(ctx->h, input, len) == 1 ? 0 : -1;
 }
 
 int security_sha256_finish(sha256_ctx * ctx, unsigned char * digest)
 {
-    int rc = 0;
-    rc     = SHA256_Final(digest, &ctx->h) == 1 ? 0 : -1;
+    unsigned int digest_len = 0;
+    int rc                  = -1;
+    if (ctx != NULL && ctx->h != NULL)
+    {
+        rc = EVP_DigestFinal_ex(ctx->h, digest, &digest_len) == 1 ? 0 : -1;
+        EVP_MD_CTX_free(ctx->h);
+    }
     XFREE(ctx);
     return rc;
 }
 
 CertifierError security_rmd160(uint8_t * digest, const uint8_t * message, size_t len)
 {
-    RIPEMD160_CTX ctx;
+    EVP_MD_CTX * ctx       = NULL;
+    unsigned int out_len   = 0;
     CertifierError result = CERTIFIER_ERROR_INITIALIZER;
 
-    if (RIPEMD160_Init(&ctx) != 1)
+    ctx = EVP_MD_CTX_new();
+    if (ctx == NULL)
     {
-        result.application_error_msg  = util_format_error(__func__, "RIPEMD160_Init failed.", __FILE__, __LINE__);
+        result.application_error_msg  = util_format_error(__func__, "EVP_MD_CTX_new failed.", __FILE__, __LINE__);
         result.application_error_code = OPENSSL_ERR_1;
+        return result;
     }
-    if (RIPEMD160_Update(&ctx, message, len) != 1)
+
+    if (EVP_DigestInit_ex(ctx, EVP_ripemd160(), NULL) != 1)
     {
-        result.application_error_msg  = util_format_error(__func__, "RIPEMD160_Update failed.", __FILE__, __LINE__);
+        result.application_error_msg  = util_format_error(__func__, "EVP_DigestInit_ex failed.", __FILE__, __LINE__);
+        result.application_error_code = OPENSSL_ERR_1;
+        goto cleanup;
+    }
+
+    if (EVP_DigestUpdate(ctx, message, len) != 1)
+    {
+        result.application_error_msg  = util_format_error(__func__, "EVP_DigestUpdate failed.", __FILE__, __LINE__);
         result.application_error_code = OPENSSL_ERR_2;
+        goto cleanup;
     }
-    if (RIPEMD160_Final(digest, &ctx) != 1)
+
+    if (EVP_DigestFinal_ex(ctx, digest, &out_len) != 1 || out_len != 20)
     {
-        result.application_error_msg  = util_format_error(__func__, "RIPEMD160_Final failed.", __FILE__, __LINE__);
+        result.application_error_msg  = util_format_error(__func__, "EVP_DigestFinal_ex failed.", __FILE__, __LINE__);
         result.application_error_code = OPENSSL_ERR_3;
     }
+
+cleanup:
+    EVP_MD_CTX_free(ctx);
 
     return result;
 }
@@ -542,21 +603,17 @@ cleanup:
 
 int security_verify_hash(ECC_KEY * key, const unsigned char * sig, size_t sig_len, const unsigned char * digest, size_t digest_len)
 {
-    EVP_PKEY_CTX * ctx    = NULL;
-    EVP_PKEY * pkey       = NULL;
-    ECC_KEY * ec_pub_only = NULL;
-    int rc                = 4000; /* expected error for invalid sig */
+    EVP_PKEY_CTX * ctx = NULL;
+    EVP_PKEY * pkey    = NULL;
+    int rc             = 4000; /* expected error for invalid sig */
     int r;
 
-    pkey = EVP_PKEY_new();
-    if (pkey == NULL)
+    if (key == NULL)
         goto done;
 
-    if (ec_pub_only == NULL)
-    {
-        if (!EVP_PKEY_set1_EC_KEY(pkey, key))
-            goto done;
-    }
+    pkey = (EVP_PKEY *) key;
+    if (EVP_PKEY_up_ref(pkey) != 1)
+        goto done;
 
     ctx = EVP_PKEY_CTX_new(pkey, NULL);
 
@@ -580,7 +637,6 @@ int security_verify_hash(ECC_KEY * key, const unsigned char * sig, size_t sig_le
 done:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
-    EC_KEY_free(ec_pub_only);
     return rc;
 }
 
@@ -592,13 +648,20 @@ unsigned char * security_sign_hash(const ECC_KEY * ecc_key, const unsigned char 
     unsigned char * der = NULL;
     size_t der_len      = 0;
 
-    der_len = ECDSA_size(ecc_key);
-
-    pkey = EVP_PKEY_new();
-    if (pkey == NULL)
+    if (sig_len == NULL)
+    {
         goto done;
+    }
 
-    if (!EVP_PKEY_set1_EC_KEY(pkey, (ECC_KEY *) ecc_key))
+    *sig_len = 0;
+
+    if (ecc_key == NULL)
+    {
+        goto done;
+    }
+
+    pkey = (EVP_PKEY *) ecc_key;
+    if (EVP_PKEY_up_ref(pkey) != 1)
         goto done;
 
     ctx = EVP_PKEY_CTX_new(pkey, NULL);
@@ -607,6 +670,12 @@ unsigned char * security_sign_hash(const ECC_KEY * ecc_key, const unsigned char 
         goto done;
 
     if (EVP_PKEY_sign_init(ctx) <= 0)
+        goto done;
+
+    if (EVP_PKEY_CTX_set_signature_md(ctx, EVP_sha256()) <= 0)
+        goto done;
+
+    if (EVP_PKEY_sign(ctx, NULL, &der_len, digest, digest_len) <= 0 || der_len == 0)
         goto done;
 
     der = (unsigned char *) XMALLOC(der_len * sizeof(unsigned char));
@@ -630,30 +699,41 @@ done:
 
 ECC_KEY * security_create_new_ec_key(CertifierPropMap * properties, const char * curve_id)
 {
-    ECC_KEY * eckey = NULL;
+    EVP_PKEY_CTX * key_ctx = NULL;
+    EVP_PKEY * eckey       = NULL;
 
+    (void) properties;
     log_debug("\nGenerating Elliptic Curve Key Pair...\n");
 
-    // Create a EC key structure, setting the group type from NID
-    eckey = EC_KEY_new_by_curve_name(OBJ_txt2nid(curve_id));
-
-    if (eckey == NULL)
+    key_ctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+    if (key_ctx == NULL)
     {
-        log_error("\nCould not instantiate an EC Key with name: %s\n", curve_id);
-        return eckey;
+        log_error("\nCould not create EVP_PKEY_CTX for EC key generation.\n");
+        goto cleanup;
     }
 
-    // For cert signing, we use  the OPENSSL_EC_NAMED_CURVE flag
-    EC_KEY_set_asn1_flag(eckey, OPENSSL_EC_NAMED_CURVE);
+    if (EVP_PKEY_keygen_init(key_ctx) <= 0)
+    {
+        log_error("\nEVP_PKEY_keygen_init failed.\n");
+        goto cleanup;
+    }
 
-    // Create the public/private EC key pair here
-    if (!(EC_KEY_generate_key(eckey)))
+    if (EVP_PKEY_CTX_set_group_name(key_ctx, curve_id) <= 0)
+    {
+        log_error("\nCould not set EC group name: %s\n", curve_id);
+        goto cleanup;
+    }
+
+    if (EVP_PKEY_generate(key_ctx, &eckey) <= 0)
     {
         log_error("\nError generating the Elliptic Curve key.\n");
-        EC_KEY_free(eckey);
+        EVP_PKEY_free(eckey);
+        eckey = NULL;
     }
 
-    return eckey;
+cleanup:
+    EVP_PKEY_CTX_free(key_ctx);
+    return (ECC_KEY *) eckey;
 }
 
 char * ossl_err_as_string(void)
@@ -746,7 +826,12 @@ CertifierError security_find_or_create_keys(CertifierPropMap * properties, const
 
             if (err == 1)
             {
-                eckey = EVP_PKEY_get1_EC_KEY(pri);
+                eckey = (ECC_KEY *) pri;
+                if (EVP_PKEY_up_ref((EVP_PKEY *) eckey) != 1)
+                {
+                    eckey = NULL;
+                    result.application_error_code = 3;
+                }
             }
             else
             {
@@ -1024,7 +1109,11 @@ cleanup:
     }
     else
     {
-        *out_keypair = EVP_PKEY_get1_EC_KEY(pkey);
+        *out_keypair = (ECC_KEY *) pkey;
+        if (*out_keypair != NULL)
+        {
+            EVP_PKEY_up_ref((EVP_PKEY *) *out_keypair);
+        }
     }
 
     if (fp)
@@ -1044,18 +1133,18 @@ cleanup:
 
 void security_free_eckey(ECC_KEY * eckey)
 {
-    EC_KEY_free(eckey);
+    EVP_PKEY_free((EVP_PKEY *) eckey);
 }
 
 ECC_KEY * security_dup_eckey(const ECC_KEY * eckey)
 {
-    ECC_KEY * key = NULL;
+    EVP_PKEY * key = NULL;
     if (eckey != NULL)
     {
-        key = EC_KEY_dup(eckey);
+        key = EVP_PKEY_dup((EVP_PKEY *) eckey);
     }
 
-    return key;
+    return (ECC_KEY *) key;
 }
 
 int security_get_random_bytes(unsigned char * out, int len)
@@ -1307,30 +1396,42 @@ CertifierError security_load_certs_from_pem(const char * pem, X509_LIST ** out)
 ECC_KEY * security_get_key_from_der(unsigned char * der_public_key, int der_public_key_len)
 {
     BIO * bio = BIO_new_mem_buf(der_public_key, der_public_key_len);
+    EVP_PKEY * key = NULL;
 
-    ECC_KEY * key = d2i_EC_PUBKEY_bio(bio, NULL);
+    if (bio == NULL)
+    {
+        return NULL;
+    }
+
+    key = d2i_PUBKEY_bio(bio, NULL);
 
     BIO_free_all(bio);
 
-    return key;
+    return (ECC_KEY *) key;
 }
 
 ECC_KEY * security_get_private_key_from_der(unsigned char * der_key, int der_key_len)
 {
     BIO * bio = BIO_new_mem_buf(der_key, der_key_len);
+    EVP_PKEY * key = NULL;
 
-    ECC_KEY * key = d2i_ECPrivateKey_bio(bio, NULL);
+    if (bio == NULL)
+    {
+        return NULL;
+    }
+
+    key = d2i_PrivateKey_bio(bio, NULL);
 
     BIO_free_all(bio);
 
-    return key;
+    return (ECC_KEY *) key;
 }
 
 int security_serialize_der_public_key(ECC_KEY * ec_key, unsigned char ** der_public_key)
 {
     int der_len = 0;
 
-    der_len = i2d_EC_PUBKEY(ec_key, der_public_key);
+    der_len = i2d_PUBKEY((EVP_PKEY *) ec_key, der_public_key);
 
     if (der_len < 0)
         return 0;
@@ -1340,64 +1441,48 @@ int security_serialize_der_public_key(ECC_KEY * ec_key, unsigned char ** der_pub
 
 int security_serialize_raw_public_key(ECC_KEY * ec_key, unsigned char * public_key, size_t public_key_capacity)
 {
-    int len            = 0;
-    EC_GROUP * group   = NULL;
     size_t pubkey_size = 0;
 
-    const EC_POINT * pubkey_ecp = EC_KEY_get0_public_key(ec_key);
-    if (pubkey_ecp == NULL)
+    if (EVP_PKEY_get_octet_string_param((EVP_PKEY *) ec_key, OSSL_PKEY_PARAM_PUB_KEY, NULL, 0, &pubkey_size) != 1)
     {
-        goto exit;
+        return 0;
     }
 
-    group = EC_GROUP_new_by_curve_name(EC_curve_nist2nid("P-256"));
-    if (group == NULL)
+    if (pubkey_size != 65 || pubkey_size > public_key_capacity)
     {
-        goto exit;
+        return 0;
     }
 
-    pubkey_size = EC_POINT_point2oct(group, pubkey_ecp, POINT_CONVERSION_UNCOMPRESSED, public_key, public_key_capacity, NULL);
-    pubkey_ecp  = NULL;
-
-    if (pubkey_size != 65)
+    if (EVP_PKEY_get_octet_string_param((EVP_PKEY *) ec_key, OSSL_PKEY_PARAM_PUB_KEY, public_key, public_key_capacity,
+                                        &pubkey_size) != 1)
     {
-        goto exit;
+        return 0;
     }
 
-    len = pubkey_size;
-
-exit:
-    if (group != NULL)
-    {
-        EC_GROUP_free(group);
-        group = NULL;
-    }
-
-    return len;
+    return (int) pubkey_size;
 }
 
 int security_serialize_raw_private_key(ECC_KEY * ec_key, unsigned char * private_key, size_t private_key_capacity)
 {
+    size_t privkey_size = 0;
+
     if (private_key_capacity != 32)
     {
         return 0;
     }
 
-    int privkey_size          = 0;
-    const BIGNUM * privkey_bn = EC_KEY_get0_private_key(ec_key);
-    if (privkey_bn == NULL)
+    if (EVP_PKEY_get_octet_string_param((EVP_PKEY *) ec_key, OSSL_PKEY_PARAM_PRIV_KEY, private_key, private_key_capacity,
+                                        &privkey_size) != 1)
     {
         return 0;
     }
 
-    privkey_size = BN_bn2binpad(privkey_bn, private_key, private_key_capacity);
-    privkey_bn   = NULL;
     if (privkey_size != private_key_capacity)
     {
         return 0;
     }
 
-    return privkey_size;
+    return (int) privkey_size;
 }
 
 CertifierError security_check_x509_valid_range(time_t current_time, long min_secs_left, X509_CERT * cert,
