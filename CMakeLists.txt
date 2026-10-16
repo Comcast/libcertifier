@@ -53,7 +53,7 @@ if (${ENABLE_MBEDTLS})
     add_definitions(-DUSE_MBEDTLS)
 
 else ()
-    find_package(OpenSSL "1.1.1" REQUIRED)
+    find_package(OpenSSL "3.5" REQUIRED)
 endif ()
 
 if ("${ENABLE_PRINTING}" STREQUAL "0")

@@ -7,7 +7,7 @@ xref:libcertifier.adoc[*Back to Manual*]
 |=======
 | *Component* | *Version* | *Notes*
 | C Compiler | TBD | Ubuntu 19.x - Consider using `sudo apt-get install build-essential`
-| OpenSSL | 1.1.1  (or higher)|Ubuntu 19.x - Consider using `sudo apt-get install libssl-dev` 
+| OpenSSL | 3.5 (LTS - with PQC support)|Ubuntu 19.x - Consider using `sudo apt-get install libssl-dev` 
 | CMake | 3.12 (or higher) | Ubuntu 19.x - Consider using `sudo apt-get install cmake` 
 | cURL | 7.65 (or higher) | Ubuntu 19.x - Consider using `sudo apt-get install libcurl4-openssl-dev` 
 | zLib | 1.2.11 (or higher) | Ubuntu 19.x - Consider using `sudo apt install zlib1g-dev`
@@ -16,6 +16,17 @@ xref:libcertifier.adoc[*Back to Manual*]
 cURL has to be compiled with mbedTLS.  Please see -  `+https://tls.mbed.org/kb/how-to/compile-curl-with-mbedtls+`
 | Valgrind | Optional | Ubuntu 18.x - Consider using `sudo apt-get install -y valgrind` |
 |=======
+
+=== Backward Compatibility
+
+This version of libcertifier requires OpenSSL 3.5+ to support Post-Quantum Cryptography (PQC) algorithms including ML-KEM, ML-DSA, and SLH-DSA.
+
+*Important Migration Notes:*
+
+- New certificates and keys can optionally be generated using PQC algorithms for quantum-safe security
+- To continue using only classical cryptography (ECC/RSA), simply build libcertifier normally; the default behavior remains unchanged
+- The API is backward compatible with previous versions of libcertifier; existing code will continue to work without modification
+
 === Build types
 
 The project supports following build configurations (to be used as an argument for option `-DCMAKE_BUILD_TYPE=`):
@@ -90,38 +101,38 @@ ctest -T memcheck
 
 Building/running on MacOS is a bit tricky.
 
-==== OpenSSL 1.1.1f
+==== OpenSSL 3.5
 
-If you already have `openssl` version 1.1.1 or higher, you can skip this section.
+If you already have `openssl` version 3.5 or higher, you can skip this section.
 
 It's recommended to manually compile and install OpenSSL on MacOS. Here's example instructions:
 
-Step 1 - Get the source code for OpenSSL 1.1.1f -
+Step 1 - Get the source code for OpenSSL 3.5 -
 
 ----
 cd ~
-curl --remote-name https://www.openssl.org/source/openssl-1.1.1f.tar.gz
+curl --remote-name https://www.openssl.org/source/openssl-3.5.0.tar.gz
 ----
 
 Step 2 - Extract the archive and move into the folder -
 
 ----
-tar -xzvf openssl-1.1.1f.tar.gz
-cd openssl-1.1.1f
+tar -xzvf openssl-3.5.0.tar.gz
+cd openssl-3.5.0
 ----
 
-Step 3 - Configure, compile and install into `/usr/local/mac-dev-env/openssl-1.1.1f`
+Step 3 - Configure, compile and install into `/usr/local/mac-dev-env/openssl-3.5.0`
 
+The configuration includes PQC algorithm support (ML-KEM, ML-DSA) which are enabled by default in OpenSSL 3.5:
 
 ----
-./Configure darwin64-x86_64-cc shared enable-deprecated enable-ec_nistp_64_gcc_128 no-ssl2 no-ssl3 no-comp --prefix=/usr/local/mac-dev-env/openssl-1.1.1f --openssldir=/usr/local/mac-dev-env/openssl-1.1.1f --api=1.0.0
+./Configure darwin64-x86_64-cc shared enable-default-thread-pool --prefix=/usr/local/mac-dev-env/openssl-3.5.0 --openssldir=/usr/local/mac-dev-env/openssl-3.5.0
 make depend
 make
 sudo make install
 ----
 
-Notice that the `enable-deprecated` flag is enabled.  There are still places in our code,
-openssl.c, where older APIs in 1.0.x were used.  These have been deprecated in OpenSSL 1.1.1.
+Note: OpenSSL 3.5 is a Long-Term Support (LTS) release supported until April 8, 2030. The code has been updated to use EVP_PKEY API exclusively, removing deprecated EC_KEY and other legacy APIs.
 
 Step 5 - OpenSSL should be installed.
 
@@ -174,7 +185,7 @@ Step 6 - Type the following command to see build output as shown below. Make sur
 [source,console]
 ----
 cmake .
--- Found OpenSSL: /usr/local/lib/libcrypto.dylib (found suitable version "1.1.1f", minimum required is "1.1.1")
+-- Found OpenSSL: /usr/local/lib/libcrypto.dylib (found suitable version "3.5.0", minimum required is "3.5")
 -- Found ZLIB: /usr/lib/libz.dylib (found suitable version "1.2.11", minimum required is "1.2.11")
 -- Found CURL: /usr/lib/libcurl.dylib (found suitable version "7.64.1", minimum required is "7.60")
 -- Performing Test HAS_SSP
@@ -193,9 +204,8 @@ If the steps above fail, you can create a file, called `build.sh` with the follo
 ----
 #!/bin/bash
 export CC=/usr/bin/clang
-export OPENSSL_ROOT_DIR=/usr/local/mac-dev-env/openssl-1.1.1f
+export OPENSSL_ROOT_DIR=/usr/local/mac-dev-env/openssl-3.5.0
 export CURL_ROOT_DIR=/usr/local/mac-dev-env/curl-7.69.1
-export CFLAGS='-DOPENSSL_API_COMPAT=0x10000000L'
 export CURL_INCLUDE_DIR=${CURL_ROOT_DIR}/include
 export CURL_LIBRARY_RELEASE=${CURL_ROOT_DIR}/lib/libcurl.dylib
 cmake . -DENABLE_MBEDTLS=OFF -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_TESTS=ON -DOPENSSL_ROOT_DIR=${OPENSSL_ROOT_DIR} -DOPENSSL_INCLUDE_DIR=${OPENSSL_ROOT_DIR}/include -DCURL_INCLUDE_DIR=${CURL_INCLUDE_DIR} -DCURL_LIBRARY_RELEASE=${CURL_LIBRARY_RELEASE}
@@ -223,7 +233,7 @@ followed by -
 make
 ```
 
-If you get symbols that cannot be referenced, it's most likely because something else is defined as in implicit include directory (like an older version of OpenSSL), such as ```/opt/local/include/openssl/``` so please be sure that the older OpenSSL include files do not exist.
+If you get symbols that cannot be referenced, check that CMake is using the intended OpenSSL 3.5 headers and libraries rather than conflicting include files (for example, under `/opt/local/include/openssl/`).
 
 #### cURL (alternative)
 An alternative to building cURL is running the following -
