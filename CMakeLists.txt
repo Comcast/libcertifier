@@ -1,5 +1,12 @@
-#Allow VERSION in project()
+cmake_minimum_required(VERSION 3.10)
+
+# Allow VERSION in project().
 cmake_policy(SET CMP0048 NEW)
+
+option(ENABLE_MBEDTLS "Build with mBedTLS support instead of OpenSSL" OFF)
+option(ENABLE_OPENSSL3
+       "Use the OpenSSL 3.5 provider-based backend. Default is OpenSSL 1.1.1 compatibility."
+       OFF)
 
 # This project is semantically versioned.
 # For simplicity, the ABI version (soname) is tied to MAJOR.MINOR. When any binary incompatible changes are made,
@@ -7,9 +14,15 @@ cmake_policy(SET CMP0048 NEW)
 # Increment MAJOR when introducing API/ABI breaking changes (i.e., not compatible with previous version)
 # Increment MINOR when API/ABI is backward compatible but different (e.g., new features added)
 # Increment PATCH when API is unchanged (bug/internal fixes)
-set(MAJOR 2)
-set(MINOR 2)
-set(PATCH 1)
+if (ENABLE_OPENSSL3)
+    set(MAJOR 3)
+    set(MINOR 0)
+    set(PATCH 0)
+else ()
+    set(MAJOR 2)
+    set(MINOR 2)
+    set(PATCH 1)
+endif ()
 set(VERSION ${MAJOR}.${MINOR}.${PATCH})
 set(CMAKE_XCODE_GENERATE_SCHEME ON)
 set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER ON)
@@ -17,7 +30,7 @@ set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER_USE_AFTER_RETURN ON)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum OS X deployment version" FORCE)
 
 project("libcertifier" VERSION ${VERSION})
-cmake_minimum_required(VERSION 3.10)
+
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
@@ -25,22 +38,30 @@ option(ENABLE_SSP "Build with stack smashing protection" ON)
 option(ENABLE_TESTS "Build unit tests (requires cmocka to be enabled or defaults to unity )" OFF)
 option(ENABLE_CMOCKA "Enables CMOCKA for unit tests (requires cmocka)" OFF)
 option(ENABLE_COVERAGE "Collect code coverage report with unit tests" OFF)
-option(ENABLE_MBEDTLS "Build with mBedTLS support instead of OpenSSL" OFF)
 option(SYSTEMV_DAEMON "Install libCertifier Daemon with SysV Support" OFF)
 option(ENABLE_RDK_BUILD "Build for RDK-Enabled devices" OFF)
 
 option(ENABLE_CMAKE_VERBOSE_MAKEFILE OFF)
 
-if (${ENABLE_CMAKE_VERBOSE_MAKEFILE})
+set(OPENSSL_MODERN_MIN_VERSION "3.5")
+set(OPENSSL_LEGACY_MIN_VERSION "1.1.1")
+
+if (ENABLE_CMAKE_VERBOSE_MAKEFILE)
     message(STATUS "Building with ENABLE_CMAKE_VERBOSE_MAKEFILE support")
     set(CMAKE_VERBOSE_MAKEFILE ON)
 endif ()
 
-if (${ENABLE_RDK_BUILD})
+if (ENABLE_RDK_BUILD)
     add_definitions(-DRDK_BUILD)
 endif ()
 
-if (${ENABLE_MBEDTLS})
+if (ENABLE_MBEDTLS AND ENABLE_OPENSSL3)
+    message(FATAL_ERROR "ENABLE_OPENSSL3 cannot be used together with ENABLE_MBEDTLS.")
+endif ()
+
+set(CERTIFIER_BACKEND_DEFINITIONS)
+
+if (ENABLE_MBEDTLS)
     message(STATUS "ENABLE_MBEDTLS flag was set!")
     find_path(MBEDTLS_INCLUDE_DIRS mbedtls/ssl.h)
 
@@ -51,12 +72,30 @@ if (${ENABLE_MBEDTLS})
     set(MBEDTLS_LIBRARIES "${MBEDTLS_LIBRARY}" "${MBEDX509_LIBRARY}" "${MBEDCRYPTO_LIBRARY}")
 
     add_definitions(-DUSE_MBEDTLS)
+    set(OPENSSL_BACKEND_NAME "mbedTLS")
 
 else ()
-    find_package(OpenSSL "1.1.1" REQUIRED)
+    if (ENABLE_OPENSSL3)
+        set(OPENSSL_BACKEND_NAME "OpenSSL 3.5")
+        message(STATUS "Using ${OPENSSL_BACKEND_NAME} backend (OpenSSL >= ${OPENSSL_MODERN_MIN_VERSION})")
+        find_package(OpenSSL ${OPENSSL_MODERN_MIN_VERSION} REQUIRED COMPONENTS Crypto SSL)
+        list(APPEND CERTIFIER_BACKEND_DEFINITIONS CERTIFIER_OPENSSL3)
+    else ()
+        set(OPENSSL_BACKEND_NAME "legacy OpenSSL")
+        message(STATUS "Using ${OPENSSL_BACKEND_NAME} backend (OpenSSL >= ${OPENSSL_LEGACY_MIN_VERSION})")
+        find_package(OpenSSL ${OPENSSL_LEGACY_MIN_VERSION} REQUIRED COMPONENTS Crypto SSL)
+        list(APPEND CERTIFIER_BACKEND_DEFINITIONS CERTIFIER_OPENSSL_LEGACY)
+    endif ()
+
+    set(OPENSSL_BACKEND_LIBRARIES OpenSSL::Crypto OpenSSL::SSL)
 endif ()
 
-if ("${ENABLE_PRINTING}" STREQUAL "0")
+message(STATUS "Crypto backend: ${OPENSSL_BACKEND_NAME}")
+if (OpenSSL_VERSION)
+    message(STATUS "Detected OpenSSL version: ${OpenSSL_VERSION}")
+endif ()
+
+if (ENABLE_PRINTING STREQUAL "0")
     message(STATUS "DEFAULT_LOG_LEVEL set to 6")
     add_definitions(-DDEFAULT_LOG_LEVEL=6)
 else()
@@ -70,12 +109,12 @@ if (NOT CURL_LIBRARIES)
     find_library(CURL_LIBRARIES curl)
 endif()
 
-if (${ENABLE_MBEDTLS})
+if (ENABLE_MBEDTLS)
     set(CERTIFIER_LIBS ${ZLIB_LIBRARIES} ${CURL_LIBRARIES} ${MBEDTLS_LIBRARIES})
     set(CERTIFIER_INCLUDE_DIRS ${ZLIB_INCLUDE_DIR} ${MBEDTLS_INCLUDE_DIRS} ${CURL_INCLUDE_DIR})
 else ()
-    set(CERTIFIER_LIBS ${ZLIB_LIBRARIES} ${CURL_LIBRARIES} ${OPENSSL_LIBRARIES} )
-    set(CERTIFIER_INCLUDE_DIRS ${ZLIB_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIR})
+    set(CERTIFIER_LIBS ${ZLIB_LIBRARIES} ${CURL_LIBRARIES} ${OPENSSL_BACKEND_LIBRARIES})
+    set(CERTIFIER_INCLUDE_DIRS ${ZLIB_INCLUDE_DIR} ${CURL_INCLUDE_DIR})
     include(CheckLibraryExists)
 endif ()
 list(REMOVE_DUPLICATES CERTIFIER_INCLUDE_DIRS)
@@ -98,9 +137,11 @@ set_property(TARGET certifier_ PROPERTY VERSION ${MAJOR}.${MINOR})
 
 target_include_directories(certifier PUBLIC include PRIVATE internal_headers ${CERTIFIER_INCLUDE_DIRS} ${MBED_TLS_INCLUDE_DIR})
 target_link_libraries(certifier ${CERTIFIER_LIBS})
+target_compile_definitions(certifier PRIVATE ${CERTIFIER_BACKEND_DEFINITIONS})
 
 target_include_directories(certifier_ PUBLIC include PRIVATE internal_headers ${CERTIFIER_INCLUDE_DIRS} ${MBED_TLS_INCLUDE_DIR} ${CERTIFIER_INCLUDES})
 target_link_libraries(certifier_ ${CERTIFIER_LIBS})
+target_compile_definitions(certifier_ PRIVATE ${CERTIFIER_BACKEND_DEFINITIONS})
 SET_TARGET_PROPERTIES(certifier_ PROPERTIES
    OUTPUT_NAME certifier CLEAN_DIRECT_OUTPUT 1)
 
@@ -115,7 +156,7 @@ target_include_directories(certifierUtil PUBLIC include PRIVATE internal_headers
 target_include_directories(certifier PUBLIC include PRIVATE internal_headers ${CERTIFIER_INCLUDES})
 target_link_libraries(certifier ${CERTIFIER_LIBS})
 
-add_definitions(-D_GNU_SOURCE -DCERTIFIER_VERSION="${VERSION}")
+add_definitions(-D_GNU_SOURCE -DCERTIFIER_VERSION=\"${VERSION}\")
 
 set(DISABLE_WARNINGS "")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall ${DISABLE_WARNINGS} -std=c99")
@@ -285,6 +326,8 @@ if (${ENABLE_TESTS})
         target_include_directories(${PROJECT_NAME} PUBLIC include "tests/Unity/include" ${CERTIFIER_INCLUDE_DIRS} PRIVATE internal_headers)
         target_link_libraries(${PROJECT_NAME} ${CERTIFIER_LIBS})
     endif ()
+
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ${CERTIFIER_BACKEND_DEFINITIONS})
     
     add_test(NAME certifier-tests COMMAND ${PROJECT_NAME})
 

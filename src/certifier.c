@@ -392,8 +392,8 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
     CertifierError certifier_err_info = CERTIFIER_ERROR_INITIALIZER;
     X509_LIST * certs                 = NULL;
     const char * password             = NULL;
-    unsigned char *x509_der;
-    size_t x509_len;
+    // unsigned char *x509_der;
+    // size_t x509_len;
 
     log_info("\nTrimming x509 certificates...\n");
     util_trim(x509_certs);
@@ -416,7 +416,9 @@ static int save_x509certs_to_filesystem(Certifier * certifier, char * x509_certs
     }
 
     /* Cert is owned by the 'certs' stack; create our own copy and save it */
-    _certifier_set_x509_cert(certifier, security_cert_list_pop(certs, 0));
+    X509_CERT * cert_from_list = security_cert_list_pop(certs, 0);
+    _certifier_set_x509_cert(certifier, cert_from_list);
+    security_free_cert(cert_from_list);
     if (certifier->tmp_map.x509_cert == NULL)
     {
         rc = CERTIFIER_ERR_REGISTER_SECURITY_6;
@@ -835,7 +837,7 @@ void certifier_print_certificate(Certifier * certifier, const char * pem, int pe
 
 void certifier_print_certificate_validity(Certifier * certifier)
 {
-    char time[64];
+    char time[64] = {0};
     security_get_before_time_validity(get_cert(certifier), time, sizeof(time));
     XFPRINTF(stdout, "Valid from: \t%s\n", time);
     security_get_not_after_time_validity(get_cert(certifier), time, sizeof(time));
@@ -878,15 +880,13 @@ CertifierPropMap * _certifier_get_properties(Certifier * certifier)
 
 void _certifier_set_x509_cert(Certifier * certifier, const X509_CERT * cert)
 {
-    security_free_cert(certifier->tmp_map.x509_cert);
-    X509_CERT * tmp = NULL;
-
-    if (cert != NULL)
+    if (certifier == NULL)
     {
-        tmp = cert;
+        return;
     }
 
-    certifier->tmp_map.x509_cert = tmp;
+    security_free_cert(certifier->tmp_map.x509_cert);
+    certifier->tmp_map.x509_cert = cert == NULL ? NULL : security_dup_cert(cert);
 }
 
 void _certifier_set_ecc_key(Certifier * certifier, const ECC_KEY * key)

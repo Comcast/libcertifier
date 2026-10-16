@@ -188,7 +188,16 @@ typedef mbedtls_pk_context ECC_KEY;
 typedef struct mbedtls_x509_crt X509_CERT;
 typedef struct mbedtls_x509_crt X509_LIST;
 #else
+#ifdef CERTIFIER_OPENSSL3
+/*
+ * OpenSSL 3 keys are provider-backed EVP_PKEY objects.  ECC_KEY remains an
+ * opaque pointer in the public/internal API, so this changes no function
+ * signatures while avoiding exposure of deprecated EC_KEY APIs.
+ */
+typedef struct evp_pkey_st ECC_KEY;
+#else
 typedef struct ec_key_st ECC_KEY;
+#endif
 typedef struct x509_st X509_CERT;
 typedef struct stack_st_X509 X509_LIST;
 #endif

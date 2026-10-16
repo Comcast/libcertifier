@@ -43,14 +43,16 @@ Certifier * get_certifier_instance()
 
 XPKI_AUTH_TYPE map_to_xpki_auth_type(const char * str)
 {
+    XPKI_AUTH_TYPE ret = XPKI_AUTH_X509;
     if (strcmp(str, "X509") == 0)
     {
-        return XPKI_AUTH_X509;
+        ret = XPKI_AUTH_X509;
     }
     else if (strcmp(str, "SAT") == 0)
     {
-        return XPKI_AUTH_SAT;
+        ret = XPKI_AUTH_SAT;
     }
+    return ret;
 }
 
 const char * xpki_auth_type_to_string(XPKI_AUTH_TYPE auth_type)

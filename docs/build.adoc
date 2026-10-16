@@ -7,14 +7,14 @@ xref:libcertifier.adoc[*Back to Manual*]
 |=======
 | *Component* | *Version* | *Notes*
 | C Compiler | TBD | Ubuntu 19.x - Consider using `sudo apt-get install build-essential`
-| OpenSSL | 1.1.1  (or higher)|Ubuntu 19.x - Consider using `sudo apt-get install libssl-dev` 
+| OpenSSL | 1.1.1 or 3.5 (depending on backend)|Ubuntu 19.x - Consider using `sudo apt-get install libssl-dev`
 | CMake | 3.12 (or higher) | Ubuntu 19.x - Consider using `sudo apt-get install cmake` 
 | cURL | 7.65 (or higher) | Ubuntu 19.x - Consider using `sudo apt-get install libcurl4-openssl-dev` 
 | zLib | 1.2.11 (or higher) | Ubuntu 19.x - Consider using `sudo apt install zlib1g-dev`
 | cMocka | 1.1 | https://cmocka.org/ Ubuntu 19.x - Consider using `sudo apt-get install libcmocka-dev`
 | mbedTLS | Optional | Ubuntu 19.x - Consider using `sudo apt-get install -y libmbedtls-dev` +
 cURL has to be compiled with mbedTLS.  Please see -  `+https://tls.mbed.org/kb/how-to/compile-curl-with-mbedtls+`
-| Valgrind | Optional | Ubuntu 18.x - Consider using `sudo apt-get install -y valgrind` |
+| Valgrind | Optional | Ubuntu 18.x - Consider using `sudo apt-get install -y valgrind` 
 |=======
 === Build types
 
@@ -38,6 +38,15 @@ With `OpenSSL` & Tests & Valgrind ready & Debug configuration
 mkdir -p Debug
 cd Debug
 cmake .. -DENABLE_CMAKE_VERBOSE_MAKEFILE=ON -DENABLE_CMOCKA=OFF -DENABLE_MBEDTLS=OFF -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+
+----
+The default build uses the OpenSSL 1.1.1-compatible implementation. 
+To build the provider-based OpenSSL 3.5 implementation, enable `ENABLE_OPENSSL3`:
+`ENABLE_OPENSSL3=ON` requires OpenSSL 3.5 or newer. 
+
+----
+cmake .. -DENABLE_MBEDTLS=OFF -DENABLE_OPENSSL3=ON -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+cmake --build .
 ----
 
 With `mbedTLS` & Tests & ASAN configuration
@@ -65,6 +74,7 @@ Now, run the functional test below.  This script will attempt to read the device
 |=======
 | *Name* | *Default Value* | *Description*
 | ENABLE_MBEDTLS | OFF | Enables mbedTLS as the crypto provider.  Otherwise, OpenSSL is the default.
+| ENABLE_OPENSSL3 | OFF | Uses the OpenSSL 3.5 provider-based backend. Requires OpenSSL 3.5 or newer.
 | ENABLE_TESTS | OFF | Build unit tests (requires CMocka or Unit to be used)
 | ENABLE_CMOCKA | OFF | Unit testing framework to use.  If OFF, Unit (self-contained is used)
 | ENABLE_CMAKE_VERBOSE_MAKEFILE | OFF | Enable verbose nakefiles for debugging

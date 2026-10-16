@@ -39,6 +39,10 @@
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 #include <openssl/ripemd.h>
+#ifdef CERTIFIER_OPENSSL3
+#include <openssl/core_names.h>
+#include <openssl/provider.h>
+#endif
 
 #include <openssl/buffer.h>
 #include <openssl/hmac.h>
@@ -61,6 +65,13 @@
 #define DEFAULT_P12_ENC_ALGORITHM "AES-128-CBC"
 #define SECS_IN_DAY 86400
 
+#ifdef CERTIFIER_OPENSSL3
+// OpenSSL 3 loads algorithms from providers; keep handles for cleanup.
+static OSSL_PROVIDER *openssl_default_provider;
+// RIPEMD-160 is supplied by the compatibility provider.
+static OSSL_PROVIDER *openssl_legacy_provider;
+#endif
+
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x10100000L
 #define SECURITY_NEED_CRYPTO_INIT
 #endif
@@ -70,7 +81,6 @@ int add_ext(STACK_OF(X509_EXTENSION) * sk, int nid, char * value);
 ECC_KEY * security_get_key_from_cert(X509_CERT * cert)
 {
     EVP_PKEY * public_key;
-    ECC_KEY * ecc_key;
 
     if (cert == NULL)
     {
@@ -78,10 +88,21 @@ ECC_KEY * security_get_key_from_cert(X509_CERT * cert)
     }
 
     public_key = X509_get_pubkey(cert);
-    ecc_key    = EVP_PKEY_get1_EC_KEY(public_key);
-    EVP_PKEY_free(public_key);
+    if (public_key == NULL)
+    {
+        return NULL;
+    }
 
+#ifdef CERTIFIER_OPENSSL3
+    // ECC_KEY is EVP_PKEY in the provider-based backend; return its owned reference.
+    return public_key;
+#else
+    // Legacy ECC_KEY is EC_KEY; extract it before releasing the temporary EVP_PKEY.
+    ECC_KEY * ecc_key;
+    ecc_key = EVP_PKEY_get1_EC_KEY(public_key);
+    EVP_PKEY_free(public_key);
     return ecc_key;
+#endif
 }
 
 // Functions
@@ -92,6 +113,17 @@ CertifierError security_init(void)
     CertifierError result = CERTIFIER_ERROR_INITIALIZER;
 
     ERR_clear_error();
+
+#ifdef CERTIFIER_OPENSSL3
+    // Load standard algorithms and legacy RIPEMD-160 support.
+    openssl_default_provider = OSSL_PROVIDER_load(NULL, "default");
+    openssl_legacy_provider = OSSL_PROVIDER_load(NULL, "legacy");
+    if (openssl_default_provider == NULL || openssl_legacy_provider == NULL)
+    {
+        result.application_error_code = OPENSSL_ERR_1;
+        result.application_error_msg = util_format_error_here("Unable to load OpenSSL providers.");
+    }
+#endif
 
 #ifdef SECURITY_NEED_CRYPTO_INIT
     // Initialize openssl
@@ -131,6 +163,13 @@ exit:
 
 void security_destroy(void)
 {
+#ifdef CERTIFIER_OPENSSL3
+    // Release the provider modules loaded during security_init().
+    OSSL_PROVIDER_unload(openssl_legacy_provider);
+    OSSL_PROVIDER_unload(openssl_default_provider);
+    openssl_legacy_provider = NULL;
+    openssl_default_provider = NULL;
+#endif
 #ifdef SECURITY_NEED_CRYPTO_INIT
     EVP_cleanup();
     ERR_free_strings();
@@ -168,11 +207,22 @@ unsigned char * security_generate_csr(ECC_KEY * eckey, size_t * retlen)
         goto cleanup;
     }
 
+#ifdef CERTIFIER_OPENSSL3
+    // OpenSSL 3 keeps the provider-backed EVP_PKEY; no EC_KEY conversion is needed.
+    if (!EVP_PKEY_up_ref(eckey))
+    {
+        log_error("EVP_PKEY_up_ref failed.");
+        goto cleanup;
+    }
+    EVP_PKEY_free(pk);
+    pk = eckey;
+#else
     if (!EVP_PKEY_set1_EC_KEY(pk, eckey))
     {
         log_error("EVP_PKEY_set1_EC_KEY failed.");
         goto cleanup;
     }
+#endif
 
     X509_REQ_set_pubkey(x, pk);
 
@@ -228,18 +278,27 @@ int add_ext(STACK_OF(X509_EXTENSION) * sk, int nid, char * value)
 int security_persist_pkcs_12_file(const char * filename, const char * pwd, ECC_KEY * prikey, X509_CERT * cert, X509_LIST * certs,
                                   CertifierError * result)
 {
-    int ppbe                         = 0;
+    int nid_key                      = 0;
+    int nid_cert                     = 0;
     unsigned long openssl_error_code = 0;
     PKCS12 * pkcs12bundle            = NULL;
     XFILE pkcs12file                 = NULL;
     EVP_PKEY * pkey                  = NULL;
     int bytes                        = 0;
+    int iter                         = 50000;
+    int mac_iter                     = 50000;
     char * tmpfilename               = util_format_str("%s.tmp", filename);
     char * error_message             = NULL;
 
-    // Get the private key and convert from ECC to EVP_PKEY format
+    // Get the private key in the format required by PKCS#12.
+#ifdef CERTIFIER_OPENSSL3
+    // OpenSSL 3 already provides an EVP_PKEY, so retain that reference for PKCS#12.
+    pkey = prikey;
+    if (pkey == NULL || !EVP_PKEY_up_ref(pkey))
+#else
     pkey = EVP_PKEY_new();
-    if (EVP_PKEY_set1_EC_KEY(pkey, prikey) == 0)
+    if (pkey == NULL || EVP_PKEY_set1_EC_KEY(pkey, prikey) == 0)
+#endif
     {
         result->application_error_code = OPENSSL_ERR_1;
         result->application_error_msg  = util_format_error(__func__, "EVP_PKEY_set1_EC_KEY failed.", __FILE__, __LINE__);
@@ -268,8 +327,14 @@ int security_persist_pkcs_12_file(const char * filename, const char * pwd, ECC_K
     }
     */
 
-    ppbe = OBJ_txt2nid(DEFAULT_P12_ENC_ALGORITHM);
-    if (ppbe == NID_undef)
+    /*
+     * Keep the PKCS#12 format explicit across OpenSSL backends:
+     * PBES2/PBKDF2 with AES-128-CBC and 50,000 iterations for both
+     * certificate and private-key encryption, plus the outer MAC.
+     */
+    nid_key = OBJ_txt2nid(DEFAULT_P12_ENC_ALGORITHM);
+    nid_cert = nid_key;
+    if (nid_key == NID_undef)
     {
         log_error("\n<<< Unknown PBE algorithm. >>>\n");
         result->application_error_code = OPENSSL_ERR_3;
@@ -289,11 +354,11 @@ int security_persist_pkcs_12_file(const char * filename, const char * pwd, ECC_K
                                  pkey,         // the certificate private key
                                  cert,         // the main certificate
                                  certs,        // stack of CA cert chain
-                                 ppbe,         // int nid_key (default 3DES)
-                                 ppbe,         // int nid_cert (40bitRC2)
-                                 50000,        // int iter (default 2048)
-                                 50000,        // int mac_iter (default 1)
-                                 0);           // int keytype (default no flag)
+                                 nid_key,      // private-key encryption algorithm
+                                 nid_cert,     // certificate encryption algorithm
+                                 iter,         // encryption iteration count
+                                 mac_iter,     // MAC iteration count
+                                 0);           // no key-usage restriction
     if (pkcs12bundle == NULL)
     {
         log_error("\n<<< Error generating a valid PKCS12 certificate. >>>\n");
@@ -412,13 +477,24 @@ cleanup:
 
 struct sha1_ctx_st
 {
+#ifdef CERTIFIER_OPENSSL3
+    // OpenSSL 3 uses heap-allocated EVP digest contexts instead of SHA1_CTX.
+    EVP_MD_CTX * h;
+#else
     SHA_CTX h;
+#endif
 };
 
 sha1_ctx * security_sha1_init()
 {
-    sha1_ctx * ctx = XMALLOC(sizeof(struct sha1_ctx_st)); /* */
+    sha1_ctx * ctx = XMALLOC(sizeof(struct sha1_ctx_st));
+#ifdef CERTIFIER_OPENSSL3
+    // Initialize SHA-1 through the provider-aware EVP interface.
+    ctx->h = EVP_MD_CTX_new();
+    if (ctx->h == NULL || EVP_DigestInit_ex(ctx->h, EVP_sha1(), NULL) != 1)
+#else
     if (SHA1_Init(&ctx->h) != 1)
+#endif
     {
         XFREE(ctx);
         return NULL;
@@ -428,26 +504,48 @@ sha1_ctx * security_sha1_init()
 
 int security_sha1_update(sha1_ctx * ctx, const unsigned char input[], size_t len)
 {
+#ifdef CERTIFIER_OPENSSL3
+    // Feed SHA-1 data through the EVP digest context.
+    return EVP_DigestUpdate(ctx->h, input, len) == 1 ? 0 : -1;
+#else
     return SHA1_Update(&ctx->h, input, len) == 1 ? 0 : -1;
+#endif
 }
 
 int security_sha1_finish(sha1_ctx * ctx, unsigned char * digest)
 {
     int rc = 0;
-    rc     = SHA1_Final(digest, &ctx->h) == 1 ? 0 : -1;
+#ifdef CERTIFIER_OPENSSL3
+    // Finalize and release the OpenSSL 3 SHA-1 context.
+    rc = EVP_DigestFinal_ex(ctx->h, digest, NULL) == 1 ? 0 : -1;
+    EVP_MD_CTX_free(ctx->h);
+#else
+    rc = SHA1_Final(digest, &ctx->h) == 1 ? 0 : -1;
+#endif
     XFREE(ctx);
     return rc;
 }
 
 struct sha256_ctx_st
 {
+#ifdef CERTIFIER_OPENSSL3
+    // OpenSSL 3 uses an EVP context for SHA-256 as well.
+    EVP_MD_CTX * h;
+#else
     SHA256_CTX h;
+#endif
 };
 
 sha256_ctx * security_sha256_init()
 {
-    sha256_ctx * ctx = XMALLOC(sizeof(struct sha256_ctx_st)); /* */
+    sha256_ctx * ctx = XMALLOC(sizeof(struct sha256_ctx_st));
+#ifdef CERTIFIER_OPENSSL3
+    // Initialize SHA-256 through the provider-aware EVP interface.
+    ctx->h = EVP_MD_CTX_new();
+    if (ctx->h == NULL || EVP_DigestInit_ex(ctx->h, EVP_sha256(), NULL) != 1)
+#else
     if (SHA256_Init(&ctx->h) != 1)
+#endif
     {
         XFREE(ctx);
         return NULL;
@@ -457,22 +555,49 @@ sha256_ctx * security_sha256_init()
 
 int security_sha256_update(sha256_ctx * ctx, const unsigned char input[], size_t len)
 {
+#ifdef CERTIFIER_OPENSSL3
+    // Feed SHA-256 data through the EVP digest context.
+    return EVP_DigestUpdate(ctx->h, input, len) == 1 ? 0 : -1;
+#else
     return SHA256_Update(&ctx->h, input, len) == 1 ? 0 : -1;
+#endif
 }
 
 int security_sha256_finish(sha256_ctx * ctx, unsigned char * digest)
 {
     int rc = 0;
-    rc     = SHA256_Final(digest, &ctx->h) == 1 ? 0 : -1;
+#ifdef CERTIFIER_OPENSSL3
+    // Finalize and release the OpenSSL 3 SHA-256 context.
+    rc = EVP_DigestFinal_ex(ctx->h, digest, NULL) == 1 ? 0 : -1;
+    EVP_MD_CTX_free(ctx->h);
+#else
+    rc = SHA256_Final(digest, &ctx->h) == 1 ? 0 : -1;
+#endif
     XFREE(ctx);
     return rc;
 }
 
 CertifierError security_rmd160(uint8_t * digest, const uint8_t * message, size_t len)
 {
-    RIPEMD160_CTX ctx;
     CertifierError result = CERTIFIER_ERROR_INITIALIZER;
 
+#ifdef CERTIFIER_OPENSSL3
+    // Fetch RIPEMD-160 from the legacy provider for address compatibility.
+    EVP_MD * md = EVP_MD_fetch(NULL, "RIPEMD160", "provider=legacy");
+    EVP_MD_CTX * ctx = EVP_MD_CTX_new();
+    unsigned int digest_len = 0;
+    if (md == NULL || ctx == NULL || EVP_DigestInit_ex(ctx, md, NULL) != 1 ||
+        EVP_DigestUpdate(ctx, message, len) != 1 ||
+        EVP_DigestFinal_ex(ctx, digest, &digest_len) != 1)
+    {
+        result.application_error_code = OPENSSL_ERR_1;
+        result.application_error_msg = util_format_error_here("OpenSSL RIPEMD-160 digest failed.");
+    }
+    EVP_MD_CTX_free(ctx);
+    EVP_MD_free(md);
+    return result;
+#else
+    RIPEMD160_CTX ctx;
     if (RIPEMD160_Init(&ctx) != 1)
     {
         result.application_error_msg  = util_format_error(__func__, "RIPEMD160_Init failed.", __FILE__, __LINE__);
@@ -490,6 +615,7 @@ CertifierError security_rmd160(uint8_t * digest, const uint8_t * message, size_t
     }
 
     return result;
+#endif
 }
 
 CertifierError security_verify_signature(ECC_KEY * key, const char * signature_b64, const unsigned char * input, int input_len)
@@ -544,19 +670,19 @@ int security_verify_hash(ECC_KEY * key, const unsigned char * sig, size_t sig_le
 {
     EVP_PKEY_CTX * ctx    = NULL;
     EVP_PKEY * pkey       = NULL;
-    ECC_KEY * ec_pub_only = NULL;
     int rc                = 4000; /* expected error for invalid sig */
     int r;
 
-    pkey = EVP_PKEY_new();
-    if (pkey == NULL)
+#ifdef CERTIFIER_OPENSSL3
+    // Use the provider-backed public key directly for verification.
+    pkey = key;
+    if (pkey == NULL || !EVP_PKEY_up_ref(pkey))
         goto done;
-
-    if (ec_pub_only == NULL)
-    {
-        if (!EVP_PKEY_set1_EC_KEY(pkey, key))
-            goto done;
-    }
+#else
+    pkey = EVP_PKEY_new();
+    if (pkey == NULL || !EVP_PKEY_set1_EC_KEY(pkey, key))
+        goto done;
+#endif
 
     ctx = EVP_PKEY_CTX_new(pkey, NULL);
 
@@ -580,7 +706,6 @@ int security_verify_hash(ECC_KEY * key, const unsigned char * sig, size_t sig_le
 done:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
-    EC_KEY_free(ec_pub_only);
     return rc;
 }
 
@@ -592,14 +717,25 @@ unsigned char * security_sign_hash(const ECC_KEY * ecc_key, const unsigned char 
     unsigned char * der = NULL;
     size_t der_len      = 0;
 
+#ifdef CERTIFIER_OPENSSL3
+    // Use the provider-backed private key directly for signing.
+    der_len = 256;
+#else
     der_len = ECDSA_size(ecc_key);
+#endif
 
+#ifdef CERTIFIER_OPENSSL3
+    pkey = (EVP_PKEY *) ecc_key;
+    if (pkey == NULL || !EVP_PKEY_up_ref(pkey))
+        goto done;
+#else
     pkey = EVP_PKEY_new();
     if (pkey == NULL)
         goto done;
 
     if (!EVP_PKEY_set1_EC_KEY(pkey, (ECC_KEY *) ecc_key))
         goto done;
+#endif
 
     ctx = EVP_PKEY_CTX_new(pkey, NULL);
 
@@ -634,6 +770,21 @@ ECC_KEY * security_create_new_ec_key(CertifierPropMap * properties, const char *
 
     log_debug("\nGenerating Elliptic Curve Key Pair...\n");
 
+    // Create a provider-backed key in OpenSSL 3 and a legacy EC_KEY otherwise.
+#ifdef CERTIFIER_OPENSSL3
+    // Generate an EC key through the OpenSSL 3 provider interface.
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+    if (ctx == NULL || EVP_PKEY_keygen_init(ctx) <= 0 ||
+        EVP_PKEY_CTX_set_group_name(ctx, curve_id) <= 0 ||
+        EVP_PKEY_generate(ctx, &eckey) <= 0)
+    {
+        log_error("\nCould not generate an EC key with name: %s\n", curve_id);
+        EVP_PKEY_CTX_free(ctx);
+        return NULL;
+    }
+    EVP_PKEY_CTX_free(ctx);
+    return eckey;
+#else
     // Create a EC key structure, setting the group type from NID
     eckey = EC_KEY_new_by_curve_name(OBJ_txt2nid(curve_id));
 
@@ -654,6 +805,7 @@ ECC_KEY * security_create_new_ec_key(CertifierPropMap * properties, const char *
     }
 
     return eckey;
+#endif
 }
 
 char * ossl_err_as_string(void)
@@ -746,7 +898,13 @@ CertifierError security_find_or_create_keys(CertifierPropMap * properties, const
 
             if (err == 1)
             {
+#ifdef CERTIFIER_OPENSSL3
+                // Keep the provider-backed EVP_PKEY returned by PKCS12_parse().
+                eckey = pri;
+                pri = NULL;
+#else
                 eckey = EVP_PKEY_get1_EC_KEY(pri);
+#endif
             }
             else
             {
@@ -1024,7 +1182,13 @@ cleanup:
     }
     else
     {
+#ifdef CERTIFIER_OPENSSL3
+        // Return the provider-backed EVP_PKEY without converting it to EC_KEY.
+        *out_keypair = pkey;
+        pkey = NULL;
+#else
         *out_keypair = EVP_PKEY_get1_EC_KEY(pkey);
+#endif
     }
 
     if (fp)
@@ -1044,11 +1208,23 @@ cleanup:
 
 void security_free_eckey(ECC_KEY * eckey)
 {
+#ifdef CERTIFIER_OPENSSL3
+    // ECC_KEY is an EVP_PKEY in the OpenSSL 3 backend.
+    EVP_PKEY_free(eckey);
+#else
     EC_KEY_free(eckey);
+#endif
 }
 
 ECC_KEY * security_dup_eckey(const ECC_KEY * eckey)
 {
+#ifdef CERTIFIER_OPENSSL3
+    // EVP_PKEY uses reference counting; duplicate ownership without copying internals.
+    EVP_PKEY * key = (EVP_PKEY *) eckey;
+    if (key != NULL && EVP_PKEY_up_ref(key))
+        return key;
+    return NULL;
+#else
     ECC_KEY * key = NULL;
     if (eckey != NULL)
     {
@@ -1056,6 +1232,7 @@ ECC_KEY * security_dup_eckey(const ECC_KEY * eckey)
     }
 
     return key;
+#endif
 }
 
 int security_get_random_bytes(unsigned char * out, int len)
@@ -1308,7 +1485,12 @@ ECC_KEY * security_get_key_from_der(unsigned char * der_public_key, int der_publ
 {
     BIO * bio = BIO_new_mem_buf(der_public_key, der_public_key_len);
 
+#ifdef CERTIFIER_OPENSSL3
+    // Read a provider-backed public key using the generic EVP_PKEY format.
+    ECC_KEY * key = d2i_PUBKEY_bio(bio, NULL);
+#else
     ECC_KEY * key = d2i_EC_PUBKEY_bio(bio, NULL);
+#endif
 
     BIO_free_all(bio);
 
@@ -1319,7 +1501,12 @@ ECC_KEY * security_get_private_key_from_der(unsigned char * der_key, int der_key
 {
     BIO * bio = BIO_new_mem_buf(der_key, der_key_len);
 
+#ifdef CERTIFIER_OPENSSL3
+    // Read a provider-backed private key using the generic EVP_PKEY format.
+    ECC_KEY * key = d2i_PrivateKey_bio(bio, NULL);
+#else
     ECC_KEY * key = d2i_ECPrivateKey_bio(bio, NULL);
+#endif
 
     BIO_free_all(bio);
 
@@ -1330,7 +1517,12 @@ int security_serialize_der_public_key(ECC_KEY * ec_key, unsigned char ** der_pub
 {
     int der_len = 0;
 
+#ifdef CERTIFIER_OPENSSL3
+    // Serialize the provider-backed key through the generic EVP_PKEY encoder.
+    der_len = i2d_PUBKEY(ec_key, der_public_key);
+#else
     der_len = i2d_EC_PUBKEY(ec_key, der_public_key);
+#endif
 
     if (der_len < 0)
         return 0;
@@ -1341,6 +1533,13 @@ int security_serialize_der_public_key(ECC_KEY * ec_key, unsigned char ** der_pub
 int security_serialize_raw_public_key(ECC_KEY * ec_key, unsigned char * public_key, size_t public_key_capacity)
 {
     int len            = 0;
+#ifdef CERTIFIER_OPENSSL3
+    // Export the provider-backed public point as the standard 65-byte P-256 value.
+    size_t actual_len = 0;
+    if (EVP_PKEY_get_octet_string_param(ec_key, OSSL_PKEY_PARAM_PUB_KEY, public_key, public_key_capacity, &actual_len) != 1)
+        return 0;
+    return actual_len == 65 ? (int) actual_len : 0;
+#else
     EC_GROUP * group   = NULL;
     size_t pubkey_size = 0;
 
@@ -1374,10 +1573,19 @@ exit:
     }
 
     return len;
+#endif
 }
 
 int security_serialize_raw_private_key(ECC_KEY * ec_key, unsigned char * private_key, size_t private_key_capacity)
 {
+#ifdef CERTIFIER_OPENSSL3
+    // Export the provider-backed private scalar as the standard 32-byte P-256 value.
+    size_t actual_len = 0;
+    if (private_key_capacity != 32 ||
+        EVP_PKEY_get_octet_string_param(ec_key, OSSL_PKEY_PARAM_PRIV_KEY, private_key, private_key_capacity, &actual_len) != 1)
+        return 0;
+    return actual_len == private_key_capacity ? (int) actual_len : 0;
+#else
     if (private_key_capacity != 32)
     {
         return 0;
@@ -1398,6 +1606,7 @@ int security_serialize_raw_private_key(ECC_KEY * ec_key, unsigned char * private
     }
 
     return privkey_size;
+#endif
 }
 
 CertifierError security_check_x509_valid_range(time_t current_time, long min_secs_left, X509_CERT * cert,
@@ -1468,8 +1677,8 @@ CertifierError security_check_x509_valid_range(time_t current_time, long min_sec
 
     if (min_secs_left != 0)
     {
-        int diff_day;
-        int diff_sec;
+        int diff_day = 0;
+        int diff_sec = 0;
 
         if (ASN1_TIME_diff(&diff_day, &diff_sec, NULL, after_time))
         {
