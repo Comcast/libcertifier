@@ -482,7 +482,6 @@ int certifier_renew_certificate(Certifier * certifier)
     if (x509_certs == NULL || certificate_status.application_error_code != 0)
     {
         log_error("\n<<< Failed to Request X509 Certificate! >>>\n");
-        assign_last_error(certifier, &certificate_status);
         return_code = CERTIFIER_ERR_RENEW_CERT_1 + certificate_status.application_error_code;
         goto cleanup;
     }
