@@ -26,6 +26,9 @@
 #include <certifier/types.h>
 #include <certifier/xpki_client_internal.h>
 
+#include <sys/stat.h>
+#include <string.h>
+#include <unistd.h>
 #define SYSTEM_ID_SIZE 40
 
 Certifier * get_certifier_instance()
@@ -116,6 +119,78 @@ static bool is_mac_valid(const char * mac, size_t mac_len)
     // FIXME: this is unsafe. sscanf is evil.
     return (6 == sscanf(mac, "%02X:%02X:%02X:%02X:%02X:%02X", &bytes[5], &bytes[4], &bytes[3], &bytes[2], &bytes[1], &bytes[0]));
 }
+
+/**
+ * Validates that a P12 input file is properly formed, readable, and has proper permissions.
+ *
+ * @param p12_path Path to the PKCS12 file
+ * @return true if file is valid, false otherwise
+ *
+ * Checks:
+ * - p12_path is not NULL
+ * - file exists and is accessible
+ * - file is a regular file (not directory, symlink, etc.)
+ * - file is not empty (size > 0)
+ * - file is readable (R_OK)
+ */
+static bool is_p12_file_valid(const char * p12_path)
+{
+    struct stat st;
+
+    return (p12_path != NULL &&
+            stat(p12_path, &st) == 0 &&
+            S_ISREG(st.st_mode) &&
+            st.st_size > 0 &&
+            access(p12_path, R_OK) == 0);
+}
+
+/**
+ * Validates that a P12 output file path is writable.
+ *
+ * @param p12_path Path to the output PKCS12 file
+ * @return true if path is writable, false otherwise
+ *
+ * Checks:
+ * - p12_path is not NULL
+ * - if file exists: is a regular file and can be opened for writing
+ * - if file doesn't exist: can be created in the target location
+ */
+static bool is_p12_file_writable(const char * p12_path)
+{
+    struct stat st;
+    FILE * test_file;
+
+    if (p12_path == NULL)
+        return false;
+
+    // If file exists, verify it's a regular file and writable
+    if (stat(p12_path, &st) == 0)
+    {
+        if (!S_ISREG(st.st_mode))
+            return false;
+        // Try to open for appending (write-only test)
+        test_file = XFOPEN(p12_path, "a");
+        if (test_file != NULL)
+        {
+            XFCLOSE(test_file);
+            return true;
+        }
+        return false;
+    }
+
+    // File doesn't exist - try to create it to verify we have write permission
+    test_file = XFOPEN(p12_path, "w");
+    if (test_file != NULL)
+    {
+        XFCLOSE(test_file);
+        XREMOVE(p12_path);  // Clean up test file
+        return true;
+    }
+
+    return false;
+}
+
+
 
 XPKI_CLIENT_ERROR_CODE xc_set_source_id(const char * source_id)
 {
@@ -320,9 +395,15 @@ XPKI_CLIENT_ERROR_CODE xc_get_cert(get_cert_param_t * params)
     }
     else if (params->auth_type == XPKI_AUTH_X509)
     {
+        VerifyOrReturnError(params != NULL && params->input_p12_path != NULL && params->input_p12_password != NULL &&
+                            is_p12_file_valid(params->input_p12_path), XPKI_CLIENT_INVALID_ARGUMENT);
+
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, params->input_p12_path));
         ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, params->input_p12_password));
     }
+    VerifyOrReturnError(params != NULL && params->output_p12_path != NULL && params->output_p12_password != NULL &&
+                        is_p12_file_writable(params->output_p12_path), XPKI_CLIENT_INVALID_ARGUMENT);
+
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_OUTPUT_P12_PATH, params->output_p12_path));
     if (params->output_p12_password)
     {
@@ -458,8 +539,9 @@ static XPKI_CLIENT_ERROR_CODE _xc_renew_certificate(XPKI_AUTH_TYPE auth_type)
 
 XPKI_CLIENT_ERROR_CODE xc_renew_cert(renew_cert_param_t * params)
 {
-    VerifyOrReturnError(params != NULL && params->p12_path != NULL && params->p12_password != NULL && params->source_id != NULL,
-                        XPKI_CLIENT_INVALID_ARGUMENT);
+    VerifyOrReturnError(params != NULL && params->p12_path != NULL && params->p12_password != NULL && params->source_id != NULL &&
+                        is_p12_file_valid(params->p12_path) && is_p12_file_writable(params->p12_path), XPKI_CLIENT_INVALID_ARGUMENT);
+
 
     VerifyOrReturnError(xpki_auth_type_to_string(params->auth_type) != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
 
@@ -615,8 +697,8 @@ static XPKI_CLIENT_ERROR_CODE _xc_get_cert_status(XPKI_CLIENT_CERT_STATUS * stat
 
 XPKI_CLIENT_ERROR_CODE xc_get_cert_status(get_cert_status_param_t * params, XPKI_CLIENT_CERT_STATUS * status)
 {
-    VerifyOrReturnError(params != NULL && params->p12_path != NULL && params->p12_password != NULL && params->source_id != NULL,
-                        XPKI_CLIENT_INVALID_ARGUMENT);
+    VerifyOrReturnError(params != NULL && params->p12_path != NULL && params->p12_password != NULL && params->source_id != NULL &&
+                        is_p12_file_valid(params->p12_path), XPKI_CLIENT_INVALID_ARGUMENT);
 
     Certifier * certifier = get_certifier_instance();
 
@@ -657,7 +739,8 @@ static XPKI_CLIENT_ERROR_CODE _xc_get_cert_validity(XPKI_CLIENT_CERT_STATUS * st
 /* Based on current time, get certificate validity status */
 XPKI_CLIENT_ERROR_CODE xc_get_cert_validity(get_cert_validity_param_t * params, XPKI_CLIENT_CERT_STATUS * status)
 {
-    VerifyOrReturnError(params != NULL && params->p12_path != NULL && params->p12_password != NULL, XPKI_CLIENT_INVALID_ARGUMENT);
+    VerifyOrReturnError(params != NULL && params->p12_path != NULL && params->p12_password != NULL &&
+                        is_p12_file_valid(params->p12_path), XPKI_CLIENT_INVALID_ARGUMENT);
 
     Certifier * certifier = get_certifier_instance();
 
@@ -678,6 +761,8 @@ XPKI_CLIENT_ERROR_CODE xc_print_cert_validity(const char * p12_path, const char 
 {
     Certifier * certifier = get_certifier_instance();
 
+    VerifyOrReturnError(p12_path != NULL && password != NULL &&
+                        is_p12_file_valid(p12_path), XPKI_CLIENT_INVALID_ARGUMENT);
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PATH, p12_path));
     ReturnErrorOnFailure(certifier_set_property(certifier, CERTIFIER_OPT_INPUT_P12_PASSWORD, password));
 
