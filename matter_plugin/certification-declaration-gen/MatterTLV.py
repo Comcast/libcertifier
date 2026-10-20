@@ -25,7 +25,8 @@
 #
 
 import struct
-from collections import Mapping, Sequence, OrderedDict
+from collections import OrderedDict
+from collections.abc import Mapping, Sequence
 
 
 TLV_TYPE_SIGNED_INTEGER = 0x00

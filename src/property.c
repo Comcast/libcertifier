@@ -45,7 +45,6 @@
 #define DEFAULT_USER_CA_PATH "/usr/local/etc/certfier"
 #define DEFAULT_GLOBAL_CA_PATH "/etc/certifier"
 #define DEFAULT_CURDIR_CA_PATH "."
-#define DEFAULT_CERTIFIER_URL "https://certifier.xpki.io/v1/certifier"
 #define DEFAULT_PROFILE_NAME "XFN_Matter_OP_Class_3_ICA"
 #define DEFAULT_CERT_MIN_TIME_LEFT_S 90 * 24 * 60 * 60;
 #define DEFAULT_OPT_SOURCE "unset-libcertifier-c-native"
@@ -814,16 +813,6 @@ int property_set_defaults(CertifierPropMap * prop_map)
         if (return_code != 0)
         {
             log_error("Failed to set default property name: CERTIFIER_OPT_AUTH_TYPE with error code: %i", return_code);
-            return return_code;
-        }
-    }
-
-    if (prop_map->certifier_url == NULL)
-    {
-        return_code = property_set(prop_map, CERTIFIER_OPT_CERTIFIER_URL, DEFAULT_CERTIFIER_URL);
-        if (return_code != 0)
-        {
-            log_error("Failed to set default property name: CERTIFIER_OPT_CERTIFIER_URL with error code: %i", return_code);
             return return_code;
         }
     }

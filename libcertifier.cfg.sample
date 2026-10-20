@@ -1,5 +1,5 @@
 {
-  "libcertifier.certifier.url": "https://certifier.xpki.io/v1/certifier",
+  "libcertifier.certifier.url": "https://certifier-p01.xpki.io/v1/certifier",
   "libcertifier.profile.name": "XFN_Matter_OP_Class_3_ICA",
   "libcertifier.validity.days": 365,
   "libcertifier.auth.type": "X509",
