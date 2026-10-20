@@ -166,7 +166,7 @@ static http_response * do_http(const CertifierPropMap * props, const char * url,
     if (curl == NULL)
         return http_error_response("curl_easy_init failed", 0, 0);
 
-    for (i = 0; &http_headers[i] && http_headers[i]; ++i)
+    for (i = 0; http_headers != NULL && http_headers[i] != NULL; ++i)
     {
         chunk = curl_slist_append(chunk, http_headers[i]);
     }
