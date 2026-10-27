@@ -845,7 +845,15 @@ void certifier_print_certificate_validity(Certifier * certifier)
 static inline void assign_last_error(Certifier * certifier, CertifierError * error)
 {
     error_clear(&certifier->last_error);
-    certifier->last_error = *error;
+    certifier->last_error.application_error_code = error->application_error_code;
+    certifier->last_error.library_error_code     = error->library_error_code;
+    certifier->last_error.application_error_msg  = error->application_error_msg;
+    certifier->last_error.library_error_msg      = error->library_error_msg;
+    // Prevent double-free by nulling source pointers
+    error->application_error_msg = NULL;
+    error->library_error_msg     = NULL;
+    error->application_error_code = 0;
+    error->library_error_code     = 0;
 }
 
 /**
